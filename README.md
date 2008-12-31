@@ -124,6 +124,7 @@ As soon as the program starts, it spawns the __election daemon__, __folder monit
 * Create test modules
 * Make download faster
 * Incorporate tight security mechanism
+* Improve UI for file download progress bar
 
 ## Errors
 

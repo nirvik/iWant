@@ -13,6 +13,15 @@ A commandline tool for searching and downloading files in LAN network, without a
 * __Consistent data__: Any changes made to files inside the shared folder will be instantly reflected in the network 
 * __Cross Platform__: Works in Linux/Windows/Mac 
 
+## Why I built this ? 
+
+* I have always wished to type the name of the file I wanted in my terminal and download it if people around me had it. ( No leaving the terminal ) 
+* No third party registration. 
+* No crazy configuration. 
+* Wanted it to be cross platform. 
+* Zero downtime. 
+* Just terminal, nothing else. 
+
 ## Installation 
 ```sh
 python setup.py install --user
@@ -50,17 +59,17 @@ Run `iwanto start` (this runs the iwant service).
 ## Running server   
 In windows, admin access is required to run the server
 ```sh
-$ iwanto start
+iwanto start
 ```
 
 ## Search files    
 Type the name of file ;)  (P.S No need of accurate names)
 ```sh
-$ iwanto search <filename>
+iwanto search <filename>
 ```
 Example: 
 ```sh
-$ iwanto search "slicon valey"
+iwanto search "slicon valey"
 ```
 
 ## Download files  
@@ -82,7 +91,7 @@ Example:
 iwanto share /home/User/Movies/
 ```
 ## Change downloads folder  
-Changing downloads folder, while the iwant service is still running 
+Change download folder anytime (Even when iwant service is running)  
 ```sh
 iwanto change download path to <path>
 ```
@@ -90,7 +99,6 @@ Example:
 ```sh
 iwanto change download path to /home/User/Downloads
 ```
-
 
 ## Display your Shared/Donwload folder  
 ```sh
@@ -112,10 +120,12 @@ As soon as the program starts, it spawns the __election daemon__, __folder monit
     - Updates received from the __iwant client__ like `changing shared folder`, the __server daemon__ makes sure that the __folder monitoring daemon__ indexes the new folder and after indexing is complete, the __server daemon__ updates the leader with the new metainformation.
 4. The __iwant client__ talks to the __server daemon__ when the user wishes to `search`, `download`, `change shared folder` and `change download folder`
 
+## Todo
+* Create test modules
+* Make download faster
+* Incorporate tight security mechanism
+
 ## Errors
 
 All logs are present in `~/.iwant/.iwant.log` or `AppData\Roaming\.iwant\.iwant.log`
 
-## Security
-
-## FAQ

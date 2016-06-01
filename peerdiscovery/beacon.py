@@ -29,7 +29,6 @@ class CommonroomProtocol(DatagramProtocol):
     maxDelay = 3600
     initialDelay = 1.0
     factor = 2.7182818284590451
-    jitter = 0.11962656472
     delay = initialDelay
     retries = 0
     maxRetries = 3
@@ -48,9 +47,12 @@ class CommonroomProtocol(DatagramProtocol):
         }
         self.buff = ''
         self._none_alive_ack = 1  # when no peers are present
-        self._alive_ack = None  # waiting for leader msg
         self._eln_ack = None  # waiting for election ack
         self._ping_ack = 0  # waiting for failure
+        self._eClock = None
+        self._alClock = None
+        self._eCallId = None
+        self._alCallId = None
         print ('UUID {0}'.format(self.book.uuid))
 
     def startProtocol(self):
@@ -72,34 +74,24 @@ class CommonroomProtocol(DatagramProtocol):
         '''
             Keep polling the server to test if its dead or alive
         '''
-        if self.book.leader == '':
-            pass
-        else:
-            print 'it must have come here'
-            self.delay = min(self.delay * self.factor, self.maxDelay)
-            if self.jitter:
-                self.delay = random.normalvariate(self.delay,
-                        self.delay * self.jitter)
-            def ping():
-                print 'attempt to ping'
-                if self.book.leader != self.book.uuid:
-                    print 'pinging {0}'.format(self.book.leader)
-                    self.transport.write('4:ping',self.book.peers[self.book.leader])
-                    def ping_callback():
-                        if not self._ping_ack:
-                            self.retries+=1
-                            if self.retries > self.maxRetries:
-                                print 'FAILED {0}'.format(self.retries)
-                                l.stop()
-                                self._election()
-                        else:
-                            self.retries = 0
-                        self._ping_ack = 0  # reset the ping_ack to 0
+        if self.book.leader != self.book.uuid:
+            print 'pinging {0}'.format(self.book.leader)
+            self.transport.write('4:ping',self.book.peers[self.book.leader])
 
-                    temp_callID = reactor.callLater(self.delay, ping_callback)
+            def ping_callback():
+                if not self._ping_ack:
+                    self.retries+=1
+                    if self.retries > self.maxRetries:
+                        print 'FAILED {0}'.format(self.retries)
+                        l.stop()
+                        self._election()
+                else:
+                    self.retries = 0
+                self._ping_ack = 0  # reset the ping_ack to 0
 
-            l = task.LoopingCall(ping)
-            l.start(self.delay)
+            reactor.callLater(4, ping_callback)  # wait for 4 seconds to check if the leader replied
+
+        reactor.callLater(self._poll,20)  # ping the server every 20 seconds
 
     def escape_hash_sign(self, string):
         return string.replace('#', '')
@@ -172,17 +164,26 @@ class CommonroomProtocol(DatagramProtocol):
     def _election(self):
         '''
             Sending election message to higher peers
+            Every time there is an election reset the values of ack
         '''
-        self._eln_ack = None
+        self.reset()
+        election_deferred = defer.Deferred()
+        election_deferred.addCallback(self._election_callback)
         requested_peers_list = filter(lambda x: x > self.book.uuid, self.book.peers.keys())
-
-        def election_callback():
-            if self._eln_ack is None:
-                self._leader(self.book.uuid)
-
         for pid in requested_peers_list:
             self.transport.write('2:#', self.book.peers[pid])
-        temp_clock_id = reactor.callLater(self.delay*self.factor, election_callback)
+
+        self.delay = min(self.maxDelay, self.delay*self.factor)
+        if self._eClock is None:
+            from twisted.internet import reactor
+            self._eClock = reactor
+
+        self._eCallId = self._eClock.callLater(self.delay, election_deferred.callback,
+                (lambda : self._eln_ack is None)())
+
+    def _election_callback(won):
+        if won:
+            self._leader(self.book.uuid)
 
     def _alive(self, addr):
         '''
@@ -195,20 +196,21 @@ class CommonroomProtocol(DatagramProtocol):
         '''
             Will be waiting for the winner message now
         '''
-        # self.book.state = 2
         self._eln_ack = 1  # cannot be leader now
-        self._alive_ack = None
-        def wait_for_winner():
-            if self._alive_ack is None:
-                self._election()
+        alive_deferred = defer.Deferred()
+        alive_deferred.addCallback(self._wait_for_winner)
+        self.delay = min(self.maxDelay, self.delay*self.factor)
+        reactor.callLater(self.delay, alive_deferred.callback,True)
 
-        temp_callID = reactor.callLater(self.delay*self.factor, wait_for_winner)
+    def _wait_for_winner(no_response):
+        if no_response:
+            self._election()
 
     def _new_leader_callback(self, leader):
         '''
             This is a callback once the peers receive their new leader
         '''
-        self._alive_ack = 1  # cannot ask for re-election
+        self.reset()
         self.book.leader = leader
         print 'LEADER :{0}'.format(self.book.leader)
 
@@ -222,6 +224,7 @@ class CommonroomProtocol(DatagramProtocol):
         '''
             This method is to assign you the leadership and broadcast everyone
         '''
+        self.reset()
         self.book.leader = leader
         self._winner()
 
@@ -235,7 +238,10 @@ class CommonroomProtocol(DatagramProtocol):
         '''
             This resets all the values
         '''
-        self.retries = 0
+        self._eln_ack = None
+        self.delay = self.initialDelay
+        self._eCallId.cancel()
+        self._alCallId.cancel()
 
 if __name__ == '__main__':
     import random

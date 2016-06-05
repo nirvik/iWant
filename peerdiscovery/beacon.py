@@ -51,47 +51,85 @@ class CommonroomProtocol(DatagramProtocol):
         self._ping_ack = 0  # waiting for failure
         self._eClock = None
         self._alClock = None
+        self._pollClock = None
         self._eCallId = None
         self._alCallId = None
+        self._pollId = None
         print ('UUID {0}'.format(self.book.uuid))
 
     def startProtocol(self):
         wait_for_peers = self.initialDelay
         wait_for_peers = wait_for_peers*self.factor
-        wait_for_peers = random.normalvariate(wait_for_peers, wait_for_peers*self.jitter)
         self.transport.setTTL(5)
         self.transport.joinGroup(MCAST_ADDR[0])
-        self.transport.write('0:{0}.{1}#'.format(self.book.uuid, self.book.leader), MCAST_ADDR)
+        self._broadcast_identity()
 
         def response_from_peers():
             if self._none_alive_ack:
+                print 'no response from peers at all'
                 self._leader(self.book.uuid)
             self.d = threads.deferToThread(self._poll)
 
         temp_callID = reactor.callLater(wait_for_peers, response_from_peers)
 
+    def _broadcast_identity(self):
+        self.transport.write('0:{0}.{1}#'.format(self.book.uuid, self.book.leader), MCAST_ADDR)
+
+    def _broadcast_leader_dead(self):
+        self.transport.write('8:{0}#'.format(self.book.leader), MCAST_ADDR)
+
+    def _send_id_to(self,addr):
+        self.transport.write('0:{0}.{1}#'.format(self.book.uuid, self.book.leader), addr)
+
+    def _re_election(self):
+        self.transport.write('1:#', MCAST_ADDR)
+
+    def _send_pong_to(self, addr):
+        self.transport.write('7:pong#',addr)
+
+    def _broadcast_winner(self):
+        '''
+            broadcasting winner message
+        '''
+        self.transport.write('6:{0}#'.format(self.book.leader), MCAST_ADDR)
+
+    def _send_election_msg_to(self, addr):
+        self.transport.write('2:#', addr)
+
+    def _ping(self, addr):
+        self.transport.write('4:ping#',self.book.peers[self.book.leader])
+
+    def _send_alive_msg_to(self, addr):
+        self.transport.write('5:#', addr)
+
     def _poll(self):
         '''
             Keep polling the server to test if its dead or alive
         '''
-        if self.book.leader != self.book.uuid:
+        if self._pollClock is None:
+            from twisted.internet import reactor
+            self._pollClock = reactor
+
+        if self.book.leader != self.book.uuid and not self._election_started and self.book.leader!= '':
             print 'pinging {0}'.format(self.book.leader)
-            self.transport.write('4:ping',self.book.peers[self.book.leader])
+            address = self.book.peers[self.book.leader]
+            self._ping(address)
 
             def ping_callback():
                 if not self._ping_ack:
                     self.retries+=1
-                    if self.retries > self.maxRetries:
+                    if self.retries >= self.maxRetries:
                         print 'FAILED {0}'.format(self.retries)
-                        l.stop()
+                        self._broadcast_leader_dead()
                         self._election()
                 else:
                     self.retries = 0
                 self._ping_ack = 0  # reset the ping_ack to 0
 
-            reactor.callLater(4, ping_callback)  # wait for 4 seconds to check if the leader replied
+            self._pollClock.callLater(2, ping_callback)  # wait for 4 seconds to check if the leader replied
 
-        reactor.callLater(self._poll,20)  # ping the server every 20 seconds
+        self._pollId = self._pollClock.callLater(3,self._poll)  # ping the server every 3 seconds
+
 
     def escape_hash_sign(self, string):
         return string.replace('#', '')
@@ -129,7 +167,7 @@ class CommonroomProtocol(DatagramProtocol):
             self.message_codes[key](leader)
 
         elif key == 4:
-            self._handle_ping_ack()
+            self._handle_ping(addr)
 
         elif key == 5:
             self._alive_handler()
@@ -138,27 +176,50 @@ class CommonroomProtocol(DatagramProtocol):
             leader = value
             self._new_leader_callback(leader)
 
+        elif key == 7 :
+            self._handle_pong()
+
+        elif key == 8:
+            leader = value
+            self._remove_leader(leader)
+
+
     def _new_peers(self, peers, leader, addr):
         '''
             Add new peers and decide whether to accept them as leaders or bully them
         '''
         if peers != self.book.uuid:
+            print 'PEER ADDED {0}'.format(peers)
             self._none_alive_ack = 0
 
             if peers not in self.book.peers:
                 self.book.peers[peers] = addr
-                self.transport.write('0:{0}.{1}#'.format(self.book.uuid, self.book.leader), MCAST_ADDR)
+                self._send_id_to(addr)
                 if leader == '' and self.book.leader=='':
-                    self._election()
+                    self._re_election()
                 else:
                     if leader!='' and self.book.leader=='':
                         if self.book.uuid < leader:
+                            print ' gonna accept the leader : {0}'.format(leader)
                             self._new_leader_callback(leader)
                         elif self.book.uuid > leader:
+                            print ' gonna bully the leader : {0}'.format(leader)
                             self._bully()
-                    # or else they have the same leader
+                    elif leader!='' and self.book.leader!='':
+                        # if nodes have different leaders then have a re-election
+                        self.book.leader = ''  # Conflict of leaders , kill it and elect a new leader
+                        self._re_election()
 
-    def _handle_ping_ack(self):
+    def _handle_ping(self,addr):
+        self._send_pong_to(addr)
+
+    def _remove_leader(self,leader):
+        if leader == self.book.leader and leader in self.book.peers:
+            print 'removing the leader'
+            del self.book.peers[leader]
+            self.book.leader = ''
+
+    def _handle_pong(self):
         self._ping_ack = 1
 
     def _election(self):
@@ -166,86 +227,108 @@ class CommonroomProtocol(DatagramProtocol):
             Sending election message to higher peers
             Every time there is an election reset the values of ack
         '''
-        self.reset()
-        election_deferred = defer.Deferred()
-        election_deferred.addCallback(self._election_callback)
+        print ' Its time for election \n '
+        self._election_started = 1
         requested_peers_list = filter(lambda x: x > self.book.uuid, self.book.peers.keys())
         for pid in requested_peers_list:
-            self.transport.write('2:#', self.book.peers[pid])
+            self._send_election_msg_to(self.book.peers[pid])
 
+        print requested_peers_list
         self.delay = min(self.maxDelay, self.delay*self.factor)
+        print ' GONNA WAIT FOR {0} seconds for election result '.format(self.delay)
+
+        def election_callback(no_response):
+            print 'Fuck it , i won '
+            self._leader(self.book.uuid)
+
         if self._eClock is None:
             from twisted.internet import reactor
             self._eClock = reactor
 
-        self._eCallId = self._eClock.callLater(self.delay, election_deferred.callback,
-                (lambda : self._eln_ack is None)())
+        self._eCallId = self._eClock.callLater(self.delay, election_callback, True)
 
-    def _election_callback(won):
-        if won:
-            self._leader(self.book.uuid)
 
     def _alive(self, addr):
         '''
             Responding to the election message from lower Peer ID , I am alive.
         '''
         print 'sending alive message to {0}'.format(addr)
-        self.transport.write('5:#', addr)
+        self._send_alive_msg_to(addr)
 
     def _alive_handler(self):
         '''
             Will be waiting for the winner message now
         '''
-        self._eln_ack = 1  # cannot be leader now
-        alive_deferred = defer.Deferred()
-        alive_deferred.addCallback(self._wait_for_winner)
-        self.delay = min(self.maxDelay, self.delay*self.factor)
-        reactor.callLater(self.delay, alive_deferred.callback,True)
+        #  rather it makes sense to cancel the election deferred
+        if self._eCallId.active():
+            self._eCallId.cancel()
 
-    def _wait_for_winner(no_response):
-        if no_response:
-            self._election()
+        def wait_for_winner(no_response):
+            if no_response:
+                print 're-election everybody'
+                self._re_election()
+
+        alive_deferred = defer.Deferred()
+        alive_deferred.addCallback(wait_for_winner)
+        self.delay = min(self.maxDelay, self.delay*self.factor)
+        print 'GONNA WAIT FOR {0} seconds for "winner msg" '.format(self.delay)
+        if self._alClock is None:
+            from twisted.internet import reactor
+            self._alClock = reactor
+        self._alCallId = self._alClock.callLater(self.delay, alive_deferred.callback, True)
+
 
     def _new_leader_callback(self, leader):
         '''
             This is a callback once the peers receive their new leader
         '''
-        self.reset()
-        self.book.leader = leader
-        print 'LEADER :{0}'.format(self.book.leader)
+        if self._eCallId is not None:
+            if self._eCallId.active():
+                self._eCallId.cancel()
+        if self._alCallId is not None:
+            if self._alCallId.active():
+                self._alCallId.cancel()
+        if leader not in self.book.peers and leader!=self.book.uuid:  # if winner message comes before the introduction message or (if the leader is not present the peers list and leader is not itself)
+            self._broadcast_identity()
+        else:
+            self.book.leader = leader
+            self.reset()
+            print 'LEADER :{0}'.format(self.book.leader)
 
-    def _winner(self):
-        '''
-            broadcasting winner message
-        '''
-        self.transport.write('6:{0}#'.format(self.book.leader), MCAST_ADDR)
 
     def _leader(self, leader):
         '''
             This method is to assign you the leadership and broadcast everyone
         '''
+        print ' Telling everbody that I am the winner '
         self.reset()
         self.book.leader = leader
-        self._winner()
+        self._broadcast_winner()
 
     def _bully(self):
         '''
             broadcast a re-election event
         '''
-        self.transport.write('1:#', MCAST_ADDR)
+        print 'Re Election \n '
+        self._re_election()
 
     def reset(self):
         '''
             This resets all the values
         '''
-        self._eln_ack = None
+        self._election_started = 0
         self.delay = self.initialDelay
-        self._eCallId.cancel()
-        self._alCallId.cancel()
 
 if __name__ == '__main__':
-    import random
-    book = CommonlogBook(uid=uuid.uuid1(), state=0)
-    # book = CommonlogBook(random.randint(0,19),state=0)
-    reactor.listenMulticast(MCAST_ADDR[1], CommonroomProtocol(book), listenMultiple=True)
-    reactor.run()
+    import random,os,sys
+    try:
+        book = CommonlogBook(uid=uuid.uuid1(), state=0)
+        # book = CommonlogBook(random.randint(0,19),state=0)
+        reactor.listenMulticast(MCAST_ADDR[1], CommonroomProtocol(book), listenMultiple=True)
+        reactor.run()
+    except KeyboardInterrupt:
+        reactor.stop()
+        try:
+            sys.exit(0)
+        except SystemExit:
+            os._exit(0)

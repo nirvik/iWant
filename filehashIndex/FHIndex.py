@@ -17,6 +17,7 @@ class FileHashIndexer(object):
             self.path_index = {}
 
     def index(self):
+        ''' better would be return a defferred '''
         self._create_file_index()
 
     def _create_file_index(self):
@@ -91,7 +92,7 @@ class FileHashIndexer(object):
     @staticmethod
     def _get_hash(filepath):
         sha_hash = hashlib.sha1()
-        with open(filepath) as f:
+        with open(filepath,'rb') as f:
             buff = f.read()
             sha_hash.update(hashlib.sha1(buff).hexdigest())
         return sha_hash.hexdigest()

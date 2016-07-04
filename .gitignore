@@ -1,2 +1,4 @@
 *.pyc
 experiments/
+consensus/backup.py
+*.pdf

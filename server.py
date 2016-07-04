@@ -58,7 +58,6 @@ class backendFactory(Factory):
         self.d.addCallbacks(self._success,self._failure)
 
     def _success(self,data):
-        print 'Fucking hell come here'
         self.state = 1
 
     def _failure(self,reason):

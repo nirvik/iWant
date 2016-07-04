@@ -11,6 +11,7 @@ class HashListFiles(FlashpointProtocol):
         self.sendLine(reqMessage)
 
     def serviceMessage(self,data):
+        print data
         if self.factory.state == 1:
             try:
                 self.factory.FH = json.loads(data)
@@ -23,5 +24,5 @@ class HashListFilesFactory(ClientFactory):
     def __init__(self):
         self.state = 1
         self.FH = {}
-reactor.connectTCP('localhost',1234,HashListFilesFactory())
+reactor.connectTCP('192.168.1.112',1234,HashListFilesFactory())
 reactor.run()

@@ -8,13 +8,41 @@ import ast
 from communication.message import *
 MCAST_ADDR = ('228.0.0.5', 8005)
 
+class PeerdiscoveryProtocol(DatagramProtocol):
+
+    def __init__(self):
+        self.buf = ''
+
+    def escape_hash_sign(self, string):
+        return string.replace('#', '')
+
+    def _process_msg(self,req,addr):
+        pass
+
+    def send(self,msgObj,addr):
+        self.transport.write(str(msgObj),addr)
+
+    def datagramReceived(self, datagram, addr):
+        for dat in datagram:
+            self.buff += dat
+            if dat == '#':
+                req_str = self.escape_hash_sign(self.buff)
+                self.buff = ''
+                self._process_msg(req_str,addr)
+        self.buff = ''
+
 class CommonlogBook(object):
     __doc__ = '''
         This is a book which will store all the persistent data,
         for example, peers,leader,state,uuid
     '''
     def __init__(self, identity=None, state=None, peers={}, leader=None, ip=None):
-
+        """
+        @param identity: uuid representing the identity of the peer
+        @param state: defines the state of the peer
+        @param peers: empty peers list which will be updated
+        @param ip: ip of the peer
+        """
         self.state = state
         self.peers = peers
         self.leader = ''  # uuid
@@ -22,7 +50,9 @@ class CommonlogBook(object):
         self.uuid = identity.hex
         self.ip = ip
 
-class CommonroomProtocol(DatagramProtocol):
+
+
+class CommonroomProtocol(PeerdiscoveryProtocol):
     __doc__ = '''
         Commonroom multicasts the winner
         Commonroom multicasts its ID
@@ -38,10 +68,11 @@ class CommonroomProtocol(DatagramProtocol):
     continueTrying = 1
 
     def __init__(self, book):
-        self.book = book
         '''
             build the message codes
+            @param book: CommonLogBook instance
         '''
+        self.book = book
         self.message_codes = {  # Haven't used it properly yet
             0: self._new_peers,
             1: self._re_election_event,
@@ -71,6 +102,10 @@ class CommonroomProtocol(DatagramProtocol):
         print self._addr
 
     def startProtocol(self):
+        """
+        Join the multicast group and announce the identity
+        and decide to become the leader if there is no response
+        """
         self.book.peers[self.book.uuid] = self._addr
         wait_for_peers = self.initialDelay
         wait_for_peers = wait_for_peers*self.factor
@@ -126,9 +161,6 @@ class CommonroomProtocol(DatagramProtocol):
         ledger = str(self.book.peers)
         self.send(FlashMessage(3,[self.book.leader,ledger]),MCAST_ADDR)
 
-    def send(self,msgObj,addr):
-        self.transport.write(str(msgObj),addr)
-
     def _poll(self):
         '''
             Keep polling the server to test if its dead or alive
@@ -139,8 +171,8 @@ class CommonroomProtocol(DatagramProtocol):
 
         if self.book.leader != self.book.uuid and self.book.leader!= '':
             print 'pinging leader : {0}'.format(self.book.leader)
-            address = self.book.peers[self.book.leader]
-            self._ping(address)
+            leader_addr = self.book.peers[self.book.leader]
+            self._ping(leader_addr)
 
             def ping_callback():
                 if not self._ping_ack:
@@ -153,23 +185,10 @@ class CommonroomProtocol(DatagramProtocol):
                     self.retries = 0
                 self._ping_ack = 0  # reset the ping_ack to 0
 
-            self._pollClock.callLater(2, ping_callback)  # wait for 4 seconds to check if the leader replied
+            self._pollClock.callLater(2, ping_callback)  # wait for 2 seconds to check if the leader replied
 
-        self._pollId = self._pollClock.callLater(4,self._poll)  # ping the server every 3 seconds
+        self._pollId = self._pollClock.callLater(4,self._poll)  # ping the server every 4 seconds
 
-
-    def escape_hash_sign(self, string):
-        return string.replace('#', '')
-
-    def datagramReceived(self, datagram, addr):
-        for dat in datagram:
-            self.buff += dat
-            if dat == '#':
-                req_str = self.escape_hash_sign(self.buff)
-                self.buff = ''
-                #self._parse_incoming_request(req_str, addr)
-                self._process_msg(req_str,addr)
-        self.buff = ''
 
     def _process_msg(self,req,addr):
         msg = FlashMessage(message=req)
@@ -181,23 +200,26 @@ class CommonroomProtocol(DatagramProtocol):
     def _new_peers(self,data=None, peer=None, leader=None, addr=None):
         '''
             Add new peers and decide whether to accept them as leaders or bully them
+            @param data: represents a list containing peer and leader
+            @param peer: represents the uuid of other peers
+            @param leader: represents the uuid of the leader
+            @param addr: (ip,port) of the new peer
         '''
         if data is not None:
             peer , leader = data
 
         if peer != self.book.uuid:
-            #print 'PEER ADDED {0}'.format(peer)
             if self._npCallId is not None:
                 if self._npCallId.active():
                     self._npCallId.cancel()
 
             if peer not in self.book.peers:
                 self.book.peers[peer] = addr
-                if self.book.leader != '':
+                if self.book.leader:
                     if self.book.leader == self.book.uuid:  # if leader , send the ledger
                         self._broadcast_ledger()
                 else:
-                    if leader == '':  # there are no leaders whatsoever
+                    if not leader:  # there are no leaders whatsoever
                         self._send_id_to(addr)
                         self._broadcast_re_election()
 
@@ -207,11 +229,10 @@ class CommonroomProtocol(DatagramProtocol):
             send them an updated copy of the ledger containing all the peers in the network
         '''
         if data is not None:
-            ledger , leader = data
+            leader, ledger = data
         if self._npCallId is not None:
             if self._npCallId.active():
                 self._npCallId.cancel()
-
         ledger = ast.literal_eval(ledger)
         temp_ledger = self.book.peers.copy()
         temp_ledger.update(ledger)
@@ -221,7 +242,7 @@ class CommonroomProtocol(DatagramProtocol):
             print  key , value
         print '#########################'
 
-        if self.book.leader == '' or (self.book.leader == self.book.uuid and leader!=''):
+        if not self.book.leader or (self.book.leader == self.book.uuid and leader):
             self._new_leader_callback(leader=leader)
 
     def _handle_ping(self, data=None, addr=None):
@@ -240,7 +261,7 @@ class CommonroomProtocol(DatagramProtocol):
 
     def _re_election_event(self,data=None, eid=None):
         if data is not None:
-            eid = data[0]
+            eid = data
         if self._eid is None:
             print 'NEW ELECTION COMMENCEMENT : {0}'.format(eid)
             self._eid = eid
@@ -265,7 +286,6 @@ class CommonroomProtocol(DatagramProtocol):
             Sending election message to higher peers
             Every time there is an election reset the values of ack
         '''
-        eid = data[0]
         if self._eid == eid:
             requested_peers_list = filter(lambda x: x > self.book.uuid, self.book.peers.keys())
             for peer in requested_peers_list:
@@ -287,7 +307,7 @@ class CommonroomProtocol(DatagramProtocol):
             Responding to the election message from lower Peer ID , I am alive.
         '''
         if data is not None:
-            eid , addr = data
+            eid =  data
         if self._eid == eid:
             self._send_alive_msg_to(addr)
 
@@ -296,7 +316,7 @@ class CommonroomProtocol(DatagramProtocol):
             Will be waiting for the winner message now
         '''
         if data is not None:
-            eid = data[0]
+            eid = data
         if self._eid == eid:
             if self._eCallId.active():
                 self._eCallId.cancel()

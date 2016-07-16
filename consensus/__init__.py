@@ -1,1 +1,2 @@
 import beacon
+import communication

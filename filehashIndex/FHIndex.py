@@ -9,47 +9,71 @@ PIDX_EXTENSION = '.pindex'
 
 class FileHashIndexer(object):
     def __init__(self , path):
-        if not os.path.exists(path):
-            raise NotImplementedError
-        else:
-            self.path = os.path.abspath(path)
-            self.hash_index = {}
-            self.path_index = {}
-
-    def index(self):
-        ''' better would be return a defferred '''
-        self._create_file_index()
-
-    def _create_file_index(self):
-        hashed_idx_path = os.path.join(self.path,HIDX_EXTENSION)
-        filename_idx_path = os.path.join(self.path,PIDX_EXTENSION)
+        self.hash_index = {}
+        self.path_index = {}
+        self.current_path = os.path.dirname(os.path.abspath(__file__))
+        hashed_idx_path = os.path.join(self.current_path,HIDX_EXTENSION)
+        filename_idx_path = os.path.join(self.current_path,PIDX_EXTENSION)
 
         if os.path.exists(hashed_idx_path):
-            data =open(hashed_idx_path).read()
-            self.hash_index= json.loads(data)
+            self.hash_index = self.loadJSON(hashed_idx_path)
 
         if os.path.exists(filename_idx_path):
-            data = open(filename_idx_path).read()
-            self.path_index = json.loads(data)
+            self.path_index = self.loadJSON(filename_idx_path)
 
+        if not os.path.exists(path):
+            if path in self.path_index:
+                self._delete(path)
+            else:
+                raise NotImplementedError
+        else:
+            self.path = os.path.abspath(path)
 
+    def index(self):
+        '''
+        Check how asynchronous deferred works
+        '''
+        self._create_file_index()
 
+    @staticmethod
+    def getfilesize(path):
+        return float(os.path.getsize(path))
+
+    @staticmethod
+    def loadJSON(path):
+        with open(path,'rb') as f:
+            data = f.read()
+        try:
+            json_data = json.loads(data)
+        except:
+            json_data = {}
+        return json_data
+
+    def compute_hash_diff_file(self, destination_file_path, singleFile=False):
+        computed_file_size = self.getfilesize(destination_file_path)
+        filesize = computed_file_size/ (1024.0 * 1024.0)
+        #print 'Filesize :{0}'.format(filesize)
+        if destination_file_path in self.path_index:
+            sha_checksum = self.path_index[destination_file_path]
+            if self.hash_index[sha_checksum][-1] != filesize:
+                print 'Change in file size'
+                self._delete(destination_file_path)
+            else:
+                return
+        checksum = self._get_hash(destination_file_path)
+
+        fileObject = FileObj(filename=destination_file_path,checksum= checksum,size=filesize)
+        self.hash_index[checksum] = fileObject
+        self.path_index[destination_file_path] = checksum
+
+        if singleFile:  # if only one file is updated then save it
+            self._save_hash_data()
+
+    def _create_file_index(self):
         for root,_discard,filenames in os.walk(self.path):
             for filepath in filenames:
                 destination_file_path = os.path.join(root,filepath)
-                filesize = round(os.path.getsize(destination_file_path) / (1024.0 * 1024.0),2)
-                if destination_file_path in self.path_index:
-                    sha_checksum = self.path_index[destination_file_path]
-                    if self.hash_index[sha_checksum][-1] != filesize:
-                        print 'Change in file size'
-                        self._delete(destination_file_path)
-                    else:
-                        continue
-                checksum = self._get_hash(destination_file_path)
-
-                fileObject = FileObj(filename=destination_file_path,checksum= checksum,size=filesize)
-                self.hash_index[checksum] = fileObject
-                self.path_index[destination_file_path] = checksum
+                self.compute_hash_diff_file(destination_file_path)
 
         discarded_file_list = []
         for filename in self.path_index:
@@ -58,14 +82,14 @@ class FileHashIndexer(object):
 
         for files in discarded_file_list:
             self._delete(files)
-
         self._save_hash_data()
 
+
     def _save_hash_data(self):
-        hashed_data  = os.path.join(self.path,HIDX_EXTENSION)
+        hashed_data  = os.path.join(self.current_path,HIDX_EXTENSION)
         with open(hashed_data,'wb') as f:
             f.write(json.dumps(self.hash_index))
-        filepath_data = os.path.join(self.path,PIDX_EXTENSION)
+        filepath_data = os.path.join(self.current_path,PIDX_EXTENSION)
         with open(filepath_data,'wb') as f:
             f.write(json.dumps(self.path_index))
 
@@ -102,7 +126,7 @@ class FileHashIndexer(object):
         return json.dumps(dict([(k,red_fn(v)) for k,v in self.hash_index.iteritems()]))
 
 if __name__ == '__main__':
-    new_file = FileHashIndexer('/home/nirvik/HandMeShareFolder/')
+    new_file = FileHashIndexer('/home/nirvik/Pictures/')
     new_file.index()
     #print new_file.getFile(u'6792d84bdf59de317d66e84e9f0f97facdfa0b23')
     print new_file.reduced_index()

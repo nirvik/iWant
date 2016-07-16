@@ -2,3 +2,4 @@ twisted
 pywin32
 service_identity
 netifaces
+watchdog

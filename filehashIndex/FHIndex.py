@@ -24,6 +24,7 @@ class FileHashIndexer(object):
         if not os.path.exists(path):
             if path in self.path_index:
                 self._delete(path)
+                self._save_hash_data()
             else:
                 raise NotImplementedError
         else:
@@ -52,7 +53,6 @@ class FileHashIndexer(object):
     def compute_hash_diff_file(self, destination_file_path, singleFile=False):
         computed_file_size = self.getfilesize(destination_file_path)
         filesize = computed_file_size/ (1024.0 * 1024.0)
-        #print 'Filesize :{0}'.format(filesize)
         if destination_file_path in self.path_index:
             sha_checksum = self.path_index[destination_file_path]
             if self.hash_index[sha_checksum][-1] != filesize:
@@ -60,8 +60,7 @@ class FileHashIndexer(object):
                 self._delete(destination_file_path)
             else:
                 return
-        checksum = self._get_hash(destination_file_path)
-
+        checksum = self.get_hash(destination_file_path)
         fileObject = FileObj(filename=destination_file_path,checksum= checksum,size=filesize)
         self.hash_index[checksum] = fileObject
         self.path_index[destination_file_path] = checksum
@@ -82,6 +81,7 @@ class FileHashIndexer(object):
 
         for files in discarded_file_list:
             self._delete(files)
+            print 'discarding {0}'.format(files)
         self._save_hash_data()
 
 
@@ -96,7 +96,17 @@ class FileHashIndexer(object):
     def _delete(self , pathname):
         checksum = self.path_index[pathname]
         del self.path_index[pathname]
-        del self.hash_index[checksum]
+        '''
+            when a file is moved from subdirectory to parent
+            and then moved again from parent to subdirectory,
+            the path of the file changes , but not the checksum value.
+            Therefore, delete from the hash_index only when the pathname
+            is equal to pathname saved in the hash_index value.
+            The checksum key of the hash_index will always point to
+            the correct filepath.
+        '''
+        if self.hash_index[checksum][0] == pathname:
+            del self.hash_index[checksum]
 
     def getFile(self,fileHashIndex):
         if fileHashIndex not in self.hash_index:
@@ -107,14 +117,14 @@ class FileHashIndexer(object):
         if not os.path.exists(filename):
             print 'There has been a change in directory of the path'
             raise NotImplementedError
-        sha_hash = self._get_hash(filename)
+        sha_hash = self.get_hash(filename)
         if sha_hash != checksum:
             print 'There has been a change in contents of the file'
             raise NotImplementedError
         return open(filename,'rb')
 
     @staticmethod
-    def _get_hash(filepath):
+    def get_hash(filepath):
         sha_hash = hashlib.sha1()
         with open(filepath,'rb') as f:
             buff = f.read()

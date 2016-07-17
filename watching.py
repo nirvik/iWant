@@ -18,14 +18,13 @@ class MyHandler(PatternMatchingEventHandler):
                 idx.compute_hash_diff_file(event.src_path, singleFile=True)
         else:
             '''
+                If file/directory is moved or deleted
                 If directory is removed , pass the parent directory
             '''
             if event.is_directory:
-                print 'is directory'
                 path = os.path.split(os.path.abspath(event.src_path))[0]  # parent directory
             else:
                 path = os.path.dirname(event.src_path)
-            print path
             idx = FHIndex.FileHashIndexer(path)
             idx.index()
 

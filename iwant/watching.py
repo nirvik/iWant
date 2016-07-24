@@ -5,6 +5,7 @@ from twisted.internet import reactor
 from filehashIndex import FHIndex
 import sys
 import os
+
 class MyHandler(PatternMatchingEventHandler):
     patterns = ["*"]
 

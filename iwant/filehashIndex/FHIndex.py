@@ -14,6 +14,7 @@ class FileHashIndexer(object):
         self.current_path = os.path.dirname(os.path.abspath(__file__))
         hashed_idx_path = os.path.join(self.current_path,HIDX_EXTENSION)
         filename_idx_path = os.path.join(self.current_path,PIDX_EXTENSION)
+        self.state = "INDEX"
 
         if os.path.exists(hashed_idx_path):
             self.hash_index = self.loadJSON(hashed_idx_path)
@@ -22,11 +23,15 @@ class FileHashIndexer(object):
             self.path_index = self.loadJSON(filename_idx_path)
 
         if not os.path.exists(path):
-            if path in self.path_index:
-                self._delete(path)
+            try:
+                files_to_be_deleted = filter(lambda x:x.startswith(os.path.abspath(path)),self.path_index.keys())
+                print 'FILES TO BE DELETED {0}'.format(files_to_be_deleted)
+                for files in files_to_be_deleted:
+                    self._delete(files)
                 self._save_hash_data()
-            else:
+            except:
                 raise NotImplementedError
+            self.state = "CANNOT INDEX"
         else:
             self.path = os.path.abspath(path)
 
@@ -69,6 +74,8 @@ class FileHashIndexer(object):
             self._save_hash_data()
 
     def _create_file_index(self):
+        if self.state == "CANNOT INDEX":
+            return
         for root,_discard,filenames in os.walk(self.path):
             for filepath in filenames:
                 destination_file_path = os.path.join(root,filepath)

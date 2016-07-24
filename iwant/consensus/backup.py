@@ -8,41 +8,13 @@ import ast
 from communication.message import *
 MCAST_ADDR = ('228.0.0.5', 8005)
 
-class PeerdiscoveryProtocol(DatagramProtocol):
-
-    def __init__(self):
-        self.buf = ''
-
-    def escape_hash_sign(self, string):
-        return string.replace('#', '')
-
-    def _process_msg(self,req,addr):
-        pass
-
-    def send(self,msgObj,addr):
-        self.transport.write(str(msgObj),addr)
-
-    def datagramReceived(self, datagram, addr):
-        for dat in datagram:
-            self.buff += dat
-            if dat == '#':
-                req_str = self.escape_hash_sign(self.buff)
-                self.buff = ''
-                self._process_msg(req_str,addr)
-        self.buff = ''
-
 class CommonlogBook(object):
     __doc__ = '''
         This is a book which will store all the persistent data,
         for example, peers,leader,state,uuid
     '''
     def __init__(self, identity=None, state=None, peers={}, leader=None, ip=None):
-        """
-        @param identity: uuid representing the identity of the peer
-        @param state: defines the state of the peer
-        @param peers: empty peers list which will be updated
-        @param ip: ip of the peer
-        """
+
         self.state = state
         self.peers = peers
         self.leader = ''  # uuid
@@ -50,9 +22,7 @@ class CommonlogBook(object):
         self.uuid = identity.hex
         self.ip = ip
 
-
-
-class CommonroomProtocol(PeerdiscoveryProtocol):
+class CommonroomProtocol(DatagramProtocol):
     __doc__ = '''
         Commonroom multicasts the winner
         Commonroom multicasts its ID
@@ -68,11 +38,10 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
     continueTrying = 1
 
     def __init__(self, book):
+        self.book = book
         '''
             build the message codes
-            @param book: CommonLogBook instance
         '''
-        self.book = book
         self.message_codes = {  # Haven't used it properly yet
             0: self._new_peers,
             1: self._re_election_event,
@@ -102,10 +71,6 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
         print self._addr
 
     def startProtocol(self):
-        """
-        Join the multicast group and announce the identity
-        and decide to become the leader if there is no response
-        """
         self.book.peers[self.book.uuid] = self._addr
         wait_for_peers = self.initialDelay
         wait_for_peers = wait_for_peers*self.factor
@@ -124,42 +89,55 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
         self.d = threads.deferToThread(self._poll)
 
     def _broadcast_identity(self):
+        #self.transport.write('0;{0}${1}#'.format(self.book.uuid, self.book.leader), MCAST_ADDR)
         self.send(FlashMessage(0,[self.book.uuid,self.book.leader]),MCAST_ADDR)
 
     def _broadcast_leader_dead(self):
+        #self.transport.write('8;{0}#'.format(self.book.leader), MCAST_ADDR)
         self.send(FlashMessage(8,[self.book.leader]),MCAST_ADDR)
 
     def _broadcast_re_election(self):
         eid = repr(time.time())
+        #self.transport.write('1;{0}#'.format(eid), MCAST_ADDR)
         self.send(FlashMessage(1,[eid]),MCAST_ADDR)
 
     def _send_id_to(self,addr):
+        #self.transport.write('0;{0}${1}#'.format(self.book.uuid, self.book.leader), addr)
         self.send(FlashMessage(0,[self.book.uuid,self.book.leader]),addr)
 
     def _send_pong_to(self, addr):
+        #self.transport.write('7;pong#',addr)
         self.send(FlashMessage(7,['pong']),addr)
 
     def _broadcast_winner(self,eid):
         '''
             broadcasting winner message
         '''
+        #self.transport.write('6;{0}${1}#'.format(self.book.leader,repr(eid)), MCAST_ADDR)
         self.send(FlashMessage(6,[self.book.leader,repr(eid)]),MCAST_ADDR)
 
     def _send_election_msg_to(self,pid):
         eid = repr(self._eid)
         addr = self.book.peers[pid]
+        #self.transport.write('2;{0}#'.format(eid), self.book.peers[pid])
         self.send(FlashMessage(2,[eid]),addr)
 
     def _ping(self, addr):
+        #self.transport.write('4;ping#',self.book.peers[self.book.leader])
         self.send(FlashMessage(4,['ping']),addr) # might be a problem
 
     def _send_alive_msg_to(self, addr):
         eid = repr(self._eid)
+        #self.transport.write('5;{0}#'.format(eid), addr)
         self.send(FlashMessage(5,[eid]),addr)
 
     def _broadcast_ledger(self):
         ledger = str(self.book.peers)
+        #self.transport.write('3;{0}${1}#'.format(self.book.leader, ledger),MCAST_ADDR)
         self.send(FlashMessage(3,[self.book.leader,ledger]),MCAST_ADDR)
+
+    def send(self,msgObj,addr):
+        self.transport.write(str(msgObj),addr)
 
     def _poll(self):
         '''
@@ -171,8 +149,8 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
 
         if self.book.leader != self.book.uuid and self.book.leader!= '':
             print 'pinging leader : {0}'.format(self.book.leader)
-            leader_addr = self.book.peers[self.book.leader]
-            self._ping(leader_addr)
+            address = self.book.peers[self.book.leader]
+            self._ping(address)
 
             def ping_callback():
                 if not self._ping_ack:
@@ -185,10 +163,73 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
                     self.retries = 0
                 self._ping_ack = 0  # reset the ping_ack to 0
 
-            self._pollClock.callLater(2, ping_callback)  # wait for 2 seconds to check if the leader replied
+            self._pollClock.callLater(2, ping_callback)  # wait for 4 seconds to check if the leader replied
 
-        self._pollId = self._pollClock.callLater(4,self._poll)  # ping the server every 4 seconds
+        self._pollId = self._pollClock.callLater(4,self._poll)  # ping the server every 3 seconds
 
+
+    def escape_hash_sign(self, string):
+        return string.replace('#', '')
+
+    def datagramReceived(self, datagram, addr):
+        for dat in datagram:
+            self.buff += dat
+            if dat == '#':
+                req_str = self.escape_hash_sign(self.buff)
+                self.buff = ''
+                #self._parse_incoming_request(req_str, addr)
+                self._process_msg(req_str,addr)
+        self.buff = ''
+
+
+    def _parse_incoming_request(self, req, addr):
+        '''
+            message parser
+        '''
+        data = req.split(';')
+        key = int(data[0])
+        value = data[1]
+
+        if key == 0:
+            pid, leader = value.split('$')
+            self._new_peers(pid, leader, addr)
+
+        elif key == 1:
+            eid = float(value)
+            self._re_election_event(eid)
+
+        elif key == 2:
+            eid = float(value)
+            self._alive(eid=eid,addr=addr)
+
+        elif key == 3:
+            '''
+                We get a ledger
+            '''
+            leader, ledger = value.split('$')
+            self._manage_ledger(ledger, leader)
+
+        elif key == 4:
+            self._handle_ping(addr)
+
+        elif key == 5:
+            eid = float(value)
+            self._alive_handler(eid)
+
+        elif key == 6:
+            leader,str_eid = value.split('$')
+            eid = float(str_eid)
+            #print str_eid + ' Received'
+            self._new_leader_callback(leader=leader,
+                    eid=eid,
+                    addr=addr)
+
+        elif key == 7 :
+            self._handle_pong()
+
+        elif key == 8:
+            leader = value
+            self._remove_leader(leader)
 
     def _process_msg(self,req,addr):
         msg = FlashMessage(message=req)
@@ -200,26 +241,23 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
     def _new_peers(self,data=None, peer=None, leader=None, addr=None):
         '''
             Add new peers and decide whether to accept them as leaders or bully them
-            @param data: represents a list containing peer and leader
-            @param peer: represents the uuid of other peers
-            @param leader: represents the uuid of the leader
-            @param addr: (ip,port) of the new peer
         '''
         if data is not None:
             peer , leader = data
 
         if peer != self.book.uuid:
+            #print 'PEER ADDED {0}'.format(peer)
             if self._npCallId is not None:
                 if self._npCallId.active():
                     self._npCallId.cancel()
 
             if peer not in self.book.peers:
                 self.book.peers[peer] = addr
-                if self.book.leader:
+                if self.book.leader != '':
                     if self.book.leader == self.book.uuid:  # if leader , send the ledger
                         self._broadcast_ledger()
                 else:
-                    if not leader:  # there are no leaders whatsoever
+                    if leader == '':  # there are no leaders whatsoever
                         self._send_id_to(addr)
                         self._broadcast_re_election()
 
@@ -229,10 +267,11 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             send them an updated copy of the ledger containing all the peers in the network
         '''
         if data is not None:
-            leader, ledger = data
+            ledger , leader = data
         if self._npCallId is not None:
             if self._npCallId.active():
                 self._npCallId.cancel()
+
         ledger = ast.literal_eval(ledger)
         temp_ledger = self.book.peers.copy()
         temp_ledger.update(ledger)
@@ -242,7 +281,7 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             print  key , value
         print '#########################'
 
-        if not self.book.leader or (self.book.leader == self.book.uuid and leader):
+        if self.book.leader == '' or (self.book.leader == self.book.uuid and leader!=''):
             self._new_leader_callback(leader=leader)
 
     def _handle_ping(self, data=None, addr=None):
@@ -261,7 +300,7 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
 
     def _re_election_event(self,data=None, eid=None):
         if data is not None:
-            eid = data
+            eid = data[0]
         if self._eid is None:
             print 'NEW ELECTION COMMENCEMENT : {0}'.format(eid)
             self._eid = eid
@@ -286,6 +325,7 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             Sending election message to higher peers
             Every time there is an election reset the values of ack
         '''
+        eid = data[0]
         if self._eid == eid:
             requested_peers_list = filter(lambda x: x > self.book.uuid, self.book.peers.keys())
             for peer in requested_peers_list:
@@ -307,7 +347,7 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             Responding to the election message from lower Peer ID , I am alive.
         '''
         if data is not None:
-            eid =  data
+            eid , addr = data
         if self._eid == eid:
             self._send_alive_msg_to(addr)
 
@@ -316,7 +356,7 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             Will be waiting for the winner message now
         '''
         if data is not None:
-            eid = data
+            eid = data[0]
         if self._eid == eid:
             if self._eCallId.active():
                 self._eCallId.cancel()

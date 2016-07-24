@@ -3,3 +3,5 @@ pywin32
 service_identity
 netifaces
 watchdog
+time_uuid
+fuzzywuzzy

@@ -6,10 +6,25 @@ from filehashIndex import FHIndex
 import sys
 import os
 
-class MyHandler(PatternMatchingEventHandler):
-    patterns = ["*"]
+def print_hi():
+    print 'hi'
 
-    def process(self, event):
+class ScanFolder(object):
+
+    def __init__(self, folder, callback):
+        self.path = folder
+        self.callback = callback
+        self.event_handler = PatternMatchingEventHandler(patterns=['*'])
+        self.event_handler.process = self.process
+        self.event_handler.on_any_event = self.on_any_event
+        self.observer = Observer()
+        self.observer.schedule(self.event_handler, self.path, recursive=True)
+        self.observer.start()
+
+    def on_any_event(self,event):
+        self.process(event)
+
+    def process(self,event):
         print event.src_path, event.event_type
         if event.event_type in ["created","modified"]:
             idx = FHIndex.FileHashIndexer(event.src_path)
@@ -28,26 +43,17 @@ class MyHandler(PatternMatchingEventHandler):
                 path = os.path.dirname(event.src_path)
             idx = FHIndex.FileHashIndexer(path)
             idx.index()
-
-    def on_modified(self, event):
-        self.process(event)
-
-    def on_created(self, event):
-        self.process(event)
-
-    def on_deleted(self, event):
-        self.process(event)
-
-    def on_moved(self, event):
-        self.process(event)
+        self.callback()
 
 if __name__ == '__main__':
     args = sys.argv[1]
     idx = FHIndex.FileHashIndexer(args)
     idx.index()
-    observer = Observer()
-    observer.schedule(MyHandler(),path=args,recursive=True)
-    observer.start()
+    #eventHandler = MyHandler(print_hi)
+    #observer = Observer()
+    #observer.schedule(eventHandler,path=args,recursive=True)
+    #observer.start()
+    x = ScanFolder(args,print_hi)
     try:
         reactor.run()
     except KeyboardInterrupt:

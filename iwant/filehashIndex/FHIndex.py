@@ -2,7 +2,7 @@ import os
 from collections import namedtuple
 import hashlib
 import json
-
+import pickle
 FileObj = namedtuple('FileObj','filename checksum size')
 HIDX_EXTENSION = '.hindex'
 PIDX_EXTENSION = '.pindex'
@@ -140,7 +140,7 @@ class FileHashIndexer(object):
 
     def reduced_index(self):
         red_fn=lambda x:(os.path.basename(x[0]), x[2])
-        return json.dumps(dict([(k,red_fn(v)) for k,v in self.hash_index.iteritems()]))
+        return dict([(k,red_fn(v)) for k,v in self.hash_index.iteritems()])
 
 if __name__ == '__main__':
     new_file = FileHashIndexer('/home/nirvik/Pictures/')

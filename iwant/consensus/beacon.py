@@ -1,17 +1,43 @@
 from twisted.internet import reactor, defer, threads, task
-from twisted.internet.protocol import DatagramProtocol, Protocol
+from twisted.internet.protocol import DatagramProtocol, Protocol, ClientFactory
 import uuid
 import logging
 import netifaces as ni
 import time
-import ast
-from communication.message import *
+from election_communication.message import *
+from constants import (
+        MCAST_IP,MCAST_PORT,
+        NEW_PEER,RE_ELECTION,
+        ALIVE,BCAST_LEDGER,HANDLE_PING,
+        HANDLE_ALIVE,NEW_LEADER,
+        HANDLE_PONG,REMOVE_LEADER,
+        PING, PONG
+    )
 import time_uuid
 import pickle
-MCAST_IP = '228.1.0.5'
-MCAST_PORT = 8005
+from ..communication.message import P2PMessage
+
 MCAST_ADDR = (MCAST_IP, MCAST_PORT)
 
+
+class SomeClientProtocol(Protocol):
+
+    def __init__(self, factory):
+        self.factory = factory
+
+    def connectionMade(self):
+        update_msg = P2PMessage(key='leader', data=(self.factory.leader_host, self.factory.leader_port))
+        self.transport.write(str(update_msg))
+        self.transport.loseConnection()
+
+
+class SomeClientFactory(ClientFactory):
+    def __init__(self, leader_host, leader_port):
+        self.leader_host = leader_host
+        self.leader_port = leader_port
+
+    def buildProtocol(self, addr):
+        return SomeClientProtocol(self)
 
 class PeerdiscoveryProtocol(DatagramProtocol):
 
@@ -103,15 +129,15 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
         #    8: self._remove_leader
         #}
         self.eventcontroller = eventController
-        self.eventcontroller.bind('new peers',self._new_peers)
-        self.eventcontroller.bind('re election',self._re_election_event)
-        self.eventcontroller.bind('alive',self._alive)
-        self.eventcontroller.bind('Broadcast ledger',self._manage_ledger)
-        self.eventcontroller.bind('handle ping',self._handle_ping)
-        self.eventcontroller.bind('alive handler',self._alive_handler)
-        self.eventcontroller.bind('new leader',self._new_leader_callback)
-        self.eventcontroller.bind('handle pong',self._handle_pong)
-        self.eventcontroller.bind('remove leader',self._remove_leader)
+        self.eventcontroller.bind(NEW_PEER, self._new_peers)
+        self.eventcontroller.bind(RE_ELECTION, self._re_election_event)
+        self.eventcontroller.bind(ALIVE, self._alive)
+        self.eventcontroller.bind(BCAST_LEDGER, self._manage_ledger)
+        self.eventcontroller.bind(HANDLE_PING, self._handle_ping)
+        self.eventcontroller.bind(HANDLE_ALIVE, self._alive_handler)
+        self.eventcontroller.bind(NEW_LEADER, self._new_leader_callback)
+        self.eventcontroller.bind(HANDLE_PONG, self._handle_pong)
+        self.eventcontroller.bind(REMOVE_LEADER, self._remove_leader)
 
         self._none_alive_ack = 1  # when no peers are present
         self._eln_ack = None  # waiting for election ack
@@ -124,13 +150,12 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
         self._eCallId = None
         self._alCallId = None
         self._pollId = None
-        self._eid = 0.0
+        self._eid = None
         self._addr = (self.book.ip, MCAST_PORT)
         self._latest_election_id = None
         self.buff = ''
         self.delimiter = '#'
-        #print ('UUID {0}'.format(self.book.uuidObj))
-        #print self._addr
+        print 'ID : ' + self.book.uuid
 
     def cancel_wait_for_peers_callback(self):
         if self._npCallId is not None:
@@ -172,43 +197,43 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
         self.d = threads.deferToThread(self._poll)
 
     def _broadcast_identity(self):
-        self.send(FlashMessage('new peers', [self.book.uuidObj, self.book.leader]), MCAST_ADDR)
+        self.send(FlashMessage(NEW_PEER, [self.book.uuidObj, self.book.leader]), MCAST_ADDR)
 
     def _broadcast_leader_dead(self):
-        self.send(FlashMessage('remove leader', [self.book.leader]), MCAST_ADDR)
+        self.send(FlashMessage(REMOVE_LEADER, [self.book.leader]), MCAST_ADDR)
         self._broadcast_re_election()
 
     def _broadcast_re_election(self):
         eid = self.generate_election_id()
-        self.send(FlashMessage('re election', [eid]), MCAST_ADDR)
+        self.send(FlashMessage(RE_ELECTION, [eid]), MCAST_ADDR)
 
     def _send_id_to(self, addr):
-        self.send(FlashMessage('new peers', [self.book.uuidObj, self.book.leader]), addr)
+        self.send(FlashMessage(NEW_PEER, [self.book.uuidObj, self.book.leader]), addr)
 
     def _send_pong_to(self, addr):
-        self.send(FlashMessage('handle pong', ['pong']), addr)
+        self.send(FlashMessage(HANDLE_PONG, [PONG]), addr)
 
     def _broadcast_winner(self, eid):
         '''
             broadcasting winner message
         '''
-        self.send(FlashMessage('new leader', [self.book.leader, eid]), MCAST_ADDR)
+        self.send(FlashMessage(NEW_LEADER, [self.book.leader, eid]), MCAST_ADDR)
 
     def _send_election_msg_to(self, pid):
         eid = self.generate_election_id()
         addr = self.book.peers[pid]
-        self.send(FlashMessage('alive', [eid]), addr)
+        self.send(FlashMessage(ALIVE, [eid]), addr)
 
     def _ping(self, addr):
-        self.send(FlashMessage('handle ping', ['ping']), addr)  # might be a problem
+        self.send(FlashMessage(HANDLE_PING, [PING]), addr)  # might be a problem
 
     def _send_alive_msg_to(self, addr):
         eid = self.generate_election_id()
-        self.send(FlashMessage('alive handler', [eid]), addr)
+        self.send(FlashMessage(HANDLE_ALIVE, [eid]), addr)
 
     def _broadcast_ledger(self):
         ledger = self.book.peers
-        self.send(FlashMessage('Broadcast ledger', [self.book.leader, ledger]), MCAST_ADDR)
+        self.send(FlashMessage(BCAST_LEDGER, [self.book.leader, ledger]), MCAST_ADDR)
 
     def _poll(self):
         '''
@@ -217,7 +242,6 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
         if self._pollClock is None:
             from twisted.internet import reactor
             self._pollClock = reactor
-
         if self.book.leader != self.book.uuidObj and self.book.leader:
             def ping_callback():
                 if not self._ping_ack:
@@ -230,7 +254,7 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
                 self._ping_ack = 0  # reset the ping_ack to 0
 
             print 'pinging leader : {0}'.format(self.book.leader)
-            # when leader is removed and we are inside this if block since the polling process occuring concurrently
+            # when leader is removed and we are present in this block, since the polling process occuring concurrently
             try:
                 leader_addr = self.book.peers[self.book.leader]
                 self._ping(leader_addr)
@@ -242,11 +266,10 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
 
     def _process_msg(self, req, addr):
         msg = FlashMessage(message=req)
-        if msg.key in [0, 2, 4, 6]:
-            #self.message_codes[msg.key](data=msg.data, addr=addr)
+        #if msg.key in [0, 2, 4, 6]:
+        if msg.key in [NEW_PEER,ALIVE,HANDLE_PING,NEW_LEADER]:
             self.eventcontroller.events[msg.key](data=msg.data, addr=addr)
         else:
-            #self.message_codes[msg.key](data=msg.data)
             self.eventcontroller.events[msg.key](data=msg.data)
 
     def _new_peers(self, data=None, peer=None, leader=None, addr=None):
@@ -264,7 +287,9 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             self.cancel_wait_for_peers_callback()
             if peer not in self.book.peers:
                 self.book.peers[peer] = addr
+                print 'added to new peers'
                 if self.book.leader == self.book.uuidObj:  # if leader, send the ledger
+                    print 'lets bcast ledger'
                     self._broadcast_ledger()
                 else:
                     if not leader:  # there are no leaders whatsoever
@@ -282,8 +307,8 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
         temp_ledger = self.book.peers.copy()
         temp_ledger.update(ledger)
         self.book.peers = temp_ledger
-        #for key, value in self.book.peers.iteritems():
-        #    print  key, value
+        for key, value in self.book.peers.iteritems():
+            print  key, value
 
         if not self.book.leader or (self.book.leader == self.book.uuidObj and leader and leader!=self.book.leader):
             self._new_leader_callback(leader=leader)
@@ -327,7 +352,7 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             Every time there is an election reset the values of ack
         '''
         if self._eid == eid:
-            requested_peers_list = filter(lambda x: x < self.book.uuidObj, self.book.peers.keys())  #Todo: get the older peers
+            requested_peers_list = filter(lambda x: x < self.book.uuidObj, self.book.peers.keys())
             for peer in requested_peers_list:
                 self._send_election_msg_to(peer)
 
@@ -386,6 +411,7 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
                 self._bully()
             else:
                 self.book.leader = leader
+                print 'register leader {0}'.format(self.book.leader)
 
         elif self._eid != eid:
             print 'WRONG ELEC ID {0} {1}'.format(self._eid,eid)
@@ -405,6 +431,10 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             print 'CLOSING ELECTION: {0}'.format(self._eid)
             self._latest_election_id = self._eid
             self._eid = None
+            # TODO : this is when we do reactor.connectTCP(server, Factory) . Send the request to the server and close the connection as soon as it is made
+            leader_host, leader_port = self.book.peers[self.book.leader]
+            factory = SomeClientFactory(leader_host, leader_port)
+            reactor.connectTCP('127.0.0.1',1235,factory)
 
 
     def _leader(self, leader, eid):
@@ -412,6 +442,7 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             This method is to assign you the leadership and broadcast everyone
         '''
         if self._eid == eid:
+            self.cancel_wait_for_peers_callback()  # if leader wins due to no available peers, then cancel the wait for peers callback
             self.book.leader = leader
             self._broadcast_winner(eid)
 

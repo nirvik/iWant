@@ -4,3 +4,5 @@ consensus/backup.py
 *.pdf
 *.hindex
 *.pindex
+todo
+backup*

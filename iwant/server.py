@@ -3,37 +3,46 @@ from twisted.internet.protocol import Factory
 from twisted.protocols.basic import FileSender
 from flashpointProtocol import FlashpointProtocol
 from filehashIndex.FHIndex import FileHashIndexer
-from communication.message import FlashMessage
+from communication.message import P2PMessage
 
 class backend(FlashpointProtocol):
     def __init__(self):
         self.message_codes = {
-            1 : self._list_file,
+            'handshake' : self._handshake,
+            'listAll' : self._list_file,
             2 : self._load_file,
-            3 : self._start_transfer
+            3 : self._start_transfer,
+            'leader': self._update_leader,
+            'filesys_modified': self._filesystem_modified
         }
+        self.buff = ''
+        self.delimiter = '#'
 
-    def serviceMessage(self,data):
-        print data
-        req = FlashMessage(message=data)
-        print req.key,req.data
+    def serviceMessage(self, data):
+        req = P2PMessage(message=data)
+        print 'GOT {0}'.format(req.key)
         try:
-            self.message_codes[req.key](req.data)
+            self.message_codes[req.key]()
         except:
-            raise NotImplementedError
+            self.message_codes[req.key](req.data)
 
-    def _list_file(self,_discard):
-        print self.factory.state
+    def _handshake(self):
+        resMessage = P2PMessage(key='handshake',data=[])
+        self.sendLine(resMessage)
+
+    def _list_file(self):
         if self.factory.state==1:
-            self.sendLine(self.factory.indexer.reduced_index())
+            resMessage = P2PMessage(key='listAll', data=self.factory.indexer.reduced_index())
+            self.sendLine(resMessage)
         else:
-            self.sendLine('FILE HASHING : STATUS : INCOMPLETE')
+            resMessage = P2PMessage(key='ErrorListingAll',data='File hashing incomplete')
+            self.sendLine(resMessage)
 
     def _load_file(self,data):
         fhash = data[0]
         self.fileObj = self.factory.indexer.getFile(fhash)
         fsize = self.factory.indexer.hash_index[fhash].size
-        ack_msg = FlashMessage(key=3,data=[fsize])
+        ack_msg = P2PMessage(key=3,data=[fsize])
         self.sendLine(ack_msg)
 
     def _start_transfer(self):
@@ -47,6 +56,12 @@ class backend(FlashpointProtocol):
 
     def _failure(self,reason):
         print 'Failed {0}'.format(reason)
+
+    def _update_leader(self, leader):
+        print 'Leader {0}'.format(leader)
+
+    def _filesystem_modified(self):
+        print 'file system modified'
 
 class backendFactory(Factory):
     protocol = backend
@@ -63,8 +78,10 @@ class backendFactory(Factory):
     def _failure(self,reason):
         raise NotImplementedError
 
+    def connectionMade(self):
+        print 'connection established'
 
 if __name__ == '__main__':
-    folder = raw_input('Enter absolute path to share :')
-    endpoints.serverFromString(reactor,'tcp:1234').listen(backendFactory(folder))
+    #folder = raw_input('Enter absolute path to share :')
+    endpoints.serverFromString(reactor,'tcp:1235').listen(backendFactory('/home/nirvik/Pictures'))
     reactor.run()

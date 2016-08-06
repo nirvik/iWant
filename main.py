@@ -5,8 +5,9 @@ from twisted.internet import reactor
 import os, sys
 from netifaces import interfaces, ifaddresses, AF_INET
 import time_uuid
-from config import SERVER_DAEMON_HOST, SERVER_DAEMON_PORT
+from iwant.config import SERVER_DAEMON_HOST, SERVER_DAEMON_PORT
 from iwant.constants.election_constants import MCAST_IP, MCAST_PORT
+import pickle
 
 try:
     def callback():
@@ -16,7 +17,10 @@ try:
 
         class FilemonitorClientProtocol(Protocol):
             def connectionMade(self):
-                updated_msg = P2PMessage(key=FILE_SYS_EVENT)
+                with open('/var/log/iwant/.hindex') as f:
+                    dump = f.read()
+                pd = pickle.loads(dump)
+                updated_msg = P2PMessage(key=FILE_SYS_EVENT, data=pd)
                 self.transport.write(str(updated_msg))
                 self.transport.loseConnection()
 

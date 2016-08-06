@@ -6,6 +6,7 @@ import netifaces as ni
 import time
 import time_uuid
 import pickle
+from iwant.config import SERVER_DAEMON_HOST, SERVER_DAEMON_PORT
 from iwant.constants.election_constants import (
         MCAST_IP,MCAST_PORT,
         NEW_PEER,RE_ELECTION,
@@ -435,7 +436,7 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             # TODO : this is when we do reactor.connectTCP(server, Factory) . Send the request to the server and close the connection as soon as it is made
             leader_host, leader_port = self.book.peers[self.book.leader]
             factory = SomeClientFactory(leader_host, leader_port)
-            reactor.connectTCP('127.0.0.1',1235,factory)
+            reactor.connectTCP(SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, factory)
 
 
     def _leader(self, leader, eid):

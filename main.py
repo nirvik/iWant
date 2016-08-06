@@ -5,22 +5,27 @@ from twisted.internet import reactor
 import os, sys
 from netifaces import interfaces, ifaddresses, AF_INET
 import time_uuid
+from config import SERVER_DAEMON_HOST, SERVER_DAEMON_PORT
+from iwant.constants.election_constants import MCAST_IP, MCAST_PORT
+
 try:
     def callback():
         from twisted.internet.protocol import Protocol, ClientFactory
         from twisted.internet import reactor
-        class SomeClientProtocol(Protocol):
+        from iwant.communication.constants import FILE_SYS_EVENT
+
+        class FilemonitorClientProtocol(Protocol):
             def connectionMade(self):
-                updated_msg = P2PMessage(key='filesys_modified')
+                updated_msg = P2PMessage(key=FILE_SYS_EVENT)
                 self.transport.write(str(updated_msg))
                 self.transport.loseConnection()
 
-        class SomeClientFactory(ClientFactory):
+        class FilemonitorClientFactory(ClientFactory):
             def buildProtocol(self, addr):
-                return SomeClientProtocol()
+                return FilemonitorClientProtocol()
 
-        factory = SomeClientFactory()
-        reactor.connectTCP('127.0.0.1', 1235, factory)
+        factory = FilemonitorClientFactory()
+        reactor.connectTCP(SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, factory)
 
     def ip4_addresses():
         ip_list = []
@@ -37,9 +42,8 @@ try:
     folder = '/home/nirvik/Pictures'
     timeuuid = time_uuid.TimeUUID.with_utcnow()
     book = CommonlogBook(identity=timeuuid, state=0, ip = ips[ip-1])
-    eventRegister = EventHooker()
-    reactor.listenMulticast(MCAST_ADDR[1], CommonroomProtocol(book,eventRegister), listenMultiple=True)
-    endpoints.serverFromString(reactor, 'tcp:1235').listen(backendFactory('/home/nirvik/Pictures'))
+    reactor.listenMulticast(MCAST_ADDR[1], CommonroomProtocol(book), listenMultiple=True)
+    endpoints.serverFromString(reactor, 'tcp:{0}'.format(SERVER_DAEMON_PORT)).listen(backendFactory(folder))
     ScanFolder(folder, callback)
     reactor.run()
 except KeyboardInterrupt:

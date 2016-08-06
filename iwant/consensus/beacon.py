@@ -4,8 +4,9 @@ import uuid
 import logging
 import netifaces as ni
 import time
-from election_communication.message import *
-from constants import (
+import time_uuid
+import pickle
+from iwant.constants.election_constants import (
         MCAST_IP,MCAST_PORT,
         NEW_PEER,RE_ELECTION,
         ALIVE,BCAST_LEDGER,HANDLE_PING,
@@ -13,9 +14,9 @@ from constants import (
         HANDLE_PONG,REMOVE_LEADER,
         PING, PONG
     )
-import time_uuid
-import pickle
-from ..communication.message import P2PMessage
+from iwant.constants.server_event_constants import LEADER
+from iwant.communication.message import P2PMessage
+from iwant.communication.election_communication.message import *
 
 MCAST_ADDR = (MCAST_IP, MCAST_PORT)
 
@@ -26,7 +27,7 @@ class SomeClientProtocol(Protocol):
         self.factory = factory
 
     def connectionMade(self):
-        update_msg = P2PMessage(key='leader', data=(self.factory.leader_host, self.factory.leader_port))
+        update_msg = P2PMessage(key=LEADER, data=(self.factory.leader_host, self.factory.leader_port))
         self.transport.write(str(update_msg))
         self.transport.loseConnection()
 
@@ -111,7 +112,7 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
     clock = None
     continueTrying = 1
 
-    def __init__(self, book, eventController):
+    def __init__(self, book):
         '''
             build the message codes
             :param book: CommonLogBook instance
@@ -128,7 +129,7 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
         #    7: self._handle_pong,
         #    8: self._remove_leader
         #}
-        self.eventcontroller = eventController
+        self.eventcontroller = EventHooker()
         self.eventcontroller.bind(NEW_PEER, self._new_peers)
         self.eventcontroller.bind(RE_ELECTION, self._re_election_event)
         self.eventcontroller.bind(ALIVE, self._alive)
@@ -479,8 +480,7 @@ if __name__ == '__main__':
         ip = input('Enter index of ip addr:')
         timeuuid = time_uuid.TimeUUID.with_utcnow()
         book = CommonlogBook(identity=timeuuid, state=0, ip = ips[ip-1])
-        eventRegister = EventHooker()
-        reactor.listenMulticast(MCAST_ADDR[1], CommonroomProtocol(book,eventRegister), listenMultiple=True)
+        reactor.listenMulticast(MCAST_ADDR[1], CommonroomProtocol(book), listenMultiple=True)
         reactor.run()
     except KeyboardInterrupt:
         reactor.stop()

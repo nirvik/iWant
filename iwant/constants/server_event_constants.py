@@ -1,0 +1,6 @@
+HANDSHAKE = 'handshake'
+FILE_SYS_EVENT = 'filesys_modified'
+FILE = 'file'
+LIST_ALL_FILES = 'listAll'
+ERROR_LIST_ALL_FILES = 'ErrorListingAll'
+LEADER = 'leader'

@@ -1,5 +1,6 @@
 # have EventCallbackRegsiters here too
 import pickle
+from iwant.constants.election_constants import NEW_PEER, RE_ELECTION, ALIVE, BCAST_LEDGER, HANDLE_PING, HANDLE_ALIVE, NEW_LEADER, HANDLE_PONG, REMOVE_LEADER, PING, PONG
 
 class FlashMessageException(Exception):
     def __init__(self,code,msg):
@@ -14,9 +15,9 @@ class FlashMessage(object):
         #self.NO_PARAM = [4,7]
         #self.DELIMITERS = [0,3,6,8]
         #self.FLOATS = [1,2,5,6]
-        self.NO_PARAM = ['handle ping','handle pong']
-        self.DELIMITERS = ['new peers','Broadcast ledger','new leader','remove leader']
-        self.FLOATS = ['re election','alive','alive handler','new leader']
+        self.NO_PARAM = [HANDLE_PING, HANDLE_PONG]
+        self.DELIMITERS = [NEW_PEER, BCAST_LEDGER, NEW_LEADER, REMOVE_LEADER]
+        self.FLOATS = [RE_ELECTION, ALIVE, HANDLE_ALIVE, NEW_LEADER]
         if message is not None:
             self.key,self.data = self._parse_message(message)
         else:
@@ -27,7 +28,6 @@ class FlashMessage(object):
     def _parse_message(self,message):
         id,msg = message.split(';')
         try:
-            # key = id
             key = id
         except:
             raise FlashMessageException(1,'Invalid message code')
@@ -37,7 +37,6 @@ class FlashMessage(object):
 
         elif key in self.DELIMITERS:
             try:
-                #values = msg.split('$')
                 values = pickle.loads(msg)
                 if key in self.FLOATS:
                     data = list(self._clean_message(values))
@@ -53,10 +52,6 @@ class FlashMessage(object):
     def _clean_message(self,values):
         for val in values:
             yield val
-            #try:
-            #    yield float(val)
-            #except:
-            #    yield val
 
     def __str__(self):
         #return str(self.key)+';'+'$'.join([str(it) for it in self.data]) + '#'

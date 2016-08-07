@@ -28,6 +28,7 @@ class SomeClientProtocol(Protocol):
         self.factory = factory
 
     def connectionMade(self):
+        print 'connection made'
         update_msg = P2PMessage(key=LEADER, data=(self.factory.leader_host, self.factory.leader_port))
         self.transport.write(str(update_msg))
         self.transport.loseConnection()
@@ -434,7 +435,8 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             self._latest_election_id = self._eid
             self._eid = None
             # TODO : this is when we do reactor.connectTCP(server, Factory) . Send the request to the server and close the connection as soon as it is made
-            leader_host, leader_port = self.book.peers[self.book.leader]
+            leader_host = self.book.peers[self.book.leader][0]
+            leader_port = SERVER_DAEMON_PORT
             factory = SomeClientFactory(leader_host, leader_port)
             reactor.connectTCP(SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, factory)
 

@@ -50,7 +50,7 @@ class FileHashIndexer(object):
         with open(path,'rb') as f:
             data = f.read()
         try:
-            json_data = json.loads(data)
+            json_data = pickle.loads(data)#json.loads(data)
         except:
             json_data = {}
         return json_data
@@ -95,10 +95,10 @@ class FileHashIndexer(object):
     def _save_hash_data(self):
         hashed_data  = os.path.join(self.current_path,HIDX_EXTENSION)
         with open(hashed_data,'wb') as f:
-            f.write(json.dumps(self.hash_index))
+            f.write(pickle.dumps(self.hash_index))
         filepath_data = os.path.join(self.current_path,PIDX_EXTENSION)
         with open(filepath_data,'wb') as f:
-            f.write(json.dumps(self.path_index))
+            f.write(pickle.dumps(self.path_index))
         return (self.hash_index, self.path_index)
 
     def _delete(self , pathname):

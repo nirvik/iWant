@@ -18,13 +18,8 @@ class backend(FlashpointProtocol):
             FILE_SYS_EVENT: self._filesystem_modified,
             HASH_DUMP : self._dump_data_from_peers
         }
-        self.cached_data = None
         self.buff = ''
         self.delimiter = '#'
-        self.leader = None
-        self.indexer = FileHashIndexer(self.factory.folder)
-        self.d = threads.deferToThread(self.indexer.index)
-        self.d.addCallbacks(self._file_hash_success,self._file_hash_failure)
 
     def serviceMessage(self, data):
         req = P2PMessage(message=data)
@@ -66,21 +61,43 @@ class backend(FlashpointProtocol):
         print 'Failed {0}'.format(reason)
 
     def _update_leader(self, leader):
-        print 'Leader {0}'.format(leader)
-        self.leader = leader
+        self.factory.leader = leader
         print 'Leader {0}'.format(self.factory.book.leader)
-        if self.cached_data is None:
-            print 'cached data is None'
-            self.gather_data()
-        else:
-            print 'notify leader'
-            self._notify_leader()
+        self.factory.gather_data_then_notify()
 
     def _filesystem_modified(self, data):
         print 'file system modified'
         self.factory.state = 1  # Ready
-        self.gather_data()
-        #self.notify_leader(data)
+        self.factory.gather_data_then_notify()
+
+    def _dump_data_from_peers(self, data):
+        pass
+
+
+
+class backendFactory(Factory):
+    protocol = backend
+    def __init__(self, folder, book):
+        self.state = 0
+        self.folder = folder
+        self.book = book
+        self.leader = None
+        self.cached_data = None
+        self.data_from_peers = None
+        self.indexer = FileHashIndexer(self.folder)
+        self.d = threads.deferToThread(self.indexer.index)
+        self.d.addCallbacks(self._file_hash_success, self._file_hash_failure)
+
+    def gather_data_then_notify(self):
+        print 'gathering data'
+        self.cached_data = {}
+        with open('/var/log/iwant/.hindex') as f:
+            hidx = f.read()
+        with open('/var/log/iwant/.pindex') as f:
+            pidx = f.read()
+        self.cached_data['hidx'] = hidx
+        self.cached_data['pidx'] = pidx
+        self._notify_leader()
 
     def _notify_leader(self):
         from twisted.internet.protocol import Protocol, ClientFactory
@@ -91,9 +108,7 @@ class backend(FlashpointProtocol):
                 self.factory = factory
 
             def connectionMade(self):
-                print 'connection made'
                 update_msg = P2PMessage(key=HASH_DUMP, data=self.factory.dump)
-                print update_msg
                 self.transport.write(str(update_msg))
                 self.transport.loseConnection()
 
@@ -102,53 +117,23 @@ class backend(FlashpointProtocol):
                 self.dump = dump
 
             def buildProtocol(self, addr):
-                return SomeClientProtocol(self)
+                return ServerLeaderProtocol(self)
 
-        factory = ServerLeaderFactory(dump=(self.factory.book.uuidObj, self.cached_data))
-        print 'state {0} \n leader {1}'.format(self.factory.state, self.leader)
-        if self.leader is not None and self.factory.state==1:
+        factory = ServerLeaderFactory(dump=(self.book.uuidObj, self.cached_data))
+        print 'state {0} \nleader {1}'.format(self.state, self.leader)
+        if self.leader is not None and self.state==1:
             print self.leader[0], self.leader[1]
-            reactor.connectTCP(self.leader[0], int(self.leader[1]), factory)
+            reactor.connectTCP(self.leader[0], self.leader[1], factory)
 
-    def _dump_data_from_peers(self, data):
-        print 'Dumping data: {0}'.format(data)
 
     def _file_hash_success(self, data):
-        self.factory.state = 1  # Ready
+        self.state = 1  # Ready
         print 'Sucess baby'
-        self.gather_data()
+        self.gather_data_then_notify()
 
     def _file_hash_failure(self, reason):
         print reason
         raise NotImplementedError
-
-    def gather_data(self):
-        print 'gathering data'
-        self.cached_data = {}
-        with open('/var/log/iwant/.hindex') as f:
-            hidx = f.read()
-        with open('/var/log/iwant/.pindex') as f:
-            pidx = f.read()
-        self.cached_data['hidx'] = hidx
-        self.cached_data['pidx'] = pidx
-        #print self.cached_data
-        self._notify_leader()
-
-class backendFactory(Factory):
-    protocol = backend
-    def __init__(self, folder, book):
-        self.state = 0
-        self.folder = folder
-        self.book = book
-        #self.indexer = FileHashIndexer(folder)
-        #self.d = threads.deferToThread(self.indexer.index)
-        #self.d.addCallbacks(self._success,self._failure)
-
-    #def _success(self,data):
-    #    self.state = 1  # finished hashing
-
-    #def _failure(self,reason):
-    #    raise NotImplementedError
 
     def buildProtocol(self, addr):
         return backend(self)

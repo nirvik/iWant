@@ -99,6 +99,7 @@ class FileHashIndexer(object):
         filepath_data = os.path.join(self.current_path,PIDX_EXTENSION)
         with open(filepath_data,'wb') as f:
             f.write(json.dumps(self.path_index))
+        return (self.hash_index, self.path_index)
 
     def _delete(self , pathname):
         checksum = self.path_index[pathname]

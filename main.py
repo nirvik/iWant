@@ -13,7 +13,7 @@ try:
     def callback():
         from twisted.internet.protocol import Protocol, ClientFactory
         from twisted.internet import reactor
-        from iwant.communication.constants import FILE_SYS_EVENT
+        from iwant.constants.server_event_constants import FILE_SYS_EVENT
 
         class FilemonitorClientProtocol(Protocol):
             def connectionMade(self):
@@ -47,7 +47,7 @@ try:
     timeuuid = time_uuid.TimeUUID.with_utcnow()
     book = CommonlogBook(identity=timeuuid, state=0, ip = ips[ip-1])
     reactor.listenMulticast(MCAST_ADDR[1], CommonroomProtocol(book), listenMultiple=True)
-    endpoints.serverFromString(reactor, 'tcp:{0}'.format(SERVER_DAEMON_PORT)).listen(backendFactory(folder))
+    endpoints.serverFromString(reactor, 'tcp:{0}'.format(SERVER_DAEMON_PORT)).listen(backendFactory(folder, book))
     ScanFolder(folder, callback)
     reactor.run()
 except KeyboardInterrupt:

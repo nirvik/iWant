@@ -5,7 +5,8 @@ from flashpointProtocol import FlashpointProtocol
 from filehashIndex.FHIndex import FileHashIndexer
 from communication.message import P2PMessage
 from iwant.constants.server_event_constants import *
-
+from fuzzywuzzy import fuzz, process
+import pickle
 class backend(FlashpointProtocol):
     def __init__(self, factory):
         self.factory = factory
@@ -16,7 +17,9 @@ class backend(FlashpointProtocol):
             3 : self._start_transfer,
             LEADER: self._update_leader,
             FILE_SYS_EVENT: self._filesystem_modified,
-            HASH_DUMP : self._dump_data_from_peers
+            HASH_DUMP : self._dump_data_from_peers,
+            SEARCH_REQ : self._leader_send_list,
+            LOOKUP : self._leader_lookup
         }
         self.buff = ''
         self.delimiter = '#'
@@ -63,17 +66,37 @@ class backend(FlashpointProtocol):
     def _update_leader(self, leader):
         self.factory.leader = leader
         print 'Leader {0}'.format(self.factory.book.leader)
-        self.factory.gather_data_then_notify()
+        if self.factory.state == 1 and self.factory.leader is not None:
+            self.factory.gather_data_then_notify()
 
     def _filesystem_modified(self, data):
         print 'file system modified'
         self.factory.state = 1  # Ready
-        self.factory.gather_data_then_notify()
+        if self.factory.state == 1 and self.factory.leader is not None:
+            self.factory.gather_data_then_notify()
 
     def _dump_data_from_peers(self, data):
-        pass
+        uuid, dump = data
+        print 'UUID {0}'.format(uuid)
+        self.factory.data_from_peers[uuid] = dump
+        #files_dict_list = [pickle.loads(val['hidx']) for val in self.factory.data_from_peers.values()]
+        #files_dict_values = [val.values() for val in files_dict_list]
+        #print files_dict_values
 
+    def _leader_send_list(self, data):
+        if self.factory.leader is not None:
+            self.factory.notify_leader(key=LOOKUP, data=data)
 
+    def _leader_lookup(self, data):
+        uuid, text_search = data
+        host, port = self.factory.book[uuid]
+        print ' At leader lookup '
+        x= []
+        for val in self.factory.data_from_peers.values():
+            l =  pickle.loads(val['hidx'])
+            for i in l.values():
+                x.append(i)
+        print process.extract('pyaar ke side effects', map(lambda a: a.filename, x))
 
 class backendFactory(Factory):
     protocol = backend
@@ -83,13 +106,13 @@ class backendFactory(Factory):
         self.book = book
         self.leader = None
         self.cached_data = None
-        self.data_from_peers = None
+        self.data_from_peers = {}
+        self.file_peer_indexer = {}
         self.indexer = FileHashIndexer(self.folder)
         self.d = threads.deferToThread(self.indexer.index)
         self.d.addCallbacks(self._file_hash_success, self._file_hash_failure)
 
     def gather_data_then_notify(self):
-        print 'gathering data'
         self.cached_data = {}
         with open('/var/log/iwant/.hindex') as f:
             hidx = f.read()
@@ -97,9 +120,9 @@ class backendFactory(Factory):
             pidx = f.read()
         self.cached_data['hidx'] = hidx
         self.cached_data['pidx'] = pidx
-        self._notify_leader()
+        self._notify_leader(HASH_DUMP, None)
 
-    def _notify_leader(self):
+    def _notify_leader(self, key, data=None):
         from twisted.internet.protocol import Protocol, ClientFactory
         from twisted.internet import reactor
 
@@ -108,27 +131,31 @@ class backendFactory(Factory):
                 self.factory = factory
 
             def connectionMade(self):
-                update_msg = P2PMessage(key=HASH_DUMP, data=self.factory.dump)
+                update_msg = P2PMessage(key=self.factory.key, data=self.factory.dump)
                 self.transport.write(str(update_msg))
                 self.transport.loseConnection()
 
         class ServerLeaderFactory(ClientFactory):
-            def __init__(self, dump):
+            def __init__(self, key, dump):
+                self.key = key
                 self.dump = dump
 
             def buildProtocol(self, addr):
                 return ServerLeaderProtocol(self)
 
-        factory = ServerLeaderFactory(dump=(self.book.uuidObj, self.cached_data))
+        if key == HASH_DUMP:
+            factory = ServerLeaderFactory(key=key, dump=(self.book.uuidObj, self.cached_data))
+        elif key == LOOKUP:
+            factory = ServerLeaderFactory(key=key, dump=(self.book.uuidObj, data))
         print 'state {0} \nleader {1}'.format(self.state, self.leader)
         if self.leader is not None and self.state==1:
             print self.leader[0], self.leader[1]
-            reactor.connectTCP(self.leader[0], self.leader[1], factory)
+            host , port = self.leader
+            reactor.connectTCP(host, port, factory)
 
 
     def _file_hash_success(self, data):
         self.state = 1  # Ready
-        print 'Sucess baby'
         self.gather_data_then_notify()
 
     def _file_hash_failure(self, reason):

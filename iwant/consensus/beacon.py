@@ -22,25 +22,6 @@ from iwant.communication.election_communication.message import *
 MCAST_ADDR = (MCAST_IP, MCAST_PORT)
 
 
-class SomeClientProtocol(Protocol):
-
-    def __init__(self, factory):
-        self.factory = factory
-
-    def connectionMade(self):
-        print 'connection made'
-        update_msg = P2PMessage(key=LEADER, data=(self.factory.leader_host, self.factory.leader_port))
-        self.transport.write(str(update_msg))
-        self.transport.loseConnection()
-
-
-class SomeClientFactory(ClientFactory):
-    def __init__(self, leader_host, leader_port):
-        self.leader_host = leader_host
-        self.leader_port = leader_port
-
-    def buildProtocol(self, addr):
-        return SomeClientProtocol(self)
 
 class PeerdiscoveryProtocol(DatagramProtocol):
 
@@ -435,9 +416,29 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             self._latest_election_id = self._eid
             self._eid = None
             # TODO : this is when we do reactor.connectTCP(server, Factory) . Send the request to the server and close the connection as soon as it is made
+            class ServerElectionProtocol(Protocol):
+
+                def __init__(self, factory):
+                    self.factory = factory
+
+                def connectionMade(self):
+                    #print 'connection made'
+                    update_msg = P2PMessage(key=LEADER, data=(self.factory.leader_host, self.factory.leader_port))
+                    self.transport.write(str(update_msg))
+                    self.transport.loseConnection()
+
+
+            class ServerElectionFactory(ClientFactory):
+                def __init__(self, leader_host, leader_port):
+                    self.leader_host = leader_host
+                    self.leader_port = leader_port
+
+                def buildProtocol(self, addr):
+                    return ServerElectionProtocol(self)
+
             leader_host = self.book.peers[self.book.leader][0]
             leader_port = SERVER_DAEMON_PORT
-            factory = SomeClientFactory(leader_host, leader_port)
+            factory = ServerElectionFactory(leader_host, leader_port)
             reactor.connectTCP(SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, factory)
 
 

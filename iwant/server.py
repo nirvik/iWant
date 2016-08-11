@@ -5,8 +5,10 @@ from flashpointProtocol import FlashpointProtocol
 from filehashIndex.FHIndex import FileHashIndexer
 from communication.message import P2PMessage
 from iwant.constants.server_event_constants import *
+from iwant.config import CLIENT_DAEMON_HOST, CLIENT_DAEMON_PORT
 from fuzzywuzzy import fuzz, process
 import pickle
+
 class backend(FlashpointProtocol):
     def __init__(self, factory):
         self.factory = factory
@@ -19,7 +21,8 @@ class backend(FlashpointProtocol):
             FILE_SYS_EVENT: self._filesystem_modified,
             HASH_DUMP : self._dump_data_from_peers,
             SEARCH_REQ : self._leader_send_list,
-            LOOKUP : self._leader_lookup
+            LOOKUP : self._leader_lookup,
+            SEARCH_RES : self._send_resp_client
         }
         self.buff = ''
         self.delimiter = '#'
@@ -79,24 +82,31 @@ class backend(FlashpointProtocol):
         uuid, dump = data
         print 'UUID {0}'.format(uuid)
         self.factory.data_from_peers[uuid] = dump
-        #files_dict_list = [pickle.loads(val['hidx']) for val in self.factory.data_from_peers.values()]
-        #files_dict_values = [val.values() for val in files_dict_list]
-        #print files_dict_values
 
     def _leader_send_list(self, data):
         if self.factory.leader is not None:
-            self.factory.notify_leader(key=LOOKUP, data=data)
+            self.factory._notify_leader(key=LOOKUP, data=data, persist=True, clientConn = self)
 
     def _leader_lookup(self, data):
         uuid, text_search = data
-        host, port = self.factory.book[uuid]
+        host, port = self.factory.book.peers[uuid]
         print ' At leader lookup '
         x= []
         for val in self.factory.data_from_peers.values():
             l =  pickle.loads(val['hidx'])
             for i in l.values():
                 x.append(i)
-        print process.extract('pyaar ke side effects', map(lambda a: a.filename, x))
+        l =  process.extract(data, map(lambda a: a.filename, x))
+        update_msg = P2PMessage(key=SEARCH_RES, data=l)
+        #self._notify(to=server,key=SEARCH_RES, data=l, persist)
+        self.sendLine(update_msg)  # this we are sending it back to the server
+        self.transport.loseConnection()  # leader will loseConnection with the requesting server
+
+    def _send_resp_client(self, data):
+        print 'sending to client'
+        update_msg = P2PMessage(key=SEARCH_RES, data=data)
+        self.sendLine(update_msg)  # sending this response to the client
+        self.transport.loseConnection() # losing connection with the client
 
 class backendFactory(Factory):
     protocol = backend
@@ -108,9 +118,10 @@ class backendFactory(Factory):
         self.cached_data = None
         self.data_from_peers = {}
         self.file_peer_indexer = {}
-        self.indexer = FileHashIndexer(self.folder)
-        self.d = threads.deferToThread(self.indexer.index)
-        self.d.addCallbacks(self._file_hash_success, self._file_hash_failure)
+        if folder is not None:
+            self.indexer = FileHashIndexer(self.folder)
+            self.d = threads.deferToThread(self.indexer.index)
+            self.d.addCallbacks(self._file_hash_success, self._file_hash_failure)
 
     def gather_data_then_notify(self):
         self.cached_data = {}
@@ -120,20 +131,32 @@ class backendFactory(Factory):
             pidx = f.read()
         self.cached_data['hidx'] = hidx
         self.cached_data['pidx'] = pidx
-        self._notify_leader(HASH_DUMP, None)
+        self._notify_leader(key=HASH_DUMP, data=None)
 
-    def _notify_leader(self, key, data=None):
+    def _notify_leader(self, key=None, data=None, persist=False, clientConn=None):
         from twisted.internet.protocol import Protocol, ClientFactory
         from twisted.internet import reactor
 
-        class ServerLeaderProtocol(Protocol):
+        class ServerLeaderProtocol(FlashpointProtocol):
             def __init__(self, factory):
+                self.buff = ''
+                self.delimiter = '#'
                 self.factory = factory
 
             def connectionMade(self):
                 update_msg = P2PMessage(key=self.factory.key, data=self.factory.dump)
                 self.transport.write(str(update_msg))
-                self.transport.loseConnection()
+                if not persist:
+                    self.transport.loseConnection()
+                else:
+                    print 'persistent connection'
+
+            def serviceMessage(self, data):
+                print 'Sending this to client using the transport object'
+                update_msg = P2PMessage(message=data)
+                update_msg = P2PMessage(key=update_msg.key, data=update_msg.data)
+                clientConn.sendLine(update_msg)
+                clientConn.transport.loseConnection()
 
         class ServerLeaderFactory(ClientFactory):
             def __init__(self, key, dump):
@@ -152,7 +175,6 @@ class backendFactory(Factory):
             print self.leader[0], self.leader[1]
             host , port = self.leader
             reactor.connectTCP(host, port, factory)
-
 
     def _file_hash_success(self, data):
         self.state = 1  # Ready

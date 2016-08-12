@@ -2,12 +2,12 @@ from twisted.internet import reactor,defer,threads
 from twisted.internet.endpoints import TCP4ClientEndpoint,connectProtocol
 from twisted.internet.protocol import ClientFactory
 from iwant.communication.message import P2PMessage
-from iwant.flashpointProtocol import FlashpointProtocol
+from iwant.protocols import BaseProtocol
 from iwant.constants.server_event_constants import HANDSHAKE, LIST_ALL_FILES, SEARCH_REQ, SEARCH_RES
 import pickle
 import json
 
-class Frontend(FlashpointProtocol):
+class Frontend(BaseProtocol):
 
     def __init__(self, factory):
         self.factory = factory

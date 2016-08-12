@@ -1,15 +1,15 @@
 from twisted.internet import reactor,defer,threads,endpoints
 from twisted.internet.protocol import Factory
 from twisted.protocols.basic import FileSender
-from flashpointProtocol import FlashpointProtocol
 from filehashIndex.FHIndex import FileHashIndexer
 from communication.message import P2PMessage
 from iwant.constants.server_event_constants import *
+from iwant.protocols import BaseProtocol
 from iwant.config import CLIENT_DAEMON_HOST, CLIENT_DAEMON_PORT
 from fuzzywuzzy import fuzz, process
 import pickle
 
-class backend(FlashpointProtocol):
+class backend(BaseProtocol):
     def __init__(self, factory):
         self.factory = factory
         self.message_codes = {
@@ -137,7 +137,7 @@ class backendFactory(Factory):
         from twisted.internet.protocol import Protocol, ClientFactory
         from twisted.internet import reactor
 
-        class ServerLeaderProtocol(FlashpointProtocol):
+        class ServerLeaderProtocol(BaseProtocol):
             def __init__(self, factory):
                 self.buff = ''
                 self.delimiter = '#'

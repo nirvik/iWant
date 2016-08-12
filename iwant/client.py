@@ -3,9 +3,10 @@ from twisted.internet.endpoints import TCP4ClientEndpoint,connectProtocol
 from twisted.internet.protocol import ClientFactory
 from iwant.communication.message import P2PMessage
 from iwant.protocols import BaseProtocol
-from iwant.constants.server_event_constants import HANDSHAKE, LIST_ALL_FILES, SEARCH_REQ, SEARCH_RES
+from iwant.constants.server_event_constants import HANDSHAKE, LIST_ALL_FILES, SEARCH_REQ, SEARCH_RES, LEADER_NOT_READY
 import pickle
 import json
+import tabulate
 
 class Frontend(BaseProtocol):
 
@@ -14,7 +15,8 @@ class Frontend(BaseProtocol):
         self.events = {
             HANDSHAKE : self.handshake,
             LIST_ALL_FILES : self.listAll,
-            SEARCH_RES : self.search_results
+            SEARCH_RES : self.search_results,
+            LEADER_NOT_READY : self.leader_not_ready
         }
         self.buff = ''
         self.delimiter = '#'
@@ -40,8 +42,13 @@ class Frontend(BaseProtocol):
         reactor.stop()
 
     def search_results(self, data):
-        for val,score in data:
-            print val,score
+        print tabulate.tabulate(data, headers=["Filename", "Checksum", "Size"])
+        #for name, checksum, size in data:
+        #    print name, checksum, size
+        reactor.stop()
+
+    def leader_not_ready(self):
+        print 'Tracker not available..'
         reactor.stop()
 
 class FrontendFactory(ClientFactory):

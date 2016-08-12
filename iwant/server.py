@@ -85,20 +85,26 @@ class backend(BaseProtocol):
 
     def _leader_send_list(self, data):
         if self.factory.leader is not None:
-            self.factory._notify_leader(key=LOOKUP, data=data, persist=True, clientConn = self)
+            self.factory._notify_leader(key=LOOKUP, data=data, persist=True, clientConn=self)
+        else:
+            msg = P2PMessage(key=LEADER_NOT_READY, data=None)
+            self.sendLine(msg)
+            self.transport.loseConnection()
 
     def _leader_lookup(self, data):
         uuid, text_search = data
         host, port = self.factory.book.peers[uuid]
         print ' At leader lookup '
         x= []
+        l = []
         for val in self.factory.data_from_peers.values():
             l =  pickle.loads(val['hidx'])
             for i in l.values():
-                x.append(i)
-        l =  process.extract(data, map(lambda a: a.filename, x))
-        update_msg = P2PMessage(key=SEARCH_RES, data=l)
-        #self._notify(to=server,key=SEARCH_RES, data=l, persist)
+                if fuzz.partial_ratio(text_search, i.filename) >= 90:
+                    x.append(i)
+
+        #l =  process.extract(data, map(lambda a: a.filename, x))
+        update_msg = P2PMessage(key=SEARCH_RES, data=x)
         self.sendLine(update_msg)  # this we are sending it back to the server
         self.transport.loseConnection()  # leader will loseConnection with the requesting server
 

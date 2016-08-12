@@ -43,7 +43,7 @@ try:
     ips = ip4_addresses()
     print ips
     ip = input('Enter index of ip addr:')
-    folder = '/home/nirvik/Pictures'
+    folder = '/run/media/nirvik/Data/SamuraiJack'
     timeuuid = time_uuid.TimeUUID.with_utcnow()
     book = CommonlogBook(identity=timeuuid, state=0, ip = ips[ip-1])
     reactor.listenMulticast(MCAST_ADDR[1], CommonroomProtocol(book), listenMultiple=True)

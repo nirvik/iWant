@@ -5,3 +5,4 @@ netifaces
 watchdog
 time_uuid
 fuzzywuzzy
+tabulate

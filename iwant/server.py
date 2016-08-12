@@ -15,21 +15,23 @@ class backend(BaseProtocol):
         self.message_codes = {
             HANDSHAKE : self._handshake,
             LIST_ALL_FILES : self._list_file,
-            2 : self._load_file,
+            LOAD_FILE_REQ : self._load_file,
             3 : self._start_transfer,
             LEADER: self._update_leader,
             FILE_SYS_EVENT: self._filesystem_modified,
             HASH_DUMP : self._dump_data_from_peers,
             SEARCH_REQ : self._leader_send_list,
             LOOKUP : self._leader_lookup,
-            SEARCH_RES : self._send_resp_client
+            SEARCH_RES : self._send_resp_client,
+            IWANT_PEER_FILE : self._ask_leader_for_peers,
+            SEND_PEER_DETAILS : self._leader_looksup_peer
         }
         self.buff = ''
         self.delimiter = '#'
 
     def serviceMessage(self, data):
         req = P2PMessage(message=data)
-        print 'GOT {0}'.format(req.key)
+        #print 'GOT {0}'.format(req.key)
         try:
             self.message_codes[req.key]()
         except:
@@ -48,7 +50,7 @@ class backend(BaseProtocol):
             self.sendLine(resMessage)
 
     def _load_file(self,data):
-        fhash = data[0]
+        fhash = data
         self.fileObj = self.factory.indexer.getFile(fhash)
         fsize = self.factory.indexer.hash_index[fhash].size
         ack_msg = P2PMessage(key=3,data=[fsize])
@@ -57,7 +59,7 @@ class backend(BaseProtocol):
     def _start_transfer(self):
         producer = FileSender()
         consumer = self.transport
-        deferred = producer.beginFileTransfer(self.fileObj,consumer)
+        deferred = producer.beginFileTransfer(self.fileObj, consumer)
         deferred.addCallback(self._success,self._failure)
 
     def _success(self,data):
@@ -113,6 +115,27 @@ class backend(BaseProtocol):
         update_msg = P2PMessage(key=SEARCH_RES, data=data)
         self.sendLine(update_msg)  # sending this response to the client
         self.transport.loseConnection() # losing connection with the client
+
+    def _ask_leader_for_peers(self, data):
+        if self.factory.leader is not None:
+            print 'asking leaders for peers'
+            print data
+            self.factory._notify_leader(key=SEND_PEER_DETAILS, data=data, persist=True, clientConn=self)
+        else:
+            msg = P2PMessage(key=LEADER_NOT_READY, data=None)
+            self.sendLine(msg)
+            self.transport.loseConnection()
+
+    def _leader_looksup_peer(self, data):
+        x = None
+        for key, val in self.factory.data_from_peers.iteritems():
+            if data in pickle.loads(val['hidx']):
+                x = key
+                break
+        sending_data = self.factory.book.peers[x]
+        msg = P2PMessage(key=PEER_LOOKUP_RESPONSE, data=sending_data)
+        self.sendLine(msg)
+        self.transport.loseConnection()
 
 class backendFactory(Factory):
     protocol = backend
@@ -176,6 +199,8 @@ class backendFactory(Factory):
             factory = ServerLeaderFactory(key=key, dump=(self.book.uuidObj, self.cached_data))
         elif key == LOOKUP:
             factory = ServerLeaderFactory(key=key, dump=(self.book.uuidObj, data))
+        elif key == SEND_PEER_DETAILS:
+            factory = ServerLeaderFactory(key=key, dump=data)
         print 'state {0} \nleader {1}'.format(self.state, self.leader)
         if self.leader is not None and self.state==1:
             print self.leader[0], self.leader[1]

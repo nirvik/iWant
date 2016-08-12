@@ -13,7 +13,7 @@ class P2PCommunication(Exception):
 class P2PMessage(object):
     def __init__(self, key=None, data=None, message=None):
         self.NO_PARAM = [HANDSHAKE, LEADER_NOT_READY]
-        self.DELIMITERS_PARAMS = [FILE, LIST_ALL_FILES, ERROR_LIST_ALL_FILES, LEADER, HASH_DUMP, FILE_SYS_EVENT, SEARCH_REQ, SEARCH_RES, LOOKUP]
+        self.DELIMITERS_PARAMS = [FILE, LIST_ALL_FILES, ERROR_LIST_ALL_FILES, LEADER, HASH_DUMP, FILE_SYS_EVENT, SEARCH_REQ, SEARCH_RES, LOOKUP, IWANT_PEER_FILE, PEER_LOOKUP_RESPONSE, SEND_PEER_DETAILS]
         self._delimiter = ';'
         self._EOL = '#'
 

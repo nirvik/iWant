@@ -3,7 +3,7 @@ from twisted.internet.endpoints import TCP4ClientEndpoint,connectProtocol
 from twisted.internet.protocol import ClientFactory
 from iwant.communication.message import P2PMessage
 from iwant.protocols import BaseProtocol
-from iwant.constants.server_event_constants import HANDSHAKE, LIST_ALL_FILES, SEARCH_REQ, SEARCH_RES, LEADER_NOT_READY, IWANT_PEER_FILE, PEER_LOOKUP_RESPONSE
+from iwant.constants.server_event_constants import HANDSHAKE, LIST_ALL_FILES, SEARCH_REQ, SEARCH_RES, LEADER_NOT_READY, IWANT_PEER_FILE, PEER_LOOKUP_RESPONSE, IWANT, INIT_FILE_REQ, FILE_DETAILS_RESP, FILE_TO_BE_DOWNLOADED
 import pickle
 import json
 import tabulate
@@ -12,19 +12,26 @@ class Frontend(BaseProtocol):
 
     def __init__(self, factory):
         self.factory = factory
+        self.special_handler = None
         self.events = {
             HANDSHAKE : self.handshake,
             LIST_ALL_FILES : self.listAll,
-            SEARCH_RES : self.search_results,
+            SEARCH_RES : self.show_search_results,
             LEADER_NOT_READY : self.leader_not_ready,
-            PEER_LOOKUP_RESPONSE : self.peer_lookup_response
+            PEER_LOOKUP_RESPONSE : self.ask_for_file_details,
+            FILE_DETAILS_RESP : self.download_file,
+            FILE_TO_BE_DOWNLOADED : self.show_file_to_be_downloaded
         }
         self.buff = ''
         self.delimiter = '#'
 
     def connectionMade(self):
+        print 'Conecction made\n'
         reqMessage = P2PMessage(key=self.factory.query, data=self.factory.arguments)
         self.sendLine(reqMessage)
+        if self.factory.query == IWANT_PEER_FILE:
+            pass
+            #reactor.stop()
 
     def serviceMessage(self, data):
         req = P2PMessage(message=data)
@@ -42,7 +49,7 @@ class Frontend(BaseProtocol):
         print 'stopping reactor'
         reactor.stop()
 
-    def search_results(self, data):
+    def show_search_results(self, data):
         print tabulate.tabulate(data, headers=["Filename", "Checksum", "Size"])
         reactor.stop()
 
@@ -50,16 +57,76 @@ class Frontend(BaseProtocol):
         print 'Tracker not available..'
         reactor.stop()
 
-    def peer_lookup_response(self, data):
+    def ask_for_file_details(self, data):
+        print 'Got peers addresses {0}'.format(data)
+        host, port = data[0]  # got list of peers
+        #self.transport.loseConnection()  # drop connection with local server
+        #self.factory.connectPeer(host, port)
+        #reactor.connectTCP(host, port, FrontendFactory(INIT_FILE_REQ, data=self.factory.arguments))
+
+    def download_file(self, data):
+        print data
+        reactor.stop()
+
+    def show_file_to_be_downloaded(self, data):
+        #print tabulate.tabulate(data)
         print data
         reactor.stop()
 
 class FrontendFactory(ClientFactory):
-    def __init__(self, query, data):
+    def __init__(self, query, data=None, downloadfolder=None):
         self.state = 1
         self.FH = {}
         self.query  = query
         self.arguments = data
+        self.download_folder = downloadfolder
+
+    def startedConnecting(self, connector):
+        print 'started connecting'
+
+    def clientConnectionFailed(self, connector, reason):
+        print reason
+        reactor.stop()
+
+    def connectPeer(self, host, port):
+        from twisted.internet.protocol import Protocol, ClientFactory, Factory
+        from twisted.internet import reactor
+
+        class RemotepeerProtocol(BaseProtocol):
+            def __init__(self, factory):
+                print 'remote peer protocol called'
+                self.buff = ''
+                self.delimiter = '#'
+                self.factory = factory
+
+            def connectionMade(self):
+                update_msg = P2PMessage(key=self.factory.key, data=self.factory.dump)
+                self.transport.write(str(update_msg))
+                self.transport.loseConnection()
+
+            def serviceMessage(self, data):
+                print data
+                #update_msg = P2PMessage(message=data)
+                #update_msg = P2PMessage(key=update_msg.key, data=update_msg.data)
+                #clientConn.sendLine(update_msg)
+                #clientConn.transport.loseConnection()
+
+        class RemotepeerFactory(Factory):
+            protocol = RemotepeerProtocol
+            def __init__(self, key, dump):
+                print 'remote peer factory called'
+                self.key = key
+                self.dump = dump
+
+            def clientConnectionFailed(self, connector, reason):
+                print reason
+
+            def buildProtocol(self, addr):
+                print 'not coming here'
+                return RemotepeerProtocol(self)
+
+        print 'comes here'
+        reactor.connectTCP(host, port, RemotepeerFactory(INIT_FILE_REQ, dump=self.arguments))
 
     def buildProtocol(self, addr):
         return Frontend(self)

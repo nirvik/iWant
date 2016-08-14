@@ -4,6 +4,9 @@ from iwant.constants.server_event_constants import FILE_SYS_EVENT
 
 class BaseProtocol(Protocol):
 
+    def __init__(self):
+        self.special_handler = None
+
     def connectionMade(self):
         pass
 
@@ -20,13 +23,16 @@ class BaseProtocol(Protocol):
         self.special_handler = None
 
     def dataReceived(self,data):
-        for char in data:
-            self.buff+=char
-            if char == self.delimiter:
-                request_str = self.escape_dollar_sign(self.buff)
-                self.buff = ''
-                self.serviceMessage(request_str)
-        self.buff = ''
+        if self.special_handler:
+            self.special_handler(data)
+        else:
+            for char in data:
+                self.buff+=char
+                if char == self.delimiter:
+                    request_str = self.escape_dollar_sign(self.buff)
+                    self.buff = ''
+                    self.serviceMessage(request_str)
+            self.buff = ''
 
     def serviceMessage(self,message):
         pass

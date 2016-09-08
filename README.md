@@ -10,6 +10,7 @@ Run the server to spawn 3 daemon process:
 
 Then run client in another shell
 
+IMP: Open iwant/config.py and change your Download folder and the folder you are sharing directory name.
 
 To run server
 ```sh

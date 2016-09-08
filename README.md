@@ -12,17 +12,17 @@ Then run client in another shell
 
 
 To run server
-```python
+```sh
 sudo python main.py
 ```
 
 ###Client 
 To run instant search on filenames in the network
-```python
+```sh
 python ui.py --search avengers
 ```
 
 To download files 
-```python
+```sh
 python ui.py --download <hash value of avengers>
 ```

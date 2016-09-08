@@ -88,45 +88,45 @@ class FrontendFactory(ClientFactory):
         print reason
         reactor.stop()
 
-    def connectPeer(self, host, port):
-        from twisted.internet.protocol import Protocol, ClientFactory, Factory
-        from twisted.internet import reactor
+    #def connectPeer(self, host, port):
+    #    from twisted.internet.protocol import Protocol, ClientFactory, Factory
+    #    from twisted.internet import reactor
 
-        class RemotepeerProtocol(BaseProtocol):
-            def __init__(self, factory):
-                print 'remote peer protocol called'
-                self.buff = ''
-                self.delimiter = '#'
-                self.factory = factory
+    #    class RemotepeerProtocol(BaseProtocol):
+    #        def __init__(self, factory):
+    #            print 'remote peer protocol called'
+    #            self.buff = ''
+    #            self.delimiter = '#'
+    #            self.factory = factory
 
-            def connectionMade(self):
-                update_msg = P2PMessage(key=self.factory.key, data=self.factory.dump)
-                self.transport.write(str(update_msg))
-                self.transport.loseConnection()
+    #        def connectionMade(self):
+    #            update_msg = P2PMessage(key=self.factory.key, data=self.factory.dump)
+    #            self.transport.write(str(update_msg))
+    #            self.transport.loseConnection()
 
-            def serviceMessage(self, data):
-                print data
-                #update_msg = P2PMessage(message=data)
-                #update_msg = P2PMessage(key=update_msg.key, data=update_msg.data)
-                #clientConn.sendLine(update_msg)
-                #clientConn.transport.loseConnection()
+    #        def serviceMessage(self, data):
+    #            print data
+    #            #update_msg = P2PMessage(message=data)
+    #            #update_msg = P2PMessage(key=update_msg.key, data=update_msg.data)
+    #            #clientConn.sendLine(update_msg)
+    #            #clientConn.transport.loseConnection()
 
-        class RemotepeerFactory(Factory):
-            protocol = RemotepeerProtocol
-            def __init__(self, key, dump):
-                print 'remote peer factory called'
-                self.key = key
-                self.dump = dump
+    #    class RemotepeerFactory(Factory):
+    #        protocol = RemotepeerProtocol
+    #        def __init__(self, key, dump):
+    #            print 'remote peer factory called'
+    #            self.key = key
+    #            self.dump = dump
 
-            def clientConnectionFailed(self, connector, reason):
-                print reason
+    #        def clientConnectionFailed(self, connector, reason):
+    #            print reason
 
-            def buildProtocol(self, addr):
-                print 'not coming here'
-                return RemotepeerProtocol(self)
+    #        def buildProtocol(self, addr):
+    #            print 'not coming here'
+    #            return RemotepeerProtocol(self)
 
-        print 'comes here'
-        reactor.connectTCP(host, port, RemotepeerFactory(INIT_FILE_REQ, dump=self.arguments))
+    #    print 'comes here'
+    #    reactor.connectTCP(host, port, RemotepeerFactory(INIT_FILE_REQ, dump=self.arguments))
 
     def buildProtocol(self, addr):
         return Frontend(self)

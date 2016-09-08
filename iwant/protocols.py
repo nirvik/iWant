@@ -1,4 +1,4 @@
-from twisted.internet.protocol import Protocol, ClientFactory, DatagramProtocol
+from twisted.internet.protocol import Protocol, ClientFactory, DatagramProtocol, Factory
 from iwant.communication.message import P2PMessage
 from iwant.constants.server_event_constants import FILE_SYS_EVENT
 
@@ -32,7 +32,7 @@ class BaseProtocol(Protocol):
                     request_str = self.escape_dollar_sign(self.buff)
                     self.buff = ''
                     self.serviceMessage(request_str)
-            self.buff = ''
+            #self.buff = ''
 
     def serviceMessage(self,message):
         pass
@@ -120,3 +120,69 @@ class ServerLeaderFactory(ClientFactory):
 
     def buildProtocol(self, addr):
         return ServerLeaderProtocol(self)
+
+
+class RemotepeerProtocol(BaseProtocol):
+    def __init__(self, factory):
+        self.buff = ''
+        self.delimiter = '#'
+        self.factory = factory
+        self.file_len_recv = 0.0
+        self.special_handler = None
+        self.events = {
+            FILE_DETAILS_RESP: self.start_trasnfer
+        }
+
+    def connectionMade(self):
+        update_msg = P2PMessage(key=self.factory.key, data=self.factory.dump)
+        self.sendLine(update_msg)
+
+    def serviceMessage(self, data):
+        print 'got response from server about file'
+        req = P2PMessage(message=data)
+        self.events[req.key](req.data)
+
+    def start_trasnfer(self, data):
+        update_msg = P2PMessage(key=FILE_TO_BE_DOWNLOADED, data=data)
+        self.factory.file_details['fname'] = data[0]
+        self.factory.file_details['size'] = data[1] * 1024.0 * 1024.0
+        if not os.path.exists(DOWNLOAD_FOLDER):
+            os.mkdir(DOWNLOAD_FOLDER)
+        self.factory.file_container = open(DOWNLOAD_FOLDER+os.path.basename(data[0]), 'wb')
+        clientConn.sendLine(update_msg)
+        clientConn.transport.loseConnection()
+        self.hookHandler(self.write_to_file)
+        print 'Start Trasnfer {0}'.format(self.factory.dump)
+        update_msg = P2PMessage(key=START_TRANSFER, data=self.factory.dump)
+        self.sendLine(update_msg)
+
+    def write_to_file(self, data):
+        self.file_len_recv += len(data)
+        self.factory.file_container.write(data)
+        if self.file_len_recv >= self.factory.file_details['size']:
+            self.factory.file_container.close()
+            print 'Client : File downloaded'
+            self.transport.loseConnection()
+
+
+class RemotepeerFactory(Factory):
+
+    protocol = RemotepeerProtocol
+
+    def __init__(self, key, checksum):
+        self.key = key
+        self.dump = checksum
+        self.file_details = {'checksum': checksum}
+        self.file_container = None
+
+    def startedConnecting(self, connector):
+        print 'connecting'
+
+    def clientConnectionLost(self, connector, reason):
+        print reason
+
+    def clientConnectionFailed(self, connector, reason):
+        print reason.getErrorMessage()
+
+    def buildProtocol(self, addr):
+        return RemotepeerProtocol(self)

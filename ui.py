@@ -2,11 +2,16 @@ from twisted.internet import reactor
 from iwant.client import FrontendFactory, Frontend
 from iwant.config import SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, DOWNLOAD_FOLDER
 from iwant.constants.server_event_constants import SEARCH_REQ, IWANT_PEER_FILE, INIT_FILE_REQ
-import sys
+import argparse
 
-data = sys.argv[1]
+parser = argparse.ArgumentParser(description='iwant')
+parser.add_argument("--search", help="instant fuzzy search", type=str)
+parser.add_argument("--download", help="download file by giving hash", type=str)
+args = parser.parse_args()
 
-#reactor.connectTCP(SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, FrontendFactory(SEARCH_REQ, data))
+if args.search:
+    reactor.connectTCP(SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, FrontendFactory(SEARCH_REQ, args.search))
 
-reactor.connectTCP(SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, FrontendFactory(IWANT_PEER_FILE, data, DOWNLOAD_FOLDER))
+elif args.download:
+    reactor.connectTCP(SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, FrontendFactory(IWANT_PEER_FILE, args.download, DOWNLOAD_FOLDER))
 reactor.run()

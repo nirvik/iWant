@@ -237,7 +237,6 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
                     self.retries = 0
                 self._ping_ack = 0  # reset the ping_ack to 0
 
-            print 'pinging leader : {0}'.format(self.book.leader)
             # when leader is removed and we are present in this block, since the polling process occuring concurrently
             try:
                 leader_addr = self.book.peers[self.book.leader]
@@ -248,9 +247,13 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
 
         self._pollId = self._pollClock.callLater(4, self._poll)  # ping the server every 4 seconds
 
+    def periodic_reminder_from_leader(self):
+        if self.book.leader == self.book.uuidObj:
+            self._remind_about_leader()
+            reactor.callLater(6, self.periodic_reminder_from_leader)
+
     def _process_msg(self, req, addr):
         msg = FlashMessage(message=req)
-        #if msg.key in [0, 2, 4, 6]:
         if msg.key in [NEW_PEER,ALIVE,HANDLE_PING,NEW_LEADER]:
             self.eventcontroller.events[msg.key](data=msg.data, addr=addr)
         else:
@@ -270,6 +273,9 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
         if peer != self.book.uuidObj:
             self.cancel_wait_for_peers_callback()
             if peer not in self.book.peers:
+                # when a peer disconnects and reconnects as a new peer again
+                #print 'deleting {0}'.format(uuid_to_delete)
+                #del self.book.peers[uuid_to_delete]
                 self.book.peers[peer] = addr
                 print 'added to new peers'
                 if self.book.leader == self.book.uuidObj:  # if leader, send the ledger
@@ -396,6 +402,31 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             else:
                 self.book.leader = leader
                 print 'register leader {0}'.format(self.book.leader)
+                # TODO : this is when we do reactor.connectTCP(server, Factory) . Send the request to the server and close the connection as soon as it is made
+                class ServerElectionProtocol(Protocol):
+
+                    def __init__(self, factory):
+                        self.factory = factory
+
+                    def connectionMade(self):
+                        #print 'connection made'
+                        update_msg = P2PMessage(key=LEADER, data=(self.factory.leader_host, self.factory.leader_port))
+                        self.transport.write(str(update_msg))
+                        self.transport.loseConnection()
+
+
+                class ServerElectionFactory(ClientFactory):
+                    def __init__(self, leader_host, leader_port):
+                        self.leader_host = leader_host
+                        self.leader_port = leader_port
+
+                    def buildProtocol(self, addr):
+                        return ServerElectionProtocol(self)
+
+                leader_host = self.book.peers[self.book.leader][0]
+                leader_port = SERVER_DAEMON_PORT
+                factory = ServerElectionFactory(leader_host, leader_port)
+                reactor.connectTCP(SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, factory)
 
         elif self._eid != eid:
             print 'WRONG ELEC ID {0} {1}'.format(self._eid,eid)
@@ -405,6 +436,7 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             self.book.leader = leader
             self.cancel_election_callback()
             self.cancel_alive_callback()
+            print 'this is done'
             if self.book.uuidObj < self.book.leader:
                 """
                  The new peer has a higher id than leader but doesn't know anyone
@@ -414,7 +446,8 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             print 'LEADER :{0}\t EID : {1}'.format(self.book.leader,self._eid)
             print 'CLOSING ELECTION: {0}'.format(self._eid)
             self._latest_election_id = self._eid
-            self._eid = None
+            self._eid = None  # this might create a huge problem
+            # if multiple candidates announce winner for single election
             # TODO : this is when we do reactor.connectTCP(server, Factory) . Send the request to the server and close the connection as soon as it is made
             class ServerElectionProtocol(Protocol):
 

@@ -5,7 +5,7 @@ from twisted.internet import reactor
 import os, sys
 from netifaces import interfaces, ifaddresses, AF_INET
 import time_uuid
-from iwant.config import SERVER_DAEMON_HOST, SERVER_DAEMON_PORT
+from iwant.config import SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, FOLDER
 from iwant.constants.election_constants import MCAST_IP, MCAST_PORT
 import pickle
 
@@ -43,12 +43,11 @@ try:
     ips = ip4_addresses()
     print ips
     ip = input('Enter index of ip addr:')
-    folder = '/home/nirvik/iWant/'
     timeuuid = time_uuid.TimeUUID.with_utcnow()
     book = CommonlogBook(identity=timeuuid, state=0, ip = ips[ip-1])
     reactor.listenMulticast(MCAST_ADDR[1], CommonroomProtocol(book), listenMultiple=True)
-    endpoints.serverFromString(reactor, 'tcp:{0}'.format(SERVER_DAEMON_PORT)).listen(backendFactory(folder, book))
-    ScanFolder(folder, callback)
+    endpoints.serverFromString(reactor, 'tcp:{0}'.format(SERVER_DAEMON_PORT)).listen(backendFactory(FOLDER, book))
+    ScanFolder(FOLDER, callback)
     reactor.run()
 except KeyboardInterrupt:
         observer.stop()

@@ -1,8 +1,8 @@
-#iWant
-##CLI based decentralized peer to peer file sharing
+# iWant
+## CLI based decentralized peer to peer file sharing
 
 
-###Server
+### Server
 Run the server to spawn 3 daemon process:
 1. Server daemon : Interacts with filemonitoring daemon, client and Election daemon.
 2. Election daemon : Election daemon is the heart of consensus among peers and  updates the server as soon as there is a leader change.
@@ -16,7 +16,7 @@ To run server
 sudo python main.py
 ```
 
-###Client 
+### Client 
 To run instant search on filenames in the network
 ```sh
 python ui.py --search avengers

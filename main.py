@@ -1,53 +1,30 @@
 from iwant.consensus.beacon import *
 from iwant.server import *
 from iwant.watching import *
+from iwant.shared.book import CommonlogBook
+from iwant.config import SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, FOLDER
+from iwant.constants.election_constants import MCAST_IP, MCAST_PORT
+from iwant.protocols import FilemonitorClientFactory, FilemonitorClientProtocol
+from iwant.utils.utils import get_ips
 from twisted.internet import reactor
 import os, sys
 from netifaces import interfaces, ifaddresses, AF_INET
 import time_uuid
-from iwant.config import SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, FOLDER
-from iwant.constants.election_constants import MCAST_IP, MCAST_PORT
 import pickle
 
 try:
-    def callback():
-        from twisted.internet.protocol import Protocol, ClientFactory
-        from twisted.internet import reactor
-        from iwant.constants.server_event_constants import FILE_SYS_EVENT
-
-        class FilemonitorClientProtocol(Protocol):
-            def connectionMade(self):
-                with open('/var/log/iwant/.hindex') as f:
-                    dump = f.read()
-                pd = pickle.loads(dump)
-                updated_msg = P2PMessage(key=FILE_SYS_EVENT, data=pd)
-                self.transport.write(str(updated_msg))
-                self.transport.loseConnection()
-
-        class FilemonitorClientFactory(ClientFactory):
-            def buildProtocol(self, addr):
-                return FilemonitorClientProtocol()
-
+    def update_about_file_changes():
         factory = FilemonitorClientFactory()
         reactor.connectTCP(SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, factory)
 
-    def ip4_addresses():
-        ip_list = []
-        for interface in interfaces():
-            try:
-                for link in ifaddresses(interface)[AF_INET]:
-                    ip_list.append(link['addr'])
-            except:
-                pass
-        return ip_list
-    ips = ip4_addresses()
+    ips = get_ips()
     print ips
     ip = input('Enter index of ip addr:')
-    timeuuid = time_uuid.TimeUUID.with_utcnow()
-    book = CommonlogBook(identity=timeuuid, state=0, ip = ips[ip-1])
-    reactor.listenMulticast(MCAST_ADDR[1], CommonroomProtocol(book), listenMultiple=True)
-    endpoints.serverFromString(reactor, 'tcp:{0}'.format(SERVER_DAEMON_PORT)).listen(backendFactory(FOLDER, book))
-    ScanFolder(FOLDER, callback)
+    timeuuid = time_uuid.TimeUUID.with_utcnow()  # generate uuid
+    book = CommonlogBook(identity=timeuuid, state=0, ip = ips[ip-1])  # creating shared memory between server and election daemon
+    reactor.listenMulticast(MCAST_ADDR[1], CommonroomProtocol(book), listenMultiple=True)  # spawning election daemon
+    endpoints.serverFromString(reactor, 'tcp:{0}'.format(SERVER_DAEMON_PORT)).listen(backendFactory(FOLDER, book))  # spawning server daemon
+    ScanFolder(FOLDER, update_about_file_changes)  # spawning filemonitoring daemon
     reactor.run()
 except KeyboardInterrupt:
         observer.stop()

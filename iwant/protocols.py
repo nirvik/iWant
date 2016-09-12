@@ -1,6 +1,7 @@
 from twisted.internet.protocol import Protocol, ClientFactory, DatagramProtocol, Factory
 from iwant.communication.message import P2PMessage
-from iwant.constants.server_event_constants import FILE_SYS_EVENT
+from iwant.constants.server_event_constants import *
+from iwant.constants.election_constants import *
 
 class BaseProtocol(Protocol):
 

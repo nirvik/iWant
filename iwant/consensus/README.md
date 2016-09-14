@@ -8,6 +8,15 @@ Each peer is assigned an identity. This assignment is based on the time at which
 
 I will be listing down scenarios along with the possible solution.
 
+* What happens during a split brain situation ? As in , even if you detect a split brain, what does the consensus do ? 
+
+Split brain is a situation where there are multiple clusters in the same network but they dont really know about their presence. But there are situations where clusters can detect their presence. One such situation is broadcasting the winner of the election which reaches a separate cluster. Well, in these kind of situations, one of the leaders will send a face off message to the leader of other cluster and will broadcast its peers list. The leader of the other cluster will respond by broadcasting its own peers list. All the peers in the network then combines the peers list shared by the leaders of different clusters and holds another fair re-election.
+
+* What if the leader is dead when a different leader sends a face off message ? 
+
+Havent thought about it yet 
+
+
 * What happens when the leader quits and joins back before the peers even detect that the leader was unavailable for sometime? 
 
 Well, why should the peers be bothered even if the leader died for less than a second. The answer is, all the data about the files shared by peers is available only with the leader till its alive. If the leader dies in between and resurrects within a second , the leader has still lost all the data shared by the peers. 

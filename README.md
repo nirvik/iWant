@@ -1,5 +1,5 @@
-#iWant
-##CLI based decentralized peer to peer file sharing
+# iWant
+## CLI based decentralized peer to peer file sharing
 
 
 ###Server
@@ -10,19 +10,20 @@ Run the server to spawn 3 daemon process
 
 Then run client in another shell
 
+IMP: Open iwant/config.py and change your Download folder and the folder you are sharing directory name.
 
 To run server
-```python
+```sh
 sudo python main.py
 ```
 
-###Client 
+### Client 
 To run instant search on filenames in the network
-```python
+```sh
 python ui.py --search avengers
 ```
 
 To download files 
-```python
+```sh
 python ui.py --download <hash value of avengers>
 ```

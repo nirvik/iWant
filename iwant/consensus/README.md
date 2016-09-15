@@ -2,13 +2,13 @@
 
 ## What's the winning criteria ?
 
-Each peer is assigned an identity. This assignment is based on the time at which the peer joins.  So, the oldest peer will be the one who will win the election. There is no way in hell the new peer can outvote the oldest peer. NO WAY !
+Each peer is assigned an identity. This assignment is based on the time at which the peer joins. So, the oldest peer will be the one who will win the election. There is no way in hell the new peer can outvote the oldest peer. NO WAY !
 
 
 
 I will be listing down scenarios along with the possible solution.
 
-* __What happens during a split brain situation ? As in , even if you detect a split brain, what does the consensus do?__  
+* __What happens during a split brain situation ? As in, even if you detect a split brain, what does the consensus do?__  
 Split brain is a situation where there are multiple clusters in the same network but they dont really know about their presence. But there are situations where clusters can detect their presence. One such situation is broadcasting the winner of the election which reaches a separate cluster. Well, in these kind of situations, one of the leaders will send a face off message to the leader of other cluster and will broadcast its peers list. The leader of the other cluster will respond by broadcasting its own peers list. All the peers in the network then combines the peers list shared by the leaders of different clusters and holds another fair re-election.
 
 * __What if the leader is dead when a different leader sends a face off message?__  
@@ -25,7 +25,7 @@ The leader will send the secret value individually when a new peer enters and br
 * __So, we also have to invalidate the secret value at some point of time, right?__  
 Yes , we do. We set the secret value to ```python None ``` when the leader is dead or when the leader pongs back the incorrect secret value.
 
-* __According to your consensus, if a new peer joins and the leader is "alive"(i.e the peers think that the leader is alive), the leader is the only one who sends the peers list to the joining peer. Haa, so what happens when the leader is dead and a new peer joins and none of the peers have detected that the leader is actually dead?__  
+* __According to your consensus, if a new peer joins and the leader is "alive" (i.e the peers think that the leader is alive), the leader is the only one who sends the peers list to the joining peer. Haa, so what happens when the leader is dead and a new peer joins and none of the peers have detected that the leader is actually dead?__  
 Well yeah! it can potentially lead to a lot of problems. In fact, it can get a lot worse if the new peer becomes the leader. Lets see how!  
   1. Leader just died  
   2. New peer joins  

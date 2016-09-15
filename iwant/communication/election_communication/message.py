@@ -1,6 +1,5 @@
-# have EventCallbackRegsiters here too
 import pickle
-from iwant.constants.election_constants import NEW_PEER, RE_ELECTION, ALIVE, BCAST_LEDGER, HANDLE_PING, HANDLE_ALIVE, NEW_LEADER, HANDLE_PONG, REMOVE_LEADER, PING, PONG
+from iwant.constants.election_constants import NEW_PEER, RE_ELECTION, ALIVE, BCAST_LEDGER, HANDLE_PING, HANDLE_ALIVE, NEW_LEADER, HANDLE_PONG, REMOVE_LEADER, PING, PONG, SECRET_VAL, FACE_OFF
 
 class FlashMessageException(Exception):
     def __init__(self,code,msg):
@@ -15,9 +14,10 @@ class FlashMessage(object):
         #self.NO_PARAM = [4,7]
         #self.DELIMITERS = [0,3,6,8]
         #self.FLOATS = [1,2,5,6]
-        self.NO_PARAM = [HANDLE_PING, HANDLE_PONG]
-        self.DELIMITERS = [NEW_PEER, BCAST_LEDGER, NEW_LEADER, REMOVE_LEADER]
+        self.NO_PARAM = [HANDLE_PING, FACE_OFF]
+        self.DELIMITERS = [NEW_PEER, BCAST_LEDGER, NEW_LEADER, REMOVE_LEADER, SECRET_VAL, HANDLE_PONG]
         self.FLOATS = [RE_ELECTION, ALIVE, HANDLE_ALIVE, NEW_LEADER]
+
         if message is not None:
             self.key,self.data = self._parse_message(message)
         else:

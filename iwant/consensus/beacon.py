@@ -6,6 +6,7 @@ import netifaces as ni
 import time
 import time_uuid
 import pickle
+import random
 from iwant.config import SERVER_DAEMON_HOST, SERVER_DAEMON_PORT
 from iwant.constants.election_constants import (
         MCAST_IP,MCAST_PORT,
@@ -13,72 +14,83 @@ from iwant.constants.election_constants import (
         ALIVE,BCAST_LEDGER,HANDLE_PING,
         HANDLE_ALIVE,NEW_LEADER,
         HANDLE_PONG,REMOVE_LEADER,
-        PING, PONG
+        PING, PONG, FACE_OFF, SECRET_VAL
     )
 from iwant.constants.server_event_constants import LEADER
 from iwant.communication.message import P2PMessage
 from iwant.communication.election_communication.message import *
+from iwant.utils.utils import generate_secret, generate_size, EventHooker
+from iwant.protocols import ServerElectionProtocol, ServerElectionFactory, PeerdiscoveryProtocol
 
 MCAST_ADDR = (MCAST_IP, MCAST_PORT)
 
 
 
-class PeerdiscoveryProtocol(DatagramProtocol):
-
-    def escape_hash_sign(self, string):
-        return string.replace(self.delimiter, '')
-
-    def _process_msg(self, req, addr):
-        pass
-
-    def send(self, msgObj, addr):
-        self.transport.write(str(msgObj), addr)
-
-    def datagramReceived(self, datagram, addr):
-        for dat in datagram:
-            self.buff += dat
-            if dat == self.delimiter:
-                req_str = self.escape_hash_sign(self.buff)
-                self.buff = ''
-                self._process_msg(req_str, addr)
-        self.buff = ''
-
-
-class CommonlogBook(object):
-    __doc__ = '''
-        This is a book which will store all the persistent data,
-        for example, peers,leader,state,uuid
-    '''
-
-    def __init__(self, identity=None, state=None, peers={}, leader=None, ip=None):
-        """
-        :param identity: uuid representing the identity of the peer
-        :param state: defines the state of the peer
-        :param peers: empty peers list which will be updated
-        :param ip: ip of the peer
-        """
-        self.state = state
-        self.peers = peers
-        self.leader = None  # uuid
-        self.isLeader = False
-        self.uuid = identity.hex
-        self.ip = ip
-        self.uuidObj = identity
+#class PeerdiscoveryProtocol(DatagramProtocol):
+#
+#    def escape_hash_sign(self, string):
+#        return string.replace(self.delimiter, '')
+#
+#    def _process_msg(self, req, addr):
+#        pass
+#
+#    def send(self, msgObj, addr):
+#        self.transport.write(str(msgObj), addr)
+#
+#    def datagramReceived(self, datagram, addr):
+#        for dat in datagram:
+#            self.buff += dat
+#            if dat == self.delimiter:
+#                req_str = self.escape_hash_sign(self.buff)
+#                self.buff = ''
+#                self._process_msg(req_str, addr)
+#        self.buff = ''
 
 
-class EventHooker(object):
-    __doc__ = """
-        Registering custom event callbacks
-    """
-    def __init__(self):
-        self.events = {}
+#class CommonlogBook(object):
+#    __doc__ = '''
+#        This is a book which will store all the persistent data,
+#        for example, peers,leader,state,uuid
+#    '''
+#
+#    def __init__(self, identity=None, state=None, peers={}, leader=None, ip=None):
+#        """
+#        :param identity: uuid representing the identity of the peer
+#        :param state: defines the state of the peer
+#        :param peers: empty peers list which will be updated
+#        :param ip: ip of the peer
+#        """
+#        self.state = state
+#        self.peers = peers
+#        self.leader = None  # uuid
+#        self.isLeader = False  # its better to use this than keep comparing uuid objects
+#        self.uuid = identity.hex
+#        self.ip = ip
+#        self.uuidObj = identity
 
-    def bind(self,event,callback):
-        self.events[event] = callback
 
-    def unbind(self,event):
-        if event in self.events:
-            del self.events[event]
+#class EventHooker(object):
+#    __doc__ = """
+#        Registering custom event callbacks
+#    """
+#    def __init__(self):
+#        self.events = {}
+#
+#    def bind(self,event,callback):
+#        '''
+#         Registers callbacks to an event
+#        :param event : string
+#        :param callback : function
+#        '''
+#        self.events[event] = callback
+#
+#    def unbind(self,event):
+#        '''
+#        Detach events from the hooker
+#        :param event: string
+#        '''
+#        if event in self.events:
+#            del self.events[event]
 
 class CommonroomProtocol(PeerdiscoveryProtocol):
     __doc__ = '''
@@ -101,6 +113,7 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             :param book: CommonLogBook instance
         '''
         self.book = book
+        self.secret_value = None
         #self.message_codes = {  # Haven't used it properly yet
         #    0: self._new_peers,  # used named keys [ have event regsiters ]
         #    1: self._re_election_event,
@@ -122,6 +135,7 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
         self.eventcontroller.bind(NEW_LEADER, self._new_leader_callback)
         self.eventcontroller.bind(HANDLE_PONG, self._handle_pong)
         self.eventcontroller.bind(REMOVE_LEADER, self._remove_leader)
+        self.eventcontroller.bind(FACE_OFF, self._face_off)
 
         self._none_alive_ack = 1  # when no peers are present
         self._eln_ack = None  # waiting for election ack
@@ -156,7 +170,8 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             if self._alCallId.active():
                 self._alCallId.cancel()
 
-    def generate_election_id(self):
+    @staticmethod
+    def generate_election_id():  # Make it static
         return time.time()
 
     def startProtocol(self):
@@ -178,16 +193,18 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             from twisted.internet import reactor
             self._npClock = reactor
         self._npCallId = self._npClock.callLater(wait_for_response, response_from_peers)
-        self.d = threads.deferToThread(self._poll)
+        self.d = threads.deferToThread(self._poll)  # ideally, we should register a callback
 
     def _broadcast_identity(self):
         self.send(FlashMessage(NEW_PEER, [self.book.uuidObj, self.book.leader]), MCAST_ADDR)
 
     def _broadcast_leader_dead(self):
+        print 'broadcasting coz leader is dead'
         self.send(FlashMessage(REMOVE_LEADER, [self.book.leader]), MCAST_ADDR)
         self._broadcast_re_election()
 
     def _broadcast_re_election(self):
+        print 'BROADCASTIN RE ELECTION'
         eid = self.generate_election_id()
         self.send(FlashMessage(RE_ELECTION, [eid]), MCAST_ADDR)
 
@@ -195,13 +212,14 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
         self.send(FlashMessage(NEW_PEER, [self.book.uuidObj, self.book.leader]), addr)
 
     def _send_pong_to(self, addr):
-        self.send(FlashMessage(HANDLE_PONG, [PONG]), addr)
+        self.send(FlashMessage(HANDLE_PONG, [self.secret_value]), addr)
 
     def _broadcast_winner(self, eid):
         '''
             broadcasting winner message
         '''
-        self.send(FlashMessage(NEW_LEADER, [self.book.leader, eid]), MCAST_ADDR)
+        #print 'Sending SECRET {0}'.format(self.secret_value)
+        self.send(FlashMessage(NEW_LEADER, [self.book.leader, eid, self.secret_value]), MCAST_ADDR)
 
     def _send_election_msg_to(self, pid):
         eid = self.generate_election_id()
@@ -215,9 +233,42 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
         eid = self.generate_election_id()
         self.send(FlashMessage(HANDLE_ALIVE, [eid]), addr)
 
-    def _broadcast_ledger(self):
+    def _broadcast_ledger(self, add_secret=False, bullying=None):
         ledger = self.book.peers
-        self.send(FlashMessage(BCAST_LEDGER, [self.book.leader, ledger]), MCAST_ADDR)
+        if add_secret:
+            # We add secret when we are sending the ledger to a new peer, so that the peer can ping the leader and expect the secret value
+            self.send(FlashMessage(BCAST_LEDGER, [self.book.leader, ledger, self.secret_value]), MCAST_ADDR)
+        elif bullying is not None:
+            # This is necessary when the wrong winner is announced for the election. We then just exchange ledger with each other and organize a fresh new re-election
+            self.send(FlashMessage(BCAST_LEDGER, [bullying, ledger]), MCAST_ADDR)
+        else:
+            # When split brain occurs, we exchange ledger and perform re-election
+            # We cant really let all the peers to announce re-election. Lets make only the leaders of different clusters announce the re-election
+            self.send(FlashMessage(BCAST_LEDGER, [self.book.leader, ledger]), MCAST_ADDR)
+
+    def _send_secret_value(self, addr):
+        '''
+            Send secret value to addr only when a new peer enters
+        '''
+        self.send(FlashMessage(SECRET_VAL, [self.secret.value]), addr)
+
+    def _send_face_off(self, addr):
+        '''
+            Send a face off message: same election id but different winners
+        '''
+        self.send(FlashMessage(FACE_OFF), addr)
+
+    def isLeader(self):
+        if self.book.leader == self.book.uuidObj:
+            return True
+        else:
+            return False
+
+    def leader_present(self):
+        if self.book.leader:
+            return True
+        else:
+            return False
 
     def _poll(self):
         '''
@@ -248,13 +299,19 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
         self._pollId = self._pollClock.callLater(4, self._poll)  # ping the server every 4 seconds
 
     def periodic_reminder_from_leader(self):
+        '''
+            TODO: This is a kickass fucntion which will remind the peers about the leader periodicall and supply a new secret value
+        '''
         if self.book.leader == self.book.uuidObj:
             self._remind_about_leader()
             reactor.callLater(6, self.periodic_reminder_from_leader)
 
     def _process_msg(self, req, addr):
+        '''
+            This acts as a router because it dispatches functions based on the event received
+        '''
         msg = FlashMessage(message=req)
-        if msg.key in [NEW_PEER,ALIVE,HANDLE_PING,NEW_LEADER]:
+        if msg.key in [NEW_PEER, ALIVE, HANDLE_PING, NEW_LEADER]:
             self.eventcontroller.events[msg.key](data=msg.data, addr=addr)
         else:
             self.eventcontroller.events[msg.key](data=msg.data)
@@ -273,17 +330,13 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
         if peer != self.book.uuidObj:
             self.cancel_wait_for_peers_callback()
             if peer not in self.book.peers:
-                # when a peer disconnects and reconnects as a new peer again
-                #print 'deleting {0}'.format(uuid_to_delete)
-                #del self.book.peers[uuid_to_delete]
                 self.book.peers[peer] = addr
-                print 'added to new peers'
-                if self.book.leader == self.book.uuidObj:  # if leader, send the ledger
-                    print 'lets bcast ledger'
-                    self._broadcast_ledger()
+                if self.isLeader(): #self.book.leader == self.book.uuidObj:  # if leader, send the ledger
+                    self._broadcast_ledger(add_secret=True)
                 else:
-                    if not leader:  # there are no leaders whatsoever
+                    if not leader and not self.leader_present(): #not self.book.leader:  # there are no leaders whatsoever
                         self._send_id_to(addr)
+                        print ' no leader at all and then broadcast re-election'
                         self._broadcast_re_election()
 
     def _manage_ledger(self, data=None, ledger=None, leader=None):
@@ -291,19 +344,62 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             If there is a newcomer or if there are multiple leaders,
             send them an updated copy of the ledger containing all the peers in the network
         '''
+        bullying = None
+
         if data is not None:
-            leader, ledger = data
+            try:
+                value, ledger = data
+                if type(value) == bool:
+                    bullying = value  # yes or no for bullying
+                else:
+                    leader = value  # leader value
+
+            except ValueError:
+                #try:
+                leader, ledger, secret = data  # for the new peer
+                #except ValueError:
+                #    ledger = data[0]  # we have to bully
+                #    bullying = True
+
         self.cancel_wait_for_peers_callback()
+
+        # Ledger updation
         temp_ledger = self.book.peers.copy()
         temp_ledger.update(ledger)
         self.book.peers = temp_ledger
         for key, value in self.book.peers.iteritems():
-            print  key, value
+            #print  key, value
+            pass
 
-        if not self.book.leader or (self.book.leader == self.book.uuidObj and leader and leader!=self.book.leader):
+        if bullying is not None:
+            '''
+                Exchange ledger to update peers list and then bully due to wrong winner of election
+            '''
+            if bullying:
+                self._bully()  # this will reduce the number of re-elections
+            else:
+                pass
+
+        elif not self.leader_present():
+            '''
+                Informing NEW PEER about leader and secret value
+            '''
+            self.cancel_wait_for_peers_callback()
+            self.secret_value = secret
+            #print 'Accepting Secret {0}'.format(secret)
+            self._new_leader_callback(leader=leader)
+
+        elif self.isLeader() and leader and leader!=self.book.leader:
+            '''
+                Split brain scenario
+                If leader value shared is different from the current leader
+            '''
             self._new_leader_callback(leader=leader)
 
     def _handle_ping(self, data=None, addr=None):
+        '''
+            Along with pong, also append the secret value
+        '''
         self._send_pong_to(addr)
 
     def _remove_leader(self, data=None, leader=None):
@@ -313,12 +409,26 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
         if data is not None:
             leader = data[0]
         if leader == self.book.leader and leader in self.book.peers:
-            print 'REMOVING LEADER: {0}'.format(leader)
-            del self.book.peers[leader]
-            self.book.leader = None
+            #print 'REMOVING LEADER: {0}'.format(leader)
+            try:
+                del self.book.peers[leader]
+                self.book.leader = None
+                self.secret_value = None
+            except KeyError:
+                pass
 
     def _handle_pong(self, data=None):
+        '''
+            Here we check if the value sent by the leader is equal to the secret value shared right after winning the election
+        '''
         self._ping_ack = 1
+        if data is not None:
+            secret = data[0]
+            print 'PONG : SECRET RECVD: {0}'.format(secret)
+            if secret != self.secret_value:
+                # broadcast leader is dead
+                print 'MISMATCH WITH {0}'.format(self.secret_value)
+                self._broadcast_leader_dead()
 
     def _re_election_event(self, data=None, eid=None):
         if data is not None:
@@ -368,6 +478,7 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
 
     def _alive_handler(self, data=None, eid=None):
         '''
+            Gets an "Alive" message from higher peer.
             Will be waiting for the winner message now
         '''
         if data is not None:
@@ -377,6 +488,7 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
 
             def wait_for_winner(no_response):
                 if no_response:
+                    print 'no response, broadcast re-election'
                     self._broadcast_re_election()
 
             alive_deferred = defer.Deferred()
@@ -394,85 +506,89 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             then the leader of the cluster must broadcast the ledger.
         '''
         if data is not None:
-            leader, eid = data
+            leader, eid, secret = data
+            #print 'SECRET {0}'.format(secret)
 
         if eid == None:
+            '''
+                Post election time
+            '''
             if self.book.uuidObj < leader:
+                print 'about to bully {0} {1}'.format(self.book.uuidObj, leader)
                 self._bully()
+            elif self.isLeader():
+                pass
             else:
                 self.book.leader = leader
                 print 'register leader {0}'.format(self.book.leader)
-                # TODO : this is when we do reactor.connectTCP(server, Factory) . Send the request to the server and close the connection as soon as it is made
-                class ServerElectionProtocol(Protocol):
+                self.notify_server()
 
-                    def __init__(self, factory):
-                        self.factory = factory
-
-                    def connectionMade(self):
-                        #print 'connection made'
-                        update_msg = P2PMessage(key=LEADER, data=(self.factory.leader_host, self.factory.leader_port))
-                        self.transport.write(str(update_msg))
-                        self.transport.loseConnection()
-
-
-                class ServerElectionFactory(ClientFactory):
-                    def __init__(self, leader_host, leader_port):
-                        self.leader_host = leader_host
-                        self.leader_port = leader_port
-
-                    def buildProtocol(self, addr):
-                        return ServerElectionProtocol(self)
-
-                leader_host = self.book.peers[self.book.leader][0]
-                leader_port = SERVER_DAEMON_PORT
-                factory = ServerElectionFactory(leader_host, leader_port)
-                reactor.connectTCP(SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, factory)
+                # Informing local server daemon about the new leader
+                #leader_host = self.book.peers[self.book.leader][0]
+                #leader_port = SERVER_DAEMON_PORT
+                #factory = ServerElectionFactory(leader_host, leader_port)
+                #reactor.connectTCP(SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, factory)
 
         elif self._eid != eid:
+            '''
+                Random peer anounces itself as the winner and passes incorrect election ID
+                last stage of election
+            '''
             print 'WRONG ELEC ID {0} {1}'.format(self._eid,eid)
-            self._broadcast_ledger()  # two diff leaders will bcast their ledger
+            if self.leader_present():
+                if self.isLeader():
+                    self._send_face_off(addr)
+                    self._broadcast_ledger()  # two diff leaders will bcast their ledger
+                elif self.retries > 0:
+                    # Its possible that the leader is already dead , but the peers think that leader is alive
+                    # based on the retries, we can slightly guess that the leader might not be present [Not a good way]
+                    self._send_face_off(addr)  # request to tell the opposite peer to send its peers list , i.e , ledger
+                    if self.book.uuidObj < leader:
+                        self._broadcast_ledger(bullying=True)
+                    else:
+                        self._broadcast_ledger(bullying=False)
+            else:
+                self._send_face_off(addr)
+                self._broadcast_ledger(bullying=True)
 
         elif self._eid == eid:
+            '''
+                Last stage of election
+            '''
+            #if self.book.uuidObj == self.book.leader and self.book.uuidObj != leader:
+            #    '''
+            #        Same election ID but different winners
+            #    '''
+            #    self._send_face_off(addr)
+            #    # lets have a face off
+            #    pass
+            #else:
+            print 'LEADER :{0}\t EID : {1}'.format(self.book.leader,self._eid)
             self.book.leader = leader
+            self.secret_value = secret
             self.cancel_election_callback()
             self.cancel_alive_callback()
-            print 'this is done'
             if self.book.uuidObj < self.book.leader:
                 """
-                 The new peer has a higher id than leader but doesn't know anyone
+                 2 Scenarios are possible:
+                 1.The new peer has a higher id than leader but doesn't know anyone
                  therefore , he will broadcast his id , get the ledger and contest election
+                 2.The new peer announces himself as the peer. This will lead to all the remaining
+                 peers to broadcast_identity.
                 """
-                self._broadcast_identity()
-            print 'LEADER :{0}\t EID : {1}'.format(self.book.leader,self._eid)
+                #self._broadcast_identity()
+                self._send_face_off(addr)
+                self._broadcast_ledger(bullying=True)
+
             print 'CLOSING ELECTION: {0}'.format(self._eid)
             self._latest_election_id = self._eid
             self._eid = None  # this might create a huge problem
-            # if multiple candidates announce winner for single election
-            # TODO : this is when we do reactor.connectTCP(server, Factory) . Send the request to the server and close the connection as soon as it is made
-            class ServerElectionProtocol(Protocol):
+            self.notify_server()
 
-                def __init__(self, factory):
-                    self.factory = factory
-
-                def connectionMade(self):
-                    #print 'connection made'
-                    update_msg = P2PMessage(key=LEADER, data=(self.factory.leader_host, self.factory.leader_port))
-                    self.transport.write(str(update_msg))
-                    self.transport.loseConnection()
-
-
-            class ServerElectionFactory(ClientFactory):
-                def __init__(self, leader_host, leader_port):
-                    self.leader_host = leader_host
-                    self.leader_port = leader_port
-
-                def buildProtocol(self, addr):
-                    return ServerElectionProtocol(self)
-
-            leader_host = self.book.peers[self.book.leader][0]
-            leader_port = SERVER_DAEMON_PORT
-            factory = ServerElectionFactory(leader_host, leader_port)
-            reactor.connectTCP(SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, factory)
+            #leader_host = self.book.peers[self.book.leader][0]
+            #leader_port = SERVER_DAEMON_PORT
+            #factory = ServerElectionFactory(leader_host, leader_port)
+            #reactor.connectTCP(SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, factory)
 
 
     def _leader(self, leader, eid):
@@ -480,15 +596,35 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             This method is to assign you the leadership and broadcast everyone
         '''
         if self._eid == eid:
+            print 'fuck it i m the winner'
             self.cancel_wait_for_peers_callback()  # if leader wins due to no available peers, then cancel the wait for peers callback
             self.book.leader = leader
+            size_value = random.randint(6, 10)
+            self.secret_value = generate_secret(size_value)
             self._broadcast_winner(eid)
 
     def _bully(self):
         '''
             broadcast a re-election event
         '''
+        print 'bullying then relection'
         self._broadcast_re_election()
+
+    def _face_off(self, data=None):
+        '''
+            conflicting leaders will broadcast ledger
+        '''
+        self._broadcast_ledger()
+
+    def notify_server(self):
+        '''
+            notifying the server as soon as there is a leader change
+        '''
+        if self.book.leader in self.book.peers:
+            leader_host = self.book.peers[self.book.leader][0]
+            leader_port = SERVER_DAEMON_PORT
+            factory = ServerElectionFactory(leader_host, leader_port)
+            reactor.connectTCP(SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, factory)
 
     def reset(self):
         '''
@@ -497,31 +633,30 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
         self.delay = self.initialDelay
 
 
-
-if __name__ == '__main__':
-    import random,os,sys
-    try:
-        from netifaces import interfaces, ifaddresses, AF_INET
-
-        def ip4_addresses():
-            ip_list = []
-            for interface in interfaces():
-                try:
-                    for link in ifaddresses(interface)[AF_INET]:
-                        ip_list.append(link['addr'])
-                except:
-                    pass
-            return ip_list
-        ips = ip4_addresses()
-        print ips
-        ip = input('Enter index of ip addr:')
-        timeuuid = time_uuid.TimeUUID.with_utcnow()
-        book = CommonlogBook(identity=timeuuid, state=0, ip = ips[ip-1])
-        reactor.listenMulticast(MCAST_ADDR[1], CommonroomProtocol(book), listenMultiple=True)
-        reactor.run()
-    except KeyboardInterrupt:
-        reactor.stop()
-        try:
-            sys.exit(0)
-        except SystemExit:
-            os._exit(0)
+#if __name__ == '__main__':
+#    import random,os,sys
+#    try:
+#        from netifaces import interfaces, ifaddresses, AF_INET
+#
+#        def ip4_addresses():
+#            ip_list = []
+#            for interface in interfaces():
+#                try:
+#                    for link in ifaddresses(interface)[AF_INET]:
+#                        ip_list.append(link['addr'])
+#                except:
+#                    pass
+#            return ip_list
+#        ips = ip4_addresses()
+#        print ips
+#        ip = input('Enter index of ip addr:')
+#        timeuuid = time_uuid.TimeUUID.with_utcnow()
+#        book = CommonlogBook(identity=timeuuid, state=0, ip = ips[ip-1])
+#        reactor.listenMulticast(MCAST_ADDR[1], CommonroomProtocol(book), listenMultiple=True)
+#        reactor.run()
+#    except KeyboardInterrupt:
+#        reactor.stop()
+#        try:
+#            sys.exit(0)
+#        except SystemExit:
+#            os._exit(0)

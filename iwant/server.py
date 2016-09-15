@@ -167,7 +167,7 @@ class backendFactory(Factory):
         self.file_peer_indexer = {}
         if folder is not None:
             self.indexer = FileHashIndexer(self.folder)
-            self.d = threads.deferToThread(self.indexer.index)
+            self.d = threads.deferToThread(self.indexer.index)  # starts indexing files in a folder
             self.d.addCallbacks(self._file_hash_success, self._file_hash_failure)
 
     def clientConnectionLost(self, connector, reason):

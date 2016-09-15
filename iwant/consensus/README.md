@@ -26,21 +26,21 @@ The leader will send the secret value individually when a new peer enters and br
 Yes , we do. We set the secret value to ```python None ``` when the leader is dead or when the leader pongs back the incorrect secret value.
 
 * According to your consensus, if a new peer joins and the leader is "alive"(i.e the peers think that the leader is alive), the leader is the only one who sends the peers list to the joining peer. Haa, so what happens when the leader is dead and a new peer joins and none of the peers have detected that the leader is actually dead?  
-Well yeah ! it can potentially lead to a lot of problems. In fact, it can get a lot worse if the new peer becomes the leader. Lets see how!  
-1. Leader just died  
-2. New peer joins  
-3. Others dont know leader is dead yet  
+Well yeah! it can potentially lead to a lot of problems. In fact, it can get a lot worse if the new peer becomes the leader. Lets see how!  
+  1. Leader just died  
+  2. New peer joins  
+  3. Others dont know leader is dead yet  
     * None of them tell the new peer about the leader  
-4. Others recieve new peer details and append it to their ledger  
-5. They detect leader is dead  
-6. New re-election announced with new peer included. Mind it, the new peer still has no idea who is present in the network as it didnt recieve the peers list(ledger) yet.  
-7. Now, new peer and the other peers share the same election ID.  
-8. The new peer declares itself as the winner as it thinks that nobody is in the network.  
-9. BUT , the oldest peer in the network will always win the election and declare itself as the winner.  
-10. So WOW! we are having 2 leaders with same election ID but different secret values ? hahaha, thats pretty embarassing for our consensus.  
-11. Well, when that happens, the conflicting leaders will brodcast their peers list, that means the new peer will send its empty/half-empty peers list and the old peer will send its peers list.  
-12. All the peers will then combine both the peers list from both the potential leaders and then announce a fresh new re-election.  
-13. This time a fair election is held with all the peers having a consistent peers list because of which only one LEADER will be selected.  
+  4. Others recieve new peer details and append it to their ledger  
+  5. They detect leader is dead  
+  6. New re-election announced with new peer included. Mind it, the new peer still has no idea who is present in the network as it didnt recieve the peers list(ledger) yet.  
+  7. Now, new peer and the other peers share the same election ID.  
+  8. The new peer declares itself as the winner as it thinks that nobody is in the network.  
+  9. BUT , the oldest peer in the network will always win the election and declare itself as the winner.  
+  10. So WOW! we are having 2 leaders with same election ID but different secret values ? hahaha, thats pretty embarassing for our consensus.  
+  11. Well, when that happens, the conflicting leaders will brodcast their peers list, that means the new peer will send its empty/half-empty peers list and the old peer will send its peers list.  
+  12. All the peers will then combine both the peers list from both the potential leaders and then announce a fresh new re-election.  
+  13. This time a fair election is held with all the peers having a consistent peers list because of which only one LEADER will be selected.  
 
 * What happens when a new peer enters and becomes a part of the election without even having any peers list ? Its possible because, say the leader dies, one of the peers detect that the leader is dead, then new peer enters and then a fresh new election starts! so yeah, this situation is possible!  
 Lets go step by step  

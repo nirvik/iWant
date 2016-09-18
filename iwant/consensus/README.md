@@ -1,6 +1,6 @@
 # Almighty Consensus
 
-## What's the winning criteria ?
+* __What's the winning criteria ?__
 
 Each peer is assigned an identity. This assignment is based on the time at which the peer joins. So, the oldest peer will be the one who will win the election. There is no way in hell the new peer can outvote the oldest peer. NO WAY !
 

@@ -2,8 +2,9 @@ from iwant.consensus.beacon import *
 from iwant.server import *
 from iwant.watching import *
 from iwant.shared.book import CommonlogBook
-from iwant.config import SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, FOLDER
-from iwant.constants.election_constants import MCAST_IP, MCAST_PORT
+from iwant.config import SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, FOLDER, MCAST_IP, MCAST_PORT
+#from iwant.constants.election_constants import MCAST_IP, MCAST_PORT
+#from iwant.constants.events.election import MCAST_IP, MCAST_PORT
 from iwant.protocols import FilemonitorClientFactory, FilemonitorClientProtocol
 from iwant.utils.utils import get_ips
 from twisted.internet import reactor

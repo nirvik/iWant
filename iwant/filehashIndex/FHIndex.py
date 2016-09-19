@@ -11,7 +11,7 @@ class FileHashIndexer(object):
     def __init__(self , path):
         self.hash_index = {}
         self.path_index = {}
-        self.current_path = "/var/log/iwant/"#os.path.dirname(os.path.abspath(__file__))
+        self.current_path = "/var/log/iwant/"  # os.path.dirname(os.path.abspath(__file__))
         hashed_idx_path = os.path.join(self.current_path,HIDX_EXTENSION)
         filename_idx_path = os.path.join(self.current_path,PIDX_EXTENSION)
         self.state = "INDEX"
@@ -47,10 +47,13 @@ class FileHashIndexer(object):
 
     @staticmethod
     def loadJSON(path):
+        '''
+            Mission to change from pickle to json
+        '''
         with open(path,'rb') as f:
             data = f.read()
         try:
-            json_data = pickle.loads(data)#json.loads(data)
+            json_data = pickle.loads(data)  # json.loads(data)
         except:
             json_data = {}
         return json_data

@@ -1,8 +1,7 @@
 *.pyc
 experiments/
-consensus/backup.py
+iwant/consensus/backup.py
 *.pdf
 *.hindex
 *.pindex
 todo
-backup*

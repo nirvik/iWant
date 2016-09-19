@@ -3,7 +3,9 @@ from twisted.internet.protocol import Factory
 from twisted.protocols.basic import FileSender
 from filehashIndex.FHIndex import FileHashIndexer
 from communication.message import P2PMessage
-from iwant.constants.server_event_constants import *
+#from iwant.constants.server_event_constants import *
+from iwant.constants.events.server import *
+from iwant.constants.states.server import READY, NOT_READY
 from iwant.protocols import BaseProtocol
 from iwant.config import CLIENT_DAEMON_HOST, CLIENT_DAEMON_PORT, SERVER_DAEMON_PORT, DOWNLOAD_FOLDER
 from fuzzywuzzy import fuzz, process
@@ -41,12 +43,18 @@ class backend(BaseProtocol):
         except:
             self.message_codes[req.key](req.data)
 
+    def leaderThere(self):
+        if self.factory.leader is not None:
+            return True
+        else:
+            return False
+
     def _handshake(self):
         resMessage = P2PMessage(key=HANDSHAKE, data=[])
         self.sendLine(resMessage)
 
     def _list_file(self):
-        if self.factory.state == 1:
+        if self.factory.state == READY:
             resMessage = P2PMessage(key=LIST_ALL_FILES, data=self.factory.indexer.reduced_index())
             self.sendLine(resMessage)
         else:
@@ -82,13 +90,13 @@ class backend(BaseProtocol):
     def _update_leader(self, leader):
         self.factory.leader = leader
         print 'Updating Leader {0}'.format(self.factory.book.leader)
-        if self.factory.state == 1 and self.factory.leader is not None:
+        if self.factory.state == READY and self.leaderThere():
             self.factory.gather_data_then_notify()
 
     def _filesystem_modified(self, data):
         print 'file system modified'
-        self.factory.state = 1  # Ready
-        if self.factory.state == 1 and self.factory.leader is not None:
+        #self.factory.state = READY  # Ready
+        if self.factory.state == READY and self.leaderThere():
             self.factory.gather_data_then_notify()
 
     def _dump_data_from_peers(self, data):
@@ -97,8 +105,8 @@ class backend(BaseProtocol):
         self.factory.data_from_peers[uuid] = dump
 
     def _leader_send_list(self, data):
-        if self.factory.leader is not None:
-            print 'asking leader to please lookup'
+        if self.leaderThere():
+            print 'asking leader to lookup'
             self.factory._notify_leader(key=LOOKUP, data=data, persist=True, clientConn=self)
         else:
             msg = P2PMessage(key=LEADER_NOT_READY, data=None)
@@ -109,16 +117,16 @@ class backend(BaseProtocol):
         uuid, text_search = data
         host, port = self.factory.book.peers[uuid]
         print ' At leader lookup '
-        x = []
+        filtered_response = []
         l = []
         for val in self.factory.data_from_peers.values():
             l = pickle.loads(val['hidx'])
             for i in l.values():
                 if fuzz.partial_ratio(text_search, i.filename) >= 90:
-                    x.append(i)
+                    filtered_response.append(i)
 
         # l =  process.extract(data, map(lambda a: a.filename, x))
-        update_msg = P2PMessage(key=SEARCH_RES, data=x)
+        update_msg = P2PMessage(key=SEARCH_RES, data=filtered_response)
         self.sendLine(update_msg)  # this we are sending it back to the server
         self.transport.loseConnection()  # leader will loseConnection with the requesting server
 
@@ -129,7 +137,7 @@ class backend(BaseProtocol):
         self.transport.loseConnection()  # losing connection with the client
 
     def _ask_leader_for_peers(self, data):
-        if self.factory.leader is not None:
+        if self.leaderThere():
             print 'asking leaders for peers'
             print data
             self.factory._notify_leader(key=SEND_PEER_DETAILS, data=data, persist=True, clientConn=self)
@@ -158,7 +166,7 @@ class backendFactory(Factory):
     protocol = backend
 
     def __init__(self, folder, book):
-        self.state = 0
+        self.state = NOT_READY
         self.folder = folder
         self.book = book
         self.leader = None
@@ -214,76 +222,78 @@ class backendFactory(Factory):
             def talk_to_peer(self, data):
                 from twisted.internet.protocol import Protocol, ClientFactory, Factory
                 from twisted.internet import reactor
-
-                class RemotepeerProtocol(BaseProtocol):
-                    def __init__(self, factory):
-                        self.buff = ''
-                        self.delimiter = '#'
-                        self.factory = factory
-                        self.file_len_recv = 0.0
-                        self.special_handler = None
-                        self.events = {
-                            FILE_DETAILS_RESP: self.start_trasnfer
-                        }
-
-                    def connectionMade(self):
-                        update_msg = P2PMessage(key=self.factory.key, data=self.factory.dump)
-                        self.sendLine(update_msg)
-
-                    def serviceMessage(self, data):
-                        print 'got response from server about file'
-                        req = P2PMessage(message=data)
-                        self.events[req.key](req.data)
-
-                    def start_trasnfer(self, data):
-                        update_msg = P2PMessage(key=FILE_TO_BE_DOWNLOADED, data=data)
-                        self.factory.file_details['fname'] = data[0]
-                        self.factory.file_details['size'] = data[1] * 1024.0 * 1024.0
-                        if not os.path.exists(DOWNLOAD_FOLDER):
-                            os.mkdir(DOWNLOAD_FOLDER)
-                        self.factory.file_container = open(DOWNLOAD_FOLDER+os.path.basename(data[0]), 'wb')
-                        clientConn.sendLine(update_msg)
-                        clientConn.transport.loseConnection()
-                        self.hookHandler(self.write_to_file)
-                        print 'Start Trasnfer {0}'.format(self.factory.dump)
-                        update_msg = P2PMessage(key=START_TRANSFER, data=self.factory.dump)
-                        self.sendLine(update_msg)
-
-                    def write_to_file(self, data):
-                        self.file_len_recv += len(data)
-                        self.factory.file_container.write(data)
-                        if self.file_len_recv >= self.factory.file_details['size']:
-                            self.factory.file_container.close()
-                            print 'Client : File downloaded'
-                            self.transport.loseConnection()
-
-                class RemotepeerFactory(Factory):
-
-                    protocol = RemotepeerProtocol
-
-                    def __init__(self, key, checksum):
-                        self.key = key
-                        self.dump = checksum
-                        self.file_details = {'checksum': checksum}
-                        self.file_container = None
-
-                    def startedConnecting(self, connector):
-                        print 'connecting'
-
-                    def clientConnectionLost(self, connector, reason):
-                        print reason
-
-                    def clientConnectionFailed(self, connector, reason):
-                        print reason.getErrorMessage()
-
-                    def buildProtocol(self, addr):
-                        return RemotepeerProtocol(self)
-
                 self.transport.loseConnection()
                 print 'Got peers {0}'.format(data)
                 host, port = data[0]
                 print 'hash {0}'.format(self.factory.dump)
-                reactor.connectTCP(host, SERVER_DAEMON_PORT, RemotepeerFactory(INIT_FILE_REQ, self.factory.dump))
+                #reactor.connectTCP(host, SERVER_DAEMON_PORT, RemotepeerFactory(INIT_FILE_REQ, self.factory.dump))
+                from iwant.protocols import RemotepeerFactory, RemotepeerProtocol
+                reactor.connectTCP(host, SERVER_DAEMON_PORT, RemotepeerFactory(INIT_FILE_REQ, self.factory.dump, clientConn))
+
+                #class RemotepeerProtocol(BaseProtocol):
+                #    def __init__(self, factory):
+                #        self.buff = ''
+                #        self.delimiter = '#'
+                #        self.factory = factory
+                #        self.file_len_recv = 0.0
+                #        self.special_handler = None
+                #        self.events = {
+                #            FILE_DETAILS_RESP: self.start_transfer
+                #        }
+
+                #    def connectionMade(self):
+                #        update_msg = P2PMessage(key=self.factory.key, data=self.factory.dump)
+                #        self.sendLine(update_msg)
+
+                #    def serviceMessage(self, data):
+                #        print 'got response from server about file'
+                #        req = P2PMessage(message=data)
+                #        self.events[req.key](req.data)
+
+                #    def start_transfer(self, data):
+                #        update_msg = P2PMessage(key=FILE_TO_BE_DOWNLOADED, data=data)
+                #        self.factory.file_details['fname'] = data[0]
+                #        self.factory.file_details['size'] = data[1] * 1024.0 * 1024.0
+                #        if not os.path.exists(DOWNLOAD_FOLDER):
+                #            os.mkdir(DOWNLOAD_FOLDER)
+                #        self.factory.file_container = open(DOWNLOAD_FOLDER+os.path.basename(data[0]), 'wb')
+                #        clientConn.sendLine(update_msg)
+                #        clientConn.transport.loseConnection()
+                #        self.hookHandler(self.write_to_file)
+                #        print 'Start Trasnfer {0}'.format(self.factory.dump)
+                #        update_msg = P2PMessage(key=START_TRANSFER, data=self.factory.dump)
+                #        self.sendLine(update_msg)
+
+                #    def write_to_file(self, data):
+                #        self.file_len_recv += len(data)
+                #        self.factory.file_container.write(data)
+                #        if self.file_len_recv >= self.factory.file_details['size']:
+                #            self.factory.file_container.close()
+                #            print 'Client : File downloaded'
+                #            self.transport.loseConnection()
+
+                #class RemotepeerFactory(Factory):
+
+                #    protocol = RemotepeerProtocol
+
+                #    def __init__(self, key, checksum):
+                #        self.key = key
+                #        self.dump = checksum
+                #        self.file_details = {'checksum': checksum}
+                #        self.file_container = None
+
+                #    def startedConnecting(self, connector):
+                #        print 'connecting'
+
+                #    def clientConnectionLost(self, connector, reason):
+                #        print reason
+
+                #    def clientConnectionFailed(self, connector, reason):
+                #        print reason.getErrorMessage()
+
+                #    def buildProtocol(self, addr):
+                #        return RemotepeerProtocol(self)
+
 
             def send_file_search_response(self, data):
                 update_msg = P2PMessage(key=SEARCH_RES, data=data)
@@ -305,14 +315,14 @@ class backendFactory(Factory):
         elif key == SEND_PEER_DETAILS:
             factory = ServerLeaderFactory(key=key, dump=data)
         print 'state {0} \nleader {1}'.format(self.state, self.leader)
-        if self.leader is not None and self.state == 1:
+        if self.leader is not None and self.state == READY:
             print self.leader[0], self.leader[1]
             host, port = self.leader
             print 'connecting to {0}:{1} for {2}'.format(host, port, key)
             reactor.connectTCP(host, port, factory)
 
     def _file_hash_success(self, data):
-        self.state = 1  # Ready
+        self.state = READY  # Ready
         self.gather_data_then_notify()
 
     def _file_hash_failure(self, reason):

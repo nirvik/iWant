@@ -3,7 +3,8 @@ from twisted.internet.endpoints import TCP4ClientEndpoint,connectProtocol
 from twisted.internet.protocol import ClientFactory
 from iwant.communication.message import P2PMessage
 from iwant.protocols import BaseProtocol
-from iwant.constants.server_event_constants import HANDSHAKE, LIST_ALL_FILES, SEARCH_REQ, SEARCH_RES, LEADER_NOT_READY, IWANT_PEER_FILE, PEER_LOOKUP_RESPONSE, IWANT, INIT_FILE_REQ, FILE_DETAILS_RESP, FILE_TO_BE_DOWNLOADED
+#from iwant.constants.server_event_constants import HANDSHAKE, LIST_ALL_FILES, SEARCH_REQ, SEARCH_RES, LEADER_NOT_READY, IWANT_PEER_FILE, PEER_LOOKUP_RESPONSE, IWANT, INIT_FILE_REQ, FILE_DETAILS_RESP, FILE_TO_BE_DOWNLOADED
+from iwant.constants.events.server import HANDSHAKE, LIST_ALL_FILES, SEARCH_REQ, SEARCH_RES, LEADER_NOT_READY, IWANT_PEER_FILE, PEER_LOOKUP_RESPONSE, IWANT, INIT_FILE_REQ, FILE_DETAILS_RESP, FILE_TO_BE_DOWNLOADED
 import pickle
 import json
 import tabulate

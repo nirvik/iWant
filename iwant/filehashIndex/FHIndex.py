@@ -59,8 +59,8 @@ class FileHashIndexer(object):
         computed_file_size = self.getfilesize(destination_file_path)
         filesize = computed_file_size/ (1024.0 * 1024.0)
         if destination_file_path in self.path_index:
-            sha_checksum = self.path_index[destination_file_path]
-            if self.hash_index[sha_checksum][-1] != filesize:
+            md5_checksum = self.path_index[destination_file_path]
+            if self.hash_index[md5_checksum][-1] != filesize:
                 print 'Change in file size'
                 self._delete(destination_file_path)
             else:
@@ -125,19 +125,19 @@ class FileHashIndexer(object):
         if not os.path.exists(filename):
             print 'There has been a change in directory of the path'
             raise NotImplementedError
-        sha_hash = self.get_hash(filename)
-        if sha_hash != checksum:
+        md5_hash = self.get_hash(filename)
+        if md5_hash != checksum:
             print 'There has been a change in contents of the file'
             raise NotImplementedError
         return open(filename,'rb')
 
     @staticmethod
     def get_hash(filepath):
-        sha_hash = hashlib.sha1()
+        md5_hash = hashlib.md5()
         with open(filepath,'rb') as f:
-            buff = f.read()
-            sha_hash.update(hashlib.sha1(buff).hexdigest())
-        return sha_hash.hexdigest()
+            for chunk in iter(lambda: f.read(4096), b""):
+                md5_hash.update(chunk)
+        return md5_hash.hexdigest()
 
     def reduced_index(self):
         red_fn=lambda x:(os.path.basename(x[0]), x[2])

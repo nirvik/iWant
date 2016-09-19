@@ -37,7 +37,7 @@ class ScanFolder(object):
 				path = os.path.dirname(event.src_path)
 			idx = FHIndex.FileHashIndexer(path)
 			idx.index()
-		self.callback()
+		self.callback() # informing the server daemon about changes
 
 if __name__ == '__main__':
 	args = sys.argv[1]

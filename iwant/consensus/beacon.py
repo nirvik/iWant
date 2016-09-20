@@ -166,12 +166,12 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
         eid = self.generate_election_id()
         self.send(FlashMessage(HANDLE_ALIVE, [eid]), addr)
 
-    def _broadcast_ledger(self, add_secret=False, just_share=False):
+    def _broadcast_ledger(self, add_secret=False, just_sharing=False):
         ledger = self.book.peers
         if add_secret:
             # We add secret when we are sending the ledger to a new peer, so that the peer can ping the leader and expect the secret value
             self.send(FlashMessage(BCAST_LEDGER, [self.book.leader, ledger, self.secret_value]), MCAST_ADDR)
-        elif just_share is not None and just_share is True:
+        elif just_sharing is not None and just_sharing is True:
             # This is necessary when the wrong winner is announced for the election. We then just exchange ledger with each other and organize a fresh new re-election
             self.send(FlashMessage(BCAST_LEDGER, [ledger]), MCAST_ADDR)
         else:

@@ -12,6 +12,8 @@ class FileHashIndexer(object):
         self.hash_index = {}
         self.path_index = {}
         self.current_path = "/var/log/iwant/"  # os.path.dirname(os.path.abspath(__file__))
+        if not os.path.exists(self.current_path):
+            os.mkdir(self.current_path)
         hashed_idx_path = os.path.join(self.current_path,HIDX_EXTENSION)
         filename_idx_path = os.path.join(self.current_path,PIDX_EXTENSION)
         self.state = "INDEX"

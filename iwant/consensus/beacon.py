@@ -365,6 +365,7 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
         else:
             if eid > self._eid:
                 print 'CANCEL ELECTION {0}'.format(self._eid)
+                print 'NEW ELECTION COMMENCEMENT : {0}'.format(eid)
                 self._eid = eid
                 self.reset()
                 self.cancel_election_callback()

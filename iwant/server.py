@@ -3,11 +3,10 @@ from twisted.internet.protocol import Factory
 from twisted.protocols.basic import FileSender
 from filehashIndex.FHIndex import FileHashIndexer
 from communication.message import P2PMessage
-#from iwant.constants.server_event_constants import *
-from iwant.constants.events.server import *
-from iwant.constants.states.server import READY, NOT_READY
-from iwant.protocols import BaseProtocol
-from iwant.config import CLIENT_DAEMON_HOST, CLIENT_DAEMON_PORT, SERVER_DAEMON_PORT, DOWNLOAD_FOLDER
+from constants.events.server import *
+from constants.states.server import READY, NOT_READY
+from protocols import BaseProtocol
+from config import CLIENT_DAEMON_HOST, CLIENT_DAEMON_PORT, SERVER_DAEMON_PORT, DOWNLOAD_FOLDER
 from fuzzywuzzy import fuzz, process
 import pickle
 import os

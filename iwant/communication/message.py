@@ -1,6 +1,6 @@
 import pickle
-#from iwant.constants.server_event_constants import *
-from iwant.constants.events.server import *
+#from iwant.constants.events.server import *
+from constants.events.server import *
 
 class P2PCommunication(Exception):
     def __init__(self, code, msg):

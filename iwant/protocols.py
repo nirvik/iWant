@@ -1,10 +1,8 @@
 from twisted.internet.protocol import Protocol, ClientFactory, DatagramProtocol, Factory
-from iwant.communication.message import P2PMessage
-#from iwant.constants.server_event_constants import *
-#from iwant.constants.election_constants import *
-from iwant.constants.events.server import *
-from iwant.constants.events.election import *
-from iwant.config import DOWNLOAD_FOLDER
+from communication.message import P2PMessage
+from constants.events.server import *
+from constants.events.election import *
+from config import DOWNLOAD_FOLDER
 import os
 
 

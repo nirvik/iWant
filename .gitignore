@@ -5,3 +5,4 @@ iwant/consensus/backup.py
 *.hindex
 *.pindex
 todo
+*.egg-info/

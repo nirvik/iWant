@@ -1,5 +1,4 @@
 twisted
-service_identity
 netifaces
 watchdog
 time_uuid

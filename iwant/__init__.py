@@ -1,2 +1,2 @@
-from main import *
-from ui import *
+#from main import *
+#from ui import *

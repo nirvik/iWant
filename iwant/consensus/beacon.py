@@ -7,8 +7,8 @@ import time
 import time_uuid
 import pickle
 import random
-from config import SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, MCAST_IP, MCAST_PORT
-from constants.events.election import (
+from iwant.config import SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, MCAST_IP, MCAST_PORT
+from iwant.constants.events.election import (
         #MCAST_IP,MCAST_PORT,
         NEW_PEER,RE_ELECTION,
         ALIVE,BCAST_LEDGER,HANDLE_PING,
@@ -18,11 +18,11 @@ from constants.events.election import (
         WITH_LEADER, WITHOUT_LEADER
     )
 #from iwant.constants.server_event_constants import LEADER
-from constants.events.server import LEADER
-from communication.message import P2PMessage
-from communication.election_communication.message import *
-from utils.utils import generate_secret, generate_size, EventHooker
-from protocols import ServerElectionProtocol, ServerElectionFactory, PeerdiscoveryProtocol
+from iwant.constants.events.server import LEADER
+from iwant.communication.message import P2PMessage
+from iwant.communication.election_communication.message import *
+from iwant.utils.utils import generate_secret, generate_size, EventHooker
+from iwant.protocols import ServerElectionProtocol, ServerElectionFactory, PeerdiscoveryProtocol
 
 MCAST_ADDR = (MCAST_IP, MCAST_PORT)
 

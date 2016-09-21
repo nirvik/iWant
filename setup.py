@@ -1,5 +1,5 @@
 try:
-    from setuptools import setup
+    from setuptools import setup, find_packages
 except ImportError:
     from distutils.core import setup
 
@@ -11,9 +11,14 @@ setup(
         install_requires= requirement_list,
         author='Nirvik Ghosh',
         author_email='nirvik1993@gmail.com',
-        packages=['iwant','iwant.communication','iwant.communication.election_communication','iwant.consensus','iwant.constants.events','iwant.constants.states','iwant.constants','iwant.shared','iwant.utils','iwant.filehashIndex'],
+        packages = find_packages(),
+        #scripts= ['main.py'],
         entry_points = {
-            #'console_scripts':['iwanto-start=iwant:main','iwanto=iwant:userinterface'],
+            'console_scripts':[
+                'iwanto-start=iwant.main:main',
+                ],
         },
         url="https://github.com/nirvik/iWant",
-        description="CLI based decentralized peer to peer file sharing")
+        description="CLI based decentralized peer to peer file sharing"
+)
+

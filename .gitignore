@@ -6,3 +6,5 @@ iwant/consensus/backup.py
 *.pindex
 todo
 *.egg-info/
+build/
+dist/

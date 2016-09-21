@@ -1,8 +1,7 @@
 from twisted.internet import reactor
-from iwant.client import FrontendFactory, Frontend
-from iwant.config import SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, DOWNLOAD_FOLDER
-#from iwant.constants.server_event_constants import SEARCH_REQ, IWANT_PEER_FILE, INIT_FILE_REQ
-from iwant.constants.events.server import SEARCH_REQ, IWANT_PEER_FILE, INIT_FILE_REQ
+from client import FrontendFactory, Frontend
+from config import SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, DOWNLOAD_FOLDER
+from constants.events.server import SEARCH_REQ, IWANT_PEER_FILE, INIT_FILE_REQ
 import argparse
 
 parser = argparse.ArgumentParser(description='iwant')

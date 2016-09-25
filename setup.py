@@ -16,6 +16,7 @@ setup(
         entry_points = {
             'console_scripts':[
                 'iwanto-start=iwant.main:main',
+                'iwanto=iwant.ui:main'
                 ],
         },
         url="https://github.com/nirvik/iWant",

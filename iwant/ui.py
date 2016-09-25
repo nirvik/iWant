@@ -4,14 +4,19 @@ from config import SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, DOWNLOAD_FOLDER
 from constants.events.server import SEARCH_REQ, IWANT_PEER_FILE, INIT_FILE_REQ
 import argparse
 
-parser = argparse.ArgumentParser(description='iwant')
-parser.add_argument("--search", help="instant fuzzy search", type=str)
-parser.add_argument("--download", help="download file by giving hash", type=str)
-args = parser.parse_args()
+def main():
 
-if args.search:
-    reactor.connectTCP(SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, FrontendFactory(SEARCH_REQ, args.search))
+    parser = argparse.ArgumentParser(description='iwant')
+    parser.add_argument("--search", help="instant fuzzy search", type=str)
+    parser.add_argument("--download", help="download file by giving hash", type=str)
+    args = parser.parse_args()
 
-elif args.download:
-    reactor.connectTCP(SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, FrontendFactory(IWANT_PEER_FILE, args.download, DOWNLOAD_FOLDER))
-reactor.run()
+    if args.search:
+        reactor.connectTCP(SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, FrontendFactory(SEARCH_REQ, args.search))
+
+    elif args.download:
+        reactor.connectTCP(SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, FrontendFactory(IWANT_PEER_FILE, args.download, DOWNLOAD_FOLDER))
+    reactor.run()
+
+if __name__ == '__main__':
+    main()

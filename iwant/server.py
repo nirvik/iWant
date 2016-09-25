@@ -124,7 +124,6 @@ class backend(BaseProtocol):
                 if fuzz.partial_ratio(text_search, i.filename) >= 90:
                     filtered_response.append(i)
 
-        # l =  process.extract(data, map(lambda a: a.filename, x))
         update_msg = P2PMessage(key=SEARCH_RES, data=filtered_response)
         self.sendLine(update_msg)  # this we are sending it back to the server
         self.transport.loseConnection()  # leader will loseConnection with the requesting server
@@ -228,71 +227,6 @@ class backendFactory(Factory):
                 #reactor.connectTCP(host, SERVER_DAEMON_PORT, RemotepeerFactory(INIT_FILE_REQ, self.factory.dump))
                 from iwant.protocols import RemotepeerFactory, RemotepeerProtocol
                 reactor.connectTCP(host, SERVER_DAEMON_PORT, RemotepeerFactory(INIT_FILE_REQ, self.factory.dump, clientConn))
-
-                #class RemotepeerProtocol(BaseProtocol):
-                #    def __init__(self, factory):
-                #        self.buff = ''
-                #        self.delimiter = '#'
-                #        self.factory = factory
-                #        self.file_len_recv = 0.0
-                #        self.special_handler = None
-                #        self.events = {
-                #            FILE_DETAILS_RESP: self.start_transfer
-                #        }
-
-                #    def connectionMade(self):
-                #        update_msg = P2PMessage(key=self.factory.key, data=self.factory.dump)
-                #        self.sendLine(update_msg)
-
-                #    def serviceMessage(self, data):
-                #        print 'got response from server about file'
-                #        req = P2PMessage(message=data)
-                #        self.events[req.key](req.data)
-
-                #    def start_transfer(self, data):
-                #        update_msg = P2PMessage(key=FILE_TO_BE_DOWNLOADED, data=data)
-                #        self.factory.file_details['fname'] = data[0]
-                #        self.factory.file_details['size'] = data[1] * 1024.0 * 1024.0
-                #        if not os.path.exists(DOWNLOAD_FOLDER):
-                #            os.mkdir(DOWNLOAD_FOLDER)
-                #        self.factory.file_container = open(DOWNLOAD_FOLDER+os.path.basename(data[0]), 'wb')
-                #        clientConn.sendLine(update_msg)
-                #        clientConn.transport.loseConnection()
-                #        self.hookHandler(self.write_to_file)
-                #        print 'Start Trasnfer {0}'.format(self.factory.dump)
-                #        update_msg = P2PMessage(key=START_TRANSFER, data=self.factory.dump)
-                #        self.sendLine(update_msg)
-
-                #    def write_to_file(self, data):
-                #        self.file_len_recv += len(data)
-                #        self.factory.file_container.write(data)
-                #        if self.file_len_recv >= self.factory.file_details['size']:
-                #            self.factory.file_container.close()
-                #            print 'Client : File downloaded'
-                #            self.transport.loseConnection()
-
-                #class RemotepeerFactory(Factory):
-
-                #    protocol = RemotepeerProtocol
-
-                #    def __init__(self, key, checksum):
-                #        self.key = key
-                #        self.dump = checksum
-                #        self.file_details = {'checksum': checksum}
-                #        self.file_container = None
-
-                #    def startedConnecting(self, connector):
-                #        print 'connecting'
-
-                #    def clientConnectionLost(self, connector, reason):
-                #        print reason
-
-                #    def clientConnectionFailed(self, connector, reason):
-                #        print reason.getErrorMessage()
-
-                #    def buildProtocol(self, addr):
-                #        return RemotepeerProtocol(self)
-
 
             def send_file_search_response(self, data):
                 update_msg = P2PMessage(key=SEARCH_RES, data=data)

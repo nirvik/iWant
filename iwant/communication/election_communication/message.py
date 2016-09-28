@@ -1,6 +1,5 @@
 import pickle
-#from constants.events.election import NEW_PEER, RE_ELECTION, ALIVE, BCAST_LEDGER, HANDLE_PING, HANDLE_ALIVE, NEW_LEADER, HANDLE_PONG, REMOVE_LEADER, PING, PONG, SECRET_VAL, FACE_OFF
-from iwant.constants.events.election import NEW_PEER, RE_ELECTION, ALIVE, BCAST_LEDGER, HANDLE_PING, HANDLE_ALIVE, NEW_LEADER, HANDLE_PONG, REMOVE_LEADER, PING, PONG, SECRET_VAL, FACE_OFF
+from iwant.constants.events.election import NEW_PEER, RE_ELECTION, ALIVE, BCAST_LEDGER, HANDLE_PING, HANDLE_ALIVE, NEW_LEADER, HANDLE_PONG, REMOVE_LEADER, PING, PONG, SECRET_VAL, FACE_OFF, DEAD
 
 
 class FlashMessageException(Exception):
@@ -13,11 +12,8 @@ class FlashMessageException(Exception):
 
 class FlashMessage(object):
     def __init__(self,key=None,data=None,message=None):
-        #self.NO_PARAM = [4,7]
-        #self.DELIMITERS = [0,3,6,8]
-        #self.FLOATS = [1,2,5,6]
         self.NO_PARAM = [HANDLE_PING]
-        self.DELIMITERS = [NEW_PEER, BCAST_LEDGER, NEW_LEADER, REMOVE_LEADER, SECRET_VAL, HANDLE_PONG, FACE_OFF]
+        self.DELIMITERS = [NEW_PEER, BCAST_LEDGER, NEW_LEADER, REMOVE_LEADER, SECRET_VAL, HANDLE_PONG, FACE_OFF, DEAD]
         self.FLOATS = [RE_ELECTION, ALIVE, HANDLE_ALIVE, NEW_LEADER]
 
         if message is not None:

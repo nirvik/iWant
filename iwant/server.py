@@ -12,6 +12,14 @@ import pickle
 import os
 
 
+class ServerException(Exception):
+    def __init__(self, code, msg):
+        self.code = code
+        self.msg = msg
+
+    def __str__(self):
+        return 'Error [{0}] => {1}'.format(self.code, self.msg)
+
 class backend(BaseProtocol):
     def __init__(self, factory):
         self.factory = factory
@@ -21,6 +29,7 @@ class backend(BaseProtocol):
             INIT_FILE_REQ: self._load_file,
             START_TRANSFER: self._start_transfer,
             LEADER: self._update_leader,
+            DEAD  : self._remove_dead_entry,
             FILE_SYS_EVENT: self._filesystem_modified,
             HASH_DUMP: self._dump_data_from_peers,
             SEARCH_REQ: self._leader_send_list,
@@ -102,6 +111,15 @@ class backend(BaseProtocol):
         uuid, dump = data
         print 'UUID {0}'.format(uuid)
         self.factory.data_from_peers[uuid] = dump
+
+    def _remove_dead_entry(self, data):
+        uuid = data
+        print '@server: removing entry {0}'.format(uuid)
+        print self.factory.data_from_peers
+        try:
+            del self.factory.data_from_peers[uuid]
+        except:
+            raise ServerException(1, '{0} not available in cached data'.format(uuid))
 
     def _leader_send_list(self, data):
         if self.leaderThere():

@@ -82,16 +82,19 @@ class ServerElectionProtocol(Protocol):
         self.factory = factory
 
     def connectionMade(self):
-        #print 'connection made'
-        update_msg = P2PMessage(key=LEADER, data=(self.factory.leader_host, self.factory.leader_port))
+        if self.factory.dead_peer is None:
+            update_msg = P2PMessage(key=LEADER, data=(self.factory.leader_host, self.factory.leader_port))
+        else:
+            update_msg = P2PMessage(key=DEAD, data=self.factory.dead_peer)
         self.transport.write(str(update_msg))
         self.transport.loseConnection()
 
 
 class ServerElectionFactory(ClientFactory):
-    def __init__(self, leader_host, leader_port):
+    def __init__(self, leader_host, leader_port, dead_peer=None):
         self.leader_host = leader_host
         self.leader_port = leader_port
+        self.dead_peer = dead_peer
 
     def buildProtocol(self, addr):
         return ServerElectionProtocol(self)

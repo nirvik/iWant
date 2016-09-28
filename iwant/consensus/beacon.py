@@ -9,14 +9,12 @@ import pickle
 import random
 from iwant.config import SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, MCAST_IP, MCAST_PORT
 from iwant.constants.events.election import (
-        #MCAST_IP,MCAST_PORT,
-        NEW_PEER,RE_ELECTION,
-        ALIVE,BCAST_LEDGER,HANDLE_PING,
-        HANDLE_ALIVE,NEW_LEADER,
-        HANDLE_PONG,REMOVE_LEADER,
+        NEW_PEER, RE_ELECTION,
+        ALIVE, BCAST_LEDGER, HANDLE_PING,
+        HANDLE_ALIVE, NEW_LEADER,
+        HANDLE_PONG, REMOVE_LEADER,
         PING, PONG, FACE_OFF, SECRET_VAL,
-        WITH_LEADER, WITHOUT_LEADER
-    )
+        WITH_LEADER, WITHOUT_LEADER, DEAD)
 #from iwant.constants.server_event_constants import LEADER
 from iwant.constants.events.server import LEADER
 from iwant.communication.message import P2PMessage
@@ -26,6 +24,14 @@ from iwant.protocols import ServerElectionProtocol, ServerElectionFactory, Peerd
 
 MCAST_ADDR = (MCAST_IP, MCAST_PORT)
 
+
+class CommonroomProtocolException(Exception):
+    def __init__(self, code, msg):
+        self.code = code
+        self.msg = msg
+
+    def __str__(self):
+        return 'Error [{0}] => {1}'.format(self.code, self.msg)
 
 class CommonroomProtocol(PeerdiscoveryProtocol):
     __doc__ = '''
@@ -60,6 +66,7 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
         self.eventcontroller.bind(HANDLE_PONG, self._handle_pong)
         self.eventcontroller.bind(REMOVE_LEADER, self._remove_leader)
         self.eventcontroller.bind(FACE_OFF, self._face_off)
+        self.eventcontroller.bind(DEAD, self._remove_peer)
 
         self._none_alive_ack = 1  # when no peers are present
         self._eln_ack = None  # waiting for election ack
@@ -74,10 +81,11 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
         self._pollId = None
         self._eid = None
         self._addr = (self.book.ip, MCAST_PORT)
-        self._latest_election_id = None
+        self._latest_election_id= None
         self.buff = ''
         self.delimiter = '#'
         print 'ID : ' + self.book.uuid
+        reactor.addSystemEventTrigger("before", "shutdown", self.logout)
 
     def cancel_wait_for_peers_callback(self):
         if self._npCallId is not None:
@@ -184,6 +192,12 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             self.send(FlashMessage(FACE_OFF, WITH_LEADER), addr)
         else:
             self.send(FlashMessage(FACE_OFF, WITHOUT_LEADER), addr)
+
+    def _dead(self):
+        '''
+            Announce dead message
+        '''
+        self.send(FlashMessage(DEAD, [self.book.uuidObj, self._latest_election_id]), MCAST_ADDR)
 
     def isLeader(self):
         if self.book.leader == self.book.uuidObj:
@@ -331,7 +345,23 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
                 self.book.leader = None
                 self.secret_value = None
             except KeyError:
-                pass
+                raise CommonroomProtocolException(3, 'Leader not present in the peers list. Invalid KeyError')
+
+    def _remove_peer(self, data=None):
+        if data is not None:
+            peerId, authorized = data
+            if peerId in self.book.peers:
+                #if authorized == self._latest_election_id:
+                print '@election: Removing {0}'.format(peerId)
+                del self.book.peers[peerId]
+                if self.isLeader():
+                    # tell the server daemon about the dead peer
+                    self.notify_server(peer_dead=True, dead_peerId = peerId)
+                #else:
+                #    raise CommonroomProtocolException(1, 'Un-authorized message recieved for removing peer')
+            else:
+                raise CommonroomProtocolException(2, 'User doesn\'t exist in the peers list')
+
 
     def _handle_pong(self, data=None):
         '''
@@ -438,7 +468,7 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             else:
                 self.book.leader = leader
                 print 'register leader {0}'.format(self.book.leader)
-                self.notify_server()
+                self.notify_server(leader_change=True)
 
         elif self._eid != eid:
             '''
@@ -483,7 +513,7 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             print 'CLOSING ELECTION: {0}'.format(self._eid)
             self._latest_election_id = self._eid
             self._eid = None  # this might create a huge problem
-            self.notify_server()
+            self.notify_server(leader_change=True)
 
     def _leader(self, leader, eid):
         '''
@@ -521,14 +551,18 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             self._broadcast_ledger(just_sharing=True)
             self._broadcast_re_election()
 
-    def notify_server(self):
+    def notify_server(self, leader_change=False, peer_dead=False, dead_peerId = None):
         '''
             notifying the server as soon as there is a leader change
         '''
         if self.book.leader in self.book.peers:
             leader_host = self.book.peers[self.book.leader][0]
             leader_port = SERVER_DAEMON_PORT
-            factory = ServerElectionFactory(leader_host, leader_port)
+            if leader_change:
+                factory = ServerElectionFactory(leader_host, leader_port)
+            elif peer_dead:
+                print '@election : telling server {0} is dead'.format(dead_peerId)
+                factory = ServerElectionFactory(leader_host, leader_port, dead_peer=dead_peerId)
             reactor.connectTCP(SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, factory)
 
     def reset(self):
@@ -536,6 +570,11 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             This resets all the values
         '''
         self.delay = self.initialDelay
+
+    def logout(self):
+        # Announce dead with your uuid and the latest election id
+        self._dead()
+        print 'shutting down ... its been an honour serving you!'
 
 
 #if __name__ == '__main__':

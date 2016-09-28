@@ -4,10 +4,10 @@ import time_uuid
 import pickle
 from watchdog.observers import Observer
 #from constants import *
-#from constants.events import *
-#from constants.states import *
-#from communication import *
-#from communication.election_communication import *
+from constants.events import *
+from constants.states import *
+from communication import *
+from communication.election_communication import *
 from watching import *
 from shared.book import CommonlogBook
 from config import SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, FOLDER, MCAST_IP, MCAST_PORT

@@ -1,5 +1,5 @@
 from twisted.internet.protocol import Protocol, ClientFactory, DatagramProtocol, Factory
-from iwant.exceptions.exceptions import *
+from iwant.exceptions import *
 from iwant.communication.message import P2PMessage
 from iwant.constants.events.server import *
 from iwant.constants.events.election import *
@@ -201,9 +201,10 @@ class RemotepeerFactory(Factory):
         print 'connecting'
 
     def clientConnectionLost(self, connector, reason):
-        print reason
+        pass
 
     def clientConnectionFailed(self, connector, reason):
+        print 'that'
         print reason.getErrorMessage()
 
     def buildProtocol(self, addr):

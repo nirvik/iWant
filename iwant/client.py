@@ -26,7 +26,7 @@ class Frontend(BaseProtocol):
         self.delimiter = '#'
 
     def connectionMade(self):
-        print 'Conecction made\n'
+        print 'Connection Established ... \n'
         reqMessage = P2PMessage(key=self.factory.query, data=self.factory.arguments)
         self.sendLine(reqMessage)
         if self.factory.query == IWANT_PEER_FILE:

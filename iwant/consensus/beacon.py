@@ -235,7 +235,8 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
                 self._ping(leader_addr)
                 self._pollClock.callLater(2, ping_callback)  # wait for 2 seconds to check if the leader replied
             except:
-                pass
+                print '@poll'
+                self._broadcast_leader_dead()
 
         self._pollId = self._pollClock.callLater(4, self._poll)  # ping the server every 4 seconds
 
@@ -349,14 +350,17 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
 
     def _remove_peer(self, data=None):
         if data is not None:
-            peerId, authorized = data
-            if peerId in self.book.peers:
-                #if authorized == self._latest_election_id:
-                print '@election: Removing {0}'.format(peerId)
-                del self.book.peers[peerId]
+            dead_peerId, authorized = data
+            if dead_peerId in self.book.peers:
+                #if authorized == self.secret_value:
+                print '@election: Removing {0}'.format(dead_peerId)
+                del self.book.peers[dead_peerId]
                 if self.isLeader():
-                    # tell the server daemon about the dead peer
-                    self.notify_server(peer_dead=True, dead_peerId = peerId)
+                    # the leader will tell the server daemon about the dead peer so that it can remove its file entries from its cache
+                    self.notify_server(peer_dead=True, dead_peerId = dead_peerId)
+                if self.book.leader == dead_peerId:
+                    print '@removing peer'
+                    self._broadcast_leader_dead()
                 #else:
                 #    raise CommonroomProtocolException(1, 'Un-authorized message recieved for removing peer')
             else:

@@ -33,7 +33,7 @@ def main():
 
     Config = ConfigParser.ConfigParser()
     #print os.path.expanduser('~')
-    Config.read(os.path.join('/home/'+os.getenv('SUDO_USER'),'iwant.conf'))
+    Config.read(os.path.join('/home/'+os.getenv('SUDO_USER'),'.iwant.conf'))
     SHARING_FOLDER = Config.get('Paths', 'share')
     if not os.path.exists(SHARING_FOLDER):
         raise MainException(1)

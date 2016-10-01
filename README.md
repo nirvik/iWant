@@ -1,29 +1,44 @@
-# iWant
+# iWanto
 ## CLI based decentralized peer to peer file sharing
 
+__What is this?__
+Its basically a commandline tool which lets you to look for and download files in the network.
+
+__So, I just type the name of the file in the terminal and it tells me who has it?__
+Yep and this service also lets you download them. 
+
+__Whats the big deal ? System is gonna crash when the server is down !__
+Did I tell you its decentralized ? Even if the main server fails, one of your computers in your network will take up the role of the main server. This will go on until there is no one in the network using this service. 
+
+__Summarization__
+Its a commandline tool which lets you type the name of the file in the terminal and lets you download the file without any hassle. Also, the main thing , its fault tolerant. As long as there is someone using the service in the network, the system is very much alive. 
+
+__Requirements__
+After running the setup file , you will find a iwant.conf file in your home directory. You must configure the __share__ and __download__ folder before running the service.
+Only the files present in __share__ will be available to the peers in the network. If you change the value of __share__ in the iwant.conf file , then you will have to restart the service.
+
+__share__ : This is the folder which will be shared with your peers in the network
+__download__ : This is the folder where your downloaded files will be dumped into using iwanto service.
+
+###Installation
+```sh
+sudo python setup.py install
+```
 
 ###Server
-__Run the server to spawn 3 daemon process__
- 1. __Server daemon__ : Interacts with filemonitoring daemon, client and Election daemon. 
- 2. __Election daemon__ : Election daemon is the heart of consensus among peers and  updates the server as soon as there is a leader change. 
- 3. __Filemonitor daemon__ : Filemonitor daemon looks for any changes in the folder you are sharing and informs the server daemon. The server daemon in turn updates the changes to the main Leader. 
 
-Then run client in another shell
-
-__IMP: Open iwant/config.py and change your Download folder and the folder you are sharing directory name.__
-
-To run server
+To run the server
 ```sh
-sudo python main.py
+sudo iwanto-start
 ```
 
 ### Client 
-To run instant search on filenames in the network
+want to look for files in your network ? (P.S No need of accurate names, thanks to fuzzywuzzy)
 ```sh
-python ui.py --search avengers
+iwanto --search batman
 ```
 
-To download files 
+want to download batman ? 
 ```sh
-python ui.py --download <hash value of avengers>
+iwanto --download <hash(batman)>
 ```

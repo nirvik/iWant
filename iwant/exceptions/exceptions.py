@@ -1,4 +1,4 @@
-class MainException(self, code):
+class MainException(Exception):
     def __init__(self, code):
         self.code = code
         self.msg = { 1: 'file doesn\'t exist'}

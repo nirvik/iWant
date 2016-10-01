@@ -1,5 +1,5 @@
 from twisted.internet.protocol import Protocol, ClientFactory, DatagramProtocol, Factory
-from iwant.exceptions import *
+from iwant.exceptions.exceptions import *
 from iwant.communication.message import P2PMessage
 from iwant.constants.events.server import *
 from iwant.constants.events.election import *

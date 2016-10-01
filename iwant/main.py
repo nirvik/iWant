@@ -5,7 +5,7 @@ import pickle
 import ConfigParser
 from watchdog.observers import Observer
 #from constants import *
-from exceptions import *
+from exceptions.exceptions import *
 from constants.events import *
 from constants.states import *
 from communication import *

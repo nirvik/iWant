@@ -6,6 +6,7 @@ from iwant.constants.events.election import *
 #from iwant.config import DOWNLOAD_FOLDER
 import ConfigParser
 import os
+import progressbar
 
 
 class BaseProtocol(Protocol):
@@ -170,14 +171,18 @@ class RemotepeerProtocol(BaseProtocol):
         self.hookHandler(self.write_to_file)
         print 'Start Transfer {0}'.format(self.factory.dump)
         update_msg = P2PMessage(key=START_TRANSFER, data=self.factory.dump)
+        self.bar = progressbar.ProgressBar(maxval=self.factory.file_details['size'],\
+                widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()]).start()
         self.sendLine(update_msg)
 
     def write_to_file(self, data):
         self.file_len_recv += len(data)
+        self.bar.update(self.file_len_recv)
         self.factory.file_container.write(data)
         if self.file_len_recv >= self.factory.file_details['size']:
+            self.bar.finish()
             self.factory.file_container.close()
-            print 'Client : File downloaded'
+            print '{0} downloaded'.format(os.path.basename(self.factory.file_details['fname']))
             self.transport.loseConnection()
 
 

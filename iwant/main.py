@@ -12,7 +12,7 @@ from communication import *
 from communication.election_communication import *
 from watching import *
 from shared.book import CommonlogBook
-from config import SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, FOLDER, MCAST_IP, MCAST_PORT
+from config import SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, MCAST_IP, MCAST_PORT
 from protocols import FilemonitorClientFactory, FilemonitorClientProtocol
 from utils.utils import get_ips
 from twisted.internet import reactor
@@ -32,8 +32,7 @@ def main():
     book = CommonlogBook(identity=timeuuid, state=0, ip = ips[ip-1])  # creating shared memory between server and election daemon
 
     Config = ConfigParser.ConfigParser()
-    print os.path.expanduser('~')
-    print os.path.join(os.path.expanduser('~'), 'iwant.conf')
+    #print os.path.expanduser('~')
     Config.read(os.path.join('/home/'+os.getenv('SUDO_USER'),'iwant.conf'))
     SHARING_FOLDER = Config.get('Paths', 'share')
     if not os.path.exists(SHARING_FOLDER):

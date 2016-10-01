@@ -6,7 +6,7 @@ from iwant.communication.message import P2PMessage
 from iwant.constants.events.server import *
 from iwant.constants.states.server import READY, NOT_READY
 from iwant.protocols import BaseProtocol
-from iwant.config import CLIENT_DAEMON_HOST, CLIENT_DAEMON_PORT, SERVER_DAEMON_PORT, DOWNLOAD_FOLDER
+from iwant.config import CLIENT_DAEMON_HOST, CLIENT_DAEMON_PORT, SERVER_DAEMON_PORT#, DOWNLOAD_FOLDER
 from fuzzywuzzy import fuzz, process
 import pickle
 import os
@@ -45,7 +45,7 @@ class backend(BaseProtocol):
 
     def serviceMessage(self, data):
         req = P2PMessage(message=data)
-        print 'GOT {0}'.format(req.key)
+        #print 'GOT {0}'.format(req.key)
         try:
             self.message_codes[req.key]()
         except:
@@ -86,7 +86,6 @@ class backend(BaseProtocol):
         deferred.addCallbacks(self._success, self._failure)
 
     def _success(self, data):
-        print 'Successfully transfered file'
         self.transport.loseConnection()
         self.unhookHandler()
 
@@ -102,14 +101,14 @@ class backend(BaseProtocol):
             self.factory.gather_data_then_notify()
 
     def _filesystem_modified(self, data):
-        print 'file system modified'
+        #print 'file system modified'
         #self.factory.state = READY  # Ready
         if self.factory.state == READY and self.leaderThere():
             self.factory.gather_data_then_notify()
 
     def _dump_data_from_peers(self, data):
         uuid, dump = data
-        print 'UUID {0}'.format(uuid)
+        #print 'UUID {0}'.format(uuid)
         self.factory.data_from_peers[uuid] = dump
 
     def _remove_dead_entry(self, data):
@@ -123,7 +122,7 @@ class backend(BaseProtocol):
 
     def _leader_send_list(self, data):
         if self.leaderThere():
-            print 'asking leader to lookup'
+            #print 'asking leader to lookup'
             self.factory._notify_leader(key=LOOKUP, data=data, persist=True, clientConn=self)
         else:
             msg = P2PMessage(key=LEADER_NOT_READY, data=None)
@@ -133,7 +132,7 @@ class backend(BaseProtocol):
     def _leader_lookup(self, data):
         uuid, text_search = data
         host, port = self.factory.book.peers[uuid]
-        print ' At leader lookup '
+        #print ' At leader lookup '
         filtered_response = []
         l = []
         for val in self.factory.data_from_peers.values():
@@ -147,14 +146,14 @@ class backend(BaseProtocol):
         self.transport.loseConnection()  # leader will loseConnection with the requesting server
 
     def _send_resp_client(self, data):
-        print 'sending to client'
+        #print 'sending to client'
         update_msg = P2PMessage(key=SEARCH_RES, data=data)
         self.sendLine(update_msg)  # sending this response to the client
         self.transport.loseConnection()  # losing connection with the client
 
     def _ask_leader_for_peers(self, data):
         if self.leaderThere():
-            print 'asking leaders for peers'
+            #print 'asking leaders for peers'
             print data
             self.factory._notify_leader(key=SEND_PEER_DETAILS, data=data, persist=True, clientConn=self)
         else:
@@ -265,7 +264,7 @@ class backendFactory(Factory):
             factory = ServerLeaderFactory(key=key, dump=(self.book.uuidObj, data))
         elif key == SEND_PEER_DETAILS:
             factory = ServerLeaderFactory(key=key, dump=data)
-        print 'state {0} \nleader {1}'.format(self.state, self.leader)
+        #print 'state {0} \nleader {1}'.format(self.state, self.leader)
         if self.leader is not None and self.state == READY:
             print self.leader[0], self.leader[1]
             host, port = self.leader

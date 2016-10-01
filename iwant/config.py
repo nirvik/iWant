@@ -4,5 +4,3 @@ CLIENT_DAEMON_HOST = '127.0.0.1'
 CLIENT_DAEMON_PORT = 1290
 MCAST_IP = '228.1.10.5'
 MCAST_PORT = 8005
-DOWNLOAD_FOLDER = '/home/nirvik/iWant/'
-FOLDER = '/home/nirvik/Documents'

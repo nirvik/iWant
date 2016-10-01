@@ -5,3 +5,4 @@ time_uuid
 fuzzywuzzy
 tabulate
 python-Levenshtein
+progressbar

@@ -1,6 +1,6 @@
 from twisted.internet import reactor
 from client import FrontendFactory, Frontend
-from config import SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, DOWNLOAD_FOLDER
+from config import SERVER_DAEMON_HOST, SERVER_DAEMON_PORT
 from constants.events.server import SEARCH_REQ, IWANT_PEER_FILE, INIT_FILE_REQ
 import argparse
 
@@ -15,7 +15,7 @@ def main():
         reactor.connectTCP(SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, FrontendFactory(SEARCH_REQ, args.search))
 
     elif args.download:
-        reactor.connectTCP(SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, FrontendFactory(IWANT_PEER_FILE, args.download, DOWNLOAD_FOLDER))
+        reactor.connectTCP(SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, FrontendFactory(IWANT_PEER_FILE, args.download))#, DOWNLOAD_FOLDER))
     reactor.run()
 
 if __name__ == '__main__':

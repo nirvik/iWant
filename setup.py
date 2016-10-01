@@ -1,3 +1,4 @@
+import os
 try:
     from setuptools import setup, find_packages
 except ImportError:
@@ -12,7 +13,8 @@ setup(
         author='Nirvik Ghosh',
         author_email='nirvik1993@gmail.com',
         packages = find_packages(),
-        #scripts= ['main.py'],
+        include_package_data = True,
+        data_files = [('/home/'+os.getenv('SUDO_USER'), ['iwant/iwant.conf'])],
         entry_points = {
             'console_scripts':[
                 'iwanto-start=iwant.main:main',

@@ -1,8 +1,10 @@
 from twisted.internet.protocol import Protocol, ClientFactory, DatagramProtocol, Factory
+from iwant.exceptions import *
 from iwant.communication.message import P2PMessage
 from iwant.constants.events.server import *
 from iwant.constants.events.election import *
-from iwant.config import DOWNLOAD_FOLDER
+#from iwant.config import DOWNLOAD_FOLDER
+import ConfigParser
 import os
 
 
@@ -150,16 +152,23 @@ class RemotepeerProtocol(BaseProtocol):
         self.events[req.key](req.data)
 
     def start_transfer(self, data):
+        Config = ConfigParser.ConfigParser()
+        Config.read(os.path.join('/home/' + os.getenv('SUDO_USER'), 'iwant.conf'))
+        DOWNLOAD_FOLDER = Config.get('Paths', 'download')
+        if not os.path.exists(DOWNLOAD_FOLDER):
+            raise MainException(1)
         update_msg = P2PMessage(key=FILE_TO_BE_DOWNLOADED, data=data)
         self.factory.file_details['fname'] = data[0]
         self.factory.file_details['size'] = data[1] * 1024.0 * 1024.0
-        if not os.path.exists(DOWNLOAD_FOLDER):
-            os.mkdir(DOWNLOAD_FOLDER)
-        self.factory.file_container = open(DOWNLOAD_FOLDER+os.path.basename(data[0]), 'wb')
+
+        print '****** About to Download **********'
+        filename = os.path.basename(data[0])
+        self.factory.file_container = open(os.path.join(DOWNLOAD_FOLDER, filename), 'wb')  # open(DOWNLOAD_FOLDER+os.path.basename(data[0]), 'wb')
+        print 'Downloading to: {0}'.format(os.path.join(DOWNLOAD_FOLDER, filename))
         self.factory.clientConn.sendLine(update_msg)
         self.factory.clientConn.transport.loseConnection()
         self.hookHandler(self.write_to_file)
-        print 'Start Trasnfer {0}'.format(self.factory.dump)
+        print 'Start Transfer {0}'.format(self.factory.dump)
         update_msg = P2PMessage(key=START_TRANSFER, data=self.factory.dump)
         self.sendLine(update_msg)
 

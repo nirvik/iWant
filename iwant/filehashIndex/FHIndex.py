@@ -14,8 +14,8 @@ class FileHashIndexer(object):
         self.current_path = "/var/log/iwant/"  # os.path.dirname(os.path.abspath(__file__))
         if not os.path.exists(self.current_path):
             os.mkdir(self.current_path)
-        hashed_idx_path = os.path.join(self.current_path,HIDX_EXTENSION)
-        filename_idx_path = os.path.join(self.current_path,PIDX_EXTENSION)
+        hashed_idx_path = os.path.join(self.current_path, HIDX_EXTENSION)
+        filename_idx_path = os.path.join(self.current_path, PIDX_EXTENSION)
         self.state = "INDEX"
 
         if os.path.exists(hashed_idx_path):
@@ -35,6 +35,12 @@ class FileHashIndexer(object):
                 raise NotImplementedError
             self.state = "CANNOT INDEX"
         else:
+            # We need to remove files which doesnot belong to the directory peer is sharing
+            files_to_be_deleted = filter(lambda x: not x.startswith(os.path.abspath(path)), self.path_index.keys())
+            print 'FILES TO BE DELETED {0}'.format(files_to_be_deleted)
+            for files in files_to_be_deleted:
+                self._delete(files)
+            self._save_hash_data()
             self.path = os.path.abspath(path)
 
     def index(self):
@@ -83,7 +89,7 @@ class FileHashIndexer(object):
             return
         for root,_discard,filenames in os.walk(self.path):
             for filepath in filenames:
-                destination_file_path = os.path.join(root,filepath)
+                destination_file_path = os.path.join(root, filepath)
                 self.compute_hash_diff_file(destination_file_path)
 
         discarded_file_list = []

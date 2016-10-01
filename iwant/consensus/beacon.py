@@ -197,7 +197,7 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
         '''
             Announce dead message
         '''
-        self.send(FlashMessage(DEAD, [self.book.uuidObj, self._latest_election_id]), MCAST_ADDR)
+        self.send(FlashMessage(DEAD, [self.book.uuidObj, self.secret_value]), MCAST_ADDR)
 
     def isLeader(self):
         if self.book.leader == self.book.uuidObj:

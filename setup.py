@@ -14,7 +14,7 @@ setup(
         author_email='nirvik1993@gmail.com',
         packages = find_packages(),
         include_package_data = True,
-        data_files = [('/home/'+os.getenv('SUDO_USER'), ['iwant/iwant.conf'])],
+        data_files = [('/home/'+os.getenv('SUDO_USER'), ['iwant/.iwant.conf'])],
         entry_points = {
             'console_scripts':[
                 'iwanto-start=iwant.main:main',

@@ -76,7 +76,7 @@ class FileHashIndexer(object):
         if destination_file_path in self.path_index:
             md5_checksum = self.path_index[destination_file_path]
             if self.hash_index[md5_checksum][-1] != filesize:
-                print 'Change in file size'
+                # print 'Change in file size'
                 self._delete(destination_file_path)
             else:
                 return
@@ -93,6 +93,7 @@ class FileHashIndexer(object):
             return
         for root,_discard,filenames in os.walk(self.path):
             for filepath in filenames:
+                print '{0} : Processing'.format(filepath)
                 destination_file_path = os.path.join(root, filepath)
                 self.compute_hash_diff_file(destination_file_path)
 

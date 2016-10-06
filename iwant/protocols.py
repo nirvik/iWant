@@ -5,8 +5,9 @@ from iwant.constants.events.server import *
 from iwant.constants.events.election import *
 #from iwant.config import DOWNLOAD_FOLDER
 import ConfigParser
-import os
+import os, sys
 import progressbar
+import pickle
 
 
 class BaseProtocol(Protocol):
@@ -47,7 +48,15 @@ class BaseProtocol(Protocol):
 
 class FilemonitorClientProtocol(Protocol):
     def connectionMade(self):
-        with open('/var/log/iwant/.hindex') as f:
+        if sys.platform == 'linux' or sys.platform == 'linux2':
+            path = '/var/log/iwant/.hindex'
+        elif sys.platform == 'win32':
+            path = os.getenv['USERPROFILE'] + '\\AppData\\iwant\\.hindex'
+        elif sys.platform == 'darwin':
+            # TODO
+            pass
+
+        with open(path) as f:
             dump = f.read()
         pd = pickle.loads(dump)
         updated_msg = P2PMessage(key=FILE_SYS_EVENT, data=pd)
@@ -162,14 +171,14 @@ class RemotepeerProtocol(BaseProtocol):
         self.factory.file_details['fname'] = data[0]
         self.factory.file_details['size'] = data[1] * 1024.0 * 1024.0
 
-        print '****** About to Download **********'
         filename = os.path.basename(data[0])
+        print '****** iWanto Download {0} **********'.format(filename)
         self.factory.file_container = open(os.path.join(DOWNLOAD_FOLDER, filename), 'wb')  # open(DOWNLOAD_FOLDER+os.path.basename(data[0]), 'wb')
         print 'Downloading to: {0}'.format(os.path.join(DOWNLOAD_FOLDER, filename))
         self.factory.clientConn.sendLine(update_msg)
         self.factory.clientConn.transport.loseConnection()
         self.hookHandler(self.write_to_file)
-        print 'Start Transfer {0}'.format(self.factory.dump)
+        # print 'Start Transfer {0}'.format(self.factory.dump)
         update_msg = P2PMessage(key=START_TRANSFER, data=self.factory.dump)
         self.bar = progressbar.ProgressBar(maxval=self.factory.file_details['size'],\
                 widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()]).start()

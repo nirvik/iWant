@@ -9,7 +9,7 @@ from iwant.protocols import BaseProtocol
 from iwant.config import CLIENT_DAEMON_HOST, CLIENT_DAEMON_PORT, SERVER_DAEMON_PORT#, DOWNLOAD_FOLDER
 from fuzzywuzzy import fuzz, process
 import pickle
-import os
+import os, sys
 
 
 class ServerException(Exception):
@@ -198,10 +198,20 @@ class backendFactory(Factory):
 
     def gather_data_then_notify(self):
         self.cached_data = {}
-        with open('/var/log/iwant/.hindex') as f:
-            hidx = f.read()
-        with open('/var/log/iwant/.pindex') as f:
-            pidx = f.read()
+        if sys.platform == 'linux2' or sys.platform == 'linux':
+            with open('/var/log/iwant/.hindex') as f:
+                hidx = f.read()
+            with open('/var/log/iwant/.pindex') as f:
+                pidx = f.read()
+        elif sys.platform == 'win32':
+            with open(os.environ['USERPROFILE']+ '\\AppData\\iwant\\.hindex') as f:
+                hidx = f.read()
+            with open(os.environ['USERPROFILE'] + '\\AppData\\iwant\\.pindex') as f:
+                pidx = f.read()
+        else:
+            #TODO
+            pass
+
         self.cached_data['hidx'] = hidx
         self.cached_data['pidx'] = pidx
         self._notify_leader(key=HASH_DUMP, data=None)

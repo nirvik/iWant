@@ -1,4 +1,4 @@
-import os
+import os, sys
 from collections import namedtuple
 import hashlib
 import json
@@ -11,7 +11,11 @@ class FileHashIndexer(object):
     def __init__(self , path):
         self.hash_index = {}
         self.path_index = {}
-        self.current_path = "/var/log/iwant/"  # os.path.dirname(os.path.abspath(__file__))
+        if sys.platform == 'win32':
+            self.current_path = os.environ['USER_PROFILE'] + '\\AppData\\iwant\\'
+        elif sys.platform == 'linux2' or sys.platform == 'linux':
+            self.current_path = '/var/log/iwant/'
+
         if not os.path.exists(self.current_path):
             os.mkdir(self.current_path)
         hashed_idx_path = os.path.join(self.current_path, HIDX_EXTENSION)

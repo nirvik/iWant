@@ -4,23 +4,24 @@ import time_uuid
 import pickle
 import ConfigParser
 from watchdog.observers import Observer
-#from constants import *
-from exceptions import *
-from constants.events import *
-from constants.states import *
-from communication import *
-from communication.election_communication import *
-from watching import *
+from exception import MainException
+from constants.events import election, server
+from constants.states import server
+from communication import message
+from communication.election_communication import message
+from watching import ScanFolder
 from shared.book import CommonlogBook
 from config import SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, MCAST_IP, MCAST_PORT
 from protocols import FilemonitorClientFactory, FilemonitorClientProtocol
 from utils.utils import get_ips
-from twisted.internet import reactor
-from consensus.beacon import *
-from server import *
-
+from twisted.internet import reactor, endpoints
+from consensus.beacon import CommonroomProtocol
+from server import backendFactory
 
 def update_about_file_changes():
+    '''
+        This is a callback registered with ScanFolder
+    '''
     factory = FilemonitorClientFactory()
     reactor.connectTCP(SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, factory)
 
@@ -32,14 +33,21 @@ def main():
     book = CommonlogBook(identity=timeuuid, state=0, ip = ips[ip-1])  # creating shared memory between server and election daemon
 
     Config = ConfigParser.ConfigParser()
-    #print os.path.expanduser('~')
-    Config.read(os.path.join('/home/'+os.getenv('SUDO_USER'),'.iwant.conf'))
+    if sys.platform =='linux2' or sys.platform == 'linux':
+        Config.read(os.path.join('/home/'+os.getenv('SUDO_USER'),'.iwant.conf'))
+    elif sys.platform=='win32':
+        Config.read(os.path.join(os.environ['USERPROFILE'] + '\\AppData\\iwant\\','.iwant.conf'))
+    elif sys.platform == 'darwin':
+        # TODO
+        pass
+
     SHARING_FOLDER = Config.get('Paths', 'share')
+    print SHARING_FOLDER
     if not os.path.exists(SHARING_FOLDER):
         raise MainException(1)
 
     try:
-        reactor.listenMulticast(MCAST_ADDR[1], CommonroomProtocol(book), listenMultiple=True)  # spawning election daemon
+        reactor.listenMulticast(MCAST_PORT, CommonroomProtocol(book), listenMultiple=True)  # spawning election daemon
         endpoints.serverFromString(reactor, 'tcp:{0}'.format(SERVER_DAEMON_PORT)).listen(backendFactory(SHARING_FOLDER, book))  # spawning server daemon
         ScanFolder(SHARING_FOLDER, update_about_file_changes)  # spawning filemonitoring daemon
         reactor.run()

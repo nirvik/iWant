@@ -12,7 +12,7 @@ class FileHashIndexer(object):
         self.hash_index = {}
         self.path_index = {}
         if sys.platform == 'win32':
-            self.current_path = os.environ['USER_PROFILE'] + '\\AppData\\iwant\\'
+            self.current_path = os.environ['USERPROFILE'] + '\\AppData\\iwant\\'
         elif sys.platform == 'linux2' or sys.platform == 'linux':
             self.current_path = '/var/log/iwant/'
 

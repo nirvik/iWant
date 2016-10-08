@@ -1,7 +1,7 @@
 from twisted.internet import reactor, defer, threads, endpoints
 from twisted.internet.protocol import Factory
 from twisted.protocols.basic import FileSender
-from iwant.filehashIndex.FHIndex import FileHashIndexer
+from filehashIndex.FHIndex import FileHashIndexer
 from iwant.communication.message import P2PMessage
 from iwant.constants.events.server import *
 from iwant.constants.states.server import READY, NOT_READY
@@ -114,7 +114,7 @@ class backend(BaseProtocol):
     def _remove_dead_entry(self, data):
         uuid = data
         print '@server: removing entry {0}'.format(uuid)
-        print self.factory.data_from_peers
+        print self.factory.data_from_peers[uuid]
         try:
             del self.factory.data_from_peers[uuid]
         except:
@@ -138,7 +138,7 @@ class backend(BaseProtocol):
         for val in self.factory.data_from_peers.values():
             l = pickle.loads(val['hidx'])
             for i in l.values():
-                if fuzz.partial_ratio(text_search, i.filename) >= 90:
+                if fuzz.partial_ratio(text_search.lower(), i.filename.lower()) >= 90:
                     filtered_response.append(i)
 
         update_msg = P2PMessage(key=SEARCH_RES, data=filtered_response)
@@ -189,7 +189,7 @@ class backendFactory(Factory):
         self.data_from_peers = {}
         self.file_peer_indexer = {}
         if folder is not None:
-            self.indexer = FileHashIndexer(self.folder)
+            self.indexer = FileHashIndexer(self.folder, bootstrap=True)
             self.d = threads.deferToThread(self.indexer.index)  # starts indexing files in a folder
             self.d.addCallbacks(self._file_hash_success, self._file_hash_failure)
 

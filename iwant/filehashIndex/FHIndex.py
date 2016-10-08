@@ -8,13 +8,17 @@ HIDX_EXTENSION = '.hindex'
 PIDX_EXTENSION = '.pindex'
 
 class FileHashIndexer(object):
-    def __init__(self , path):
+    def __init__(self , path, bootstrap=False):
         self.hash_index = {}
         self.path_index = {}
         if sys.platform == 'win32':
             self.current_path = os.environ['USERPROFILE'] + '\\AppData\\iwant\\'
         elif sys.platform == 'linux2' or sys.platform == 'linux':
             self.current_path = '/var/log/iwant/'
+
+        elif sys.platform == 'darwin':
+            # TODO
+            pass
 
         if not os.path.exists(self.current_path):
             os.mkdir(self.current_path)
@@ -28,6 +32,15 @@ class FileHashIndexer(object):
         if os.path.exists(filename_idx_path):
             self.path_index = self.loadJSON(filename_idx_path)
 
+        if bootstrap:
+            # We need to remove files which doesnot belong to the directory peer is sharing
+            if os.path.exists(path):
+                files_to_be_deleted = filter(lambda x: not x.startswith(os.path.abspath(path)), self.path_index.keys())
+                print '@filehashIndex:bootstrap: FILES TO BE DELETED {0}'.format(files_to_be_deleted)
+                for files in files_to_be_deleted:
+                    self._delete(files)
+                self._save_hash_data()
+
         if not os.path.exists(path):
             try:
                 files_to_be_deleted = filter(lambda x:x.startswith(os.path.abspath(path)),self.path_index.keys())
@@ -39,12 +52,7 @@ class FileHashIndexer(object):
                 raise NotImplementedError
             self.state = "CANNOT INDEX"
         else:
-            # We need to remove files which doesnot belong to the directory peer is sharing
-            files_to_be_deleted = filter(lambda x: not x.startswith(os.path.abspath(path)), self.path_index.keys())
-            print 'FILES TO BE DELETED {0}'.format(files_to_be_deleted)
-            for files in files_to_be_deleted:
-                self._delete(files)
-            self._save_hash_data()
+            print 'setting path value'
             self.path = os.path.abspath(path)
 
     def index(self):

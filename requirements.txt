@@ -4,6 +4,7 @@ watchdog
 time_uuid
 fuzzywuzzy
 tabulate
+cryptography
 python-Levenshtein
 progressbar
 pypiwin32 ; sys_platform == 'win32'

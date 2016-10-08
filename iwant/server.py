@@ -114,7 +114,6 @@ class backend(BaseProtocol):
     def _remove_dead_entry(self, data):
         uuid = data
         print '@server: removing entry {0}'.format(uuid)
-        print self.factory.data_from_peers[uuid]
         try:
             del self.factory.data_from_peers[uuid]
         except:

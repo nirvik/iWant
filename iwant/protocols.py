@@ -164,7 +164,7 @@ class RemotepeerProtocol(BaseProtocol):
     def start_transfer(self, data):
         Config = ConfigParser.ConfigParser()
         if sys.platform == 'linux2' or sys.platform == 'linux':
-            Config.read(os.path.join('/home/' + os.getenv('SUDO_USER'), 'iwant.conf'))
+            Config.read(os.path.join('/home/' + os.getenv('SUDO_USER'), '.iwant.conf'))
         elif sys.platform == 'win32':
             Config.read(os.path.join(os.environ['USERPROFILE'] + '\\AppData\\iwant\\', '.iwant.conf'))
         elif sys.platform == 'darwin':

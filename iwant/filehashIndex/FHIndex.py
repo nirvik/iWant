@@ -3,25 +3,17 @@ from collections import namedtuple
 import hashlib
 import json
 import pickle
+import progressbar
 FileObj = namedtuple('FileObj','filename checksum size')
 HIDX_EXTENSION = '.hindex'
 PIDX_EXTENSION = '.pindex'
 
 class FileHashIndexer(object):
-    def __init__(self , path, bootstrap=False):
+    def __init__(self , path, config_folder,  bootstrap=False):
         self.hash_index = {}
         self.path_index = {}
-        if sys.platform == 'win32':
-            self.current_path = os.environ['USERPROFILE'] + '\\AppData\\iwant\\'
-        elif sys.platform == 'linux2' or sys.platform == 'linux':
-            self.current_path = '/var/log/iwant/'
+        self.current_path = config_folder
 
-        elif sys.platform == 'darwin':
-            # TODO
-            pass
-
-        if not os.path.exists(self.current_path):
-            os.mkdir(self.current_path)
         hashed_idx_path = os.path.join(self.current_path, HIDX_EXTENSION)
         filename_idx_path = os.path.join(self.current_path, PIDX_EXTENSION)
         self.state = "INDEX"
@@ -52,7 +44,6 @@ class FileHashIndexer(object):
                 raise NotImplementedError
             self.state = "CANNOT INDEX"
         else:
-            print 'setting path value'
             self.path = os.path.abspath(path)
 
     def index(self):
@@ -78,6 +69,14 @@ class FileHashIndexer(object):
             json_data = {}
         return json_data
 
+    @staticmethod
+    def number_of_files_in(path):
+        count = 0
+        for _, _, filenames in os.walk(path):
+            for filename in filenames:
+                count+=1
+        return count
+
     def compute_hash_diff_file(self, destination_file_path, singleFile=False):
         computed_file_size = self.getfilesize(destination_file_path)
         filesize = computed_file_size/ (1024.0 * 1024.0)
@@ -99,11 +98,18 @@ class FileHashIndexer(object):
     def _create_file_index(self):
         if self.state == "CANNOT INDEX":
             return
+        total = self.number_of_files_in(self.path)
+        count = 0
+        self.bar = progressbar.ProgressBar(maxval=total,\
+                widgets=[progressbar.Bar('=','[',']'),' ', progressbar.Percentage()]).start()
         for root,_discard,filenames in os.walk(self.path):
             for filepath in filenames:
-                print '{0} : Processing'.format(filepath)
+                # print '{0} : Processing'.format(filepath)
                 destination_file_path = os.path.join(root, filepath)
                 self.compute_hash_diff_file(destination_file_path)
+                count+=1
+                self.bar.update(count)
+        self.bar.finish()
 
         discarded_file_list = []
         for filename in self.path_index:
@@ -117,10 +123,10 @@ class FileHashIndexer(object):
 
 
     def _save_hash_data(self):
-        hashed_data  = os.path.join(self.current_path,HIDX_EXTENSION)
+        hashed_data  = os.path.join(self.current_path, HIDX_EXTENSION)
         with open(hashed_data,'wb') as f:
             f.write(pickle.dumps(self.hash_index))
-        filepath_data = os.path.join(self.current_path,PIDX_EXTENSION)
+        filepath_data = os.path.join(self.current_path, PIDX_EXTENSION)
         with open(filepath_data,'wb') as f:
             f.write(pickle.dumps(self.path_index))
         return (self.hash_index, self.path_index)

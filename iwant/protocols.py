@@ -47,15 +47,12 @@ class BaseProtocol(Protocol):
 
 
 class FilemonitorClientProtocol(Protocol):
-    def connectionMade(self):
-        if sys.platform == 'linux' or sys.platform == 'linux2':
-            path = '/var/log/iwant/.hindex'
-        elif sys.platform == 'win32':
-            path = os.getenv['USERPROFILE'] + '\\AppData\\iwant\\.hindex'
-        elif sys.platform == 'darwin':
-            # TODO
-            pass
 
+    def __init__(self, factory):
+        self.factory = factory
+
+    def connectionMade(self):
+        path = os.path.join(self.factory.config_path, '.hindex')
         with open(path) as f:
             dump = f.read()
         pd = pickle.loads(dump)
@@ -65,8 +62,12 @@ class FilemonitorClientProtocol(Protocol):
 
 
 class FilemonitorClientFactory(ClientFactory):
+
+    def __init__(self, config_path):
+        self.config_path = config_path
+
     def buildProtocol(self, addr):
-        return FilemonitorClientProtocol()
+        return FilemonitorClientProtocol(self)
 
 
 class PeerdiscoveryProtocol(DatagramProtocol):
@@ -162,17 +163,8 @@ class RemotepeerProtocol(BaseProtocol):
         self.events[req.key](req.data)
 
     def start_transfer(self, data):
-        Config = ConfigParser.ConfigParser()
-        if sys.platform == 'linux2' or sys.platform == 'linux':
-            Config.read(os.path.join('/home/' + os.getenv('SUDO_USER'), '.iwant.conf'))
-        elif sys.platform == 'win32':
-            Config.read(os.path.join(os.environ['USERPROFILE'] + '\\AppData\\iwant\\', '.iwant.conf'))
-        elif sys.platform == 'darwin':
-            #TODO
-            pass
-        DOWNLOAD_FOLDER = Config.get('Paths', 'download')
-        if not os.path.exists(DOWNLOAD_FOLDER):
-            raise MainException(1)
+
+        DOWNLOAD_FOLDER = self.factory.download_folder
         update_msg = P2PMessage(key=FILE_TO_BE_DOWNLOADED, data=data)
         self.factory.file_details['fname'] = data[0]
         self.factory.file_details['size'] = data[1] * 1024.0 * 1024.0
@@ -205,10 +197,11 @@ class RemotepeerFactory(Factory):
 
     protocol = RemotepeerProtocol
 
-    def __init__(self, key, checksum, clientConn):
+    def __init__(self, key, checksum, clientConn, download_folder):
         self.key = key
         self.dump = checksum
         self.clientConn = clientConn
+        self.download_folder = download_folder
         self.file_details = {'checksum': checksum}
         self.file_container = None
 
@@ -219,7 +212,6 @@ class RemotepeerFactory(Factory):
         pass
 
     def clientConnectionFailed(self, connector, reason):
-        print 'that'
         print reason.getErrorMessage()
 
     def buildProtocol(self, addr):

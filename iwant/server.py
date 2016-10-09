@@ -5,7 +5,7 @@ from filehashIndex.FHIndex import FileHashIndexer
 from iwant.communication.message import P2PMessage
 from iwant.constants.events.server import *
 from iwant.constants.states.server import READY, NOT_READY
-from iwant.protocols import BaseProtocol
+from protocols import BaseProtocol
 from iwant.config import CLIENT_DAEMON_HOST, CLIENT_DAEMON_PORT, SERVER_DAEMON_PORT#, DOWNLOAD_FOLDER
 from fuzzywuzzy import fuzz, process
 import pickle
@@ -179,16 +179,18 @@ class backendFactory(Factory):
 
     protocol = backend
 
-    def __init__(self, folder, book):
+    def __init__(self, book, sharing_folder=None, download_folder=None, config_folder=None):
         self.state = NOT_READY
-        self.folder = folder
+        self.folder = sharing_folder
+        self.download_folder = download_folder
+        self.config_folder = config_folder
         self.book = book
         self.leader = None
         self.cached_data = None
         self.data_from_peers = {}
         self.file_peer_indexer = {}
-        if folder is not None:
-            self.indexer = FileHashIndexer(self.folder, bootstrap=True)
+        if sharing_folder is not None:
+            self.indexer = FileHashIndexer(self.folder, self.config_folder, bootstrap=True)
             self.d = threads.deferToThread(self.indexer.index)  # starts indexing files in a folder
             self.d.addCallbacks(self._file_hash_success, self._file_hash_failure)
 
@@ -197,20 +199,12 @@ class backendFactory(Factory):
 
     def gather_data_then_notify(self):
         self.cached_data = {}
-        if sys.platform == 'linux2' or sys.platform == 'linux':
-            with open('/var/log/iwant/.hindex') as f:
-                hidx = f.read()
-            with open('/var/log/iwant/.pindex') as f:
-                pidx = f.read()
-        elif sys.platform == 'win32':
-            with open(os.environ['USERPROFILE']+ '\\AppData\\iwant\\.hindex') as f:
-                hidx = f.read()
-            with open(os.environ['USERPROFILE'] + '\\AppData\\iwant\\.pindex') as f:
-                pidx = f.read()
-        else:
-            #TODO
-            pass
-
+        hidx_file = os.path.join(self.config_folder, '.hindex')
+        pidx_file = os.path.join(self.config_folder, '.pindex')
+        with open(hidx_file) as f:
+            hidx = f.read()
+        with open(pidx_file) as f:
+            pidx = f.read()
         self.cached_data['hidx'] = hidx
         self.cached_data['pidx'] = pidx
         self._notify_leader(key=HASH_DUMP, data=None)
@@ -248,11 +242,13 @@ class backendFactory(Factory):
                 from twisted.internet import reactor
                 self.transport.loseConnection()
                 print 'Got peers {0}'.format(data)
+                if len(data) == 0:
+                    print 'Tell the client that peer lookup response is 0. Have to handle this'
                 host, port = data[0]
                 print 'hash {0}'.format(self.factory.dump)
-                #reactor.connectTCP(host, SERVER_DAEMON_PORT, RemotepeerFactory(INIT_FILE_REQ, self.factory.dump))
-                from iwant.protocols import RemotepeerFactory, RemotepeerProtocol
-                reactor.connectTCP(host, SERVER_DAEMON_PORT, RemotepeerFactory(INIT_FILE_REQ, self.factory.dump, clientConn))
+                print self.factory.dump_folder
+                from protocols import RemotepeerFactory, RemotepeerProtocol
+                reactor.connectTCP(host, SERVER_DAEMON_PORT, RemotepeerFactory(INIT_FILE_REQ, self.factory.dump, clientConn, self.factory.dump_folder))
 
             def send_file_search_response(self, data):
                 update_msg = P2PMessage(key=SEARCH_RES, data=data)
@@ -260,9 +256,11 @@ class backendFactory(Factory):
                 clientConn.transport.loseConnection()
 
         class ServerLeaderFactory(ClientFactory):
-            def __init__(self, key, dump):
+            def __init__(self, key, dump, dump_folder=None):
                 self.key = key
                 self.dump = dump
+                if dump_folder is not None:
+                    self.dump_folder = dump_folder
 
             def buildProtocol(self, addr):
                 return ServerLeaderProtocol(self)
@@ -272,8 +270,7 @@ class backendFactory(Factory):
         elif key == LOOKUP:
             factory = ServerLeaderFactory(key=key, dump=(self.book.uuidObj, data))
         elif key == SEND_PEER_DETAILS:
-            factory = ServerLeaderFactory(key=key, dump=data)
-        #print 'state {0} \nleader {1}'.format(self.state, self.leader)
+            factory = ServerLeaderFactory(key=key, dump=data, dump_folder = self.download_folder)
         if self.leader is not None and self.state == READY:
             print self.leader[0], self.leader[1]
             host, port = self.leader

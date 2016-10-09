@@ -10,8 +10,14 @@ def generate_size():
 	return random.randint(6,10)
 
 def get_ips():
-	ip = socket.gethostbyhostname(socket.gethostname())
-	return ip
+	ip_list = []
+    for interface in interfaces():
+        try:
+            for link in ifaddresses(interface)[AF_INET]:
+                ip_list.append(link['addr'])
+        except:
+            pass
+        return ip_list
 
 class EventHooker(object):
 	__doc__ = """
@@ -22,7 +28,7 @@ class EventHooker(object):
 
 	def bind(self,event,callback):
 		'''
-		 Registers callbacks to an event
+        Registers callbacks to an event
 		:param event : string
 		:param callback : function
 		'''

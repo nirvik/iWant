@@ -29,7 +29,7 @@ python setup.py install --user
 
 To run the server
 ```sh
-sudo iwanto-start
+iwanto-start
 ```
 
 ### Client 

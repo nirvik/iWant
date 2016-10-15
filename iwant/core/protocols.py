@@ -1,9 +1,11 @@
 from twisted.internet.protocol import Protocol, ClientFactory, DatagramProtocol, Factory
-from iwant.exception import *
-from iwant.communication.message import P2PMessage
-from iwant.constants.events.server import *
-from iwant.constants.events.election import *
-#from iwant.config import DOWNLOAD_FOLDER
+#from iwant.exception import *
+#from iwant.communication.message import Basemessage
+#from iwant.constants.events.server import *
+#from iwant.constants.events.election import *
+from messagebaker import Basemessage
+from constants import FILE_SYS_EVENT, FILE_DETAILS_RESP, \
+        LEADER, DEAD, FILE_TO_BE_DOWNLOADED, START_TRANSFER, INDEXED
 import ConfigParser
 import os, sys
 import progressbar
@@ -52,11 +54,14 @@ class FilemonitorClientProtocol(Protocol):
         self.factory = factory
 
     def connectionMade(self):
-        path = os.path.join(self.factory.config_path, '.hindex')
-        with open(path) as f:
-            dump = f.read()
-        pd = pickle.loads(dump)
-        updated_msg = P2PMessage(key=FILE_SYS_EVENT, data=pd)
+        if self.factory.config_path:
+            path = os.path.join(self.factory.config_path, '.hindex')
+            with open(path) as f:
+                dump = f.read()
+            pd = pickle.loads(dump)
+            updated_msg = Basemessage(key=FILE_SYS_EVENT, data=pd)
+        else:
+            updated_msg = Basemessage(key=INDEXED, data=None)
         self.transport.write(str(updated_msg))
         self.transport.loseConnection()
 
@@ -96,9 +101,9 @@ class ServerElectionProtocol(Protocol):
 
     def connectionMade(self):
         if self.factory.dead_peer is None:
-            update_msg = P2PMessage(key=LEADER, data=(self.factory.leader_host, self.factory.leader_port))
+            update_msg = Basemessage(key=LEADER, data=(self.factory.leader_host, self.factory.leader_port))
         else:
-            update_msg = P2PMessage(key=DEAD, data=self.factory.dead_peer)
+            update_msg = Basemessage(key=DEAD, data=self.factory.dead_peer)
         self.transport.write(str(update_msg))
         self.transport.loseConnection()
 
@@ -119,7 +124,7 @@ class ServerElectionFactory(ClientFactory):
 #        self.factory = factory
 #
 #    def connectionMade(self):
-#        update_msg = P2PMessage(key=self.factory.key, data=self.factory.dump)
+#        update_msg = Basemessage(key=self.factory.key, data=self.factory.dump)
 #        self.transport.write(str(update_msg))
 #        if not persist:
 #            self.transport.loseConnection()
@@ -128,8 +133,8 @@ class ServerElectionFactory(ClientFactory):
 #
 #    def serviceMessage(self, data):
 #        print 'Sending this to client using the transport object'
-#        update_msg = P2PMessage(message=data)
-#        update_msg = P2PMessage(key=update_msg.key, data=update_msg.data)
+#        update_msg = Basemessage(message=data)
+#        update_msg = Basemessage(key=update_msg.key, data=update_msg.data)
 #        clientConn.sendLine(update_msg)
 #        clientConn.transport.loseConnection()
 #
@@ -154,18 +159,18 @@ class RemotepeerProtocol(BaseProtocol):
         }
 
     def connectionMade(self):
-        update_msg = P2PMessage(key=self.factory.key, data=self.factory.dump)
+        update_msg = Basemessage(key=self.factory.key, data=self.factory.dump)
         self.sendLine(update_msg)
 
     def serviceMessage(self, data):
         print 'got response from server about file'
-        req = P2PMessage(message=data)
+        req = Basemessage(message=data)
         self.events[req.key](req.data)
 
     def start_transfer(self, data):
 
         DOWNLOAD_FOLDER = self.factory.download_folder
-        update_msg = P2PMessage(key=FILE_TO_BE_DOWNLOADED, data=data)
+        update_msg = Basemessage(key=FILE_TO_BE_DOWNLOADED, data=data)
         self.factory.file_details['fname'] = data[0]
         self.factory.file_details['size'] = data[1] * 1024.0 * 1024.0
 
@@ -177,7 +182,7 @@ class RemotepeerProtocol(BaseProtocol):
         self.factory.clientConn.transport.loseConnection()
         self.hookHandler(self.write_to_file)
         # print 'Start Transfer {0}'.format(self.factory.dump)
-        update_msg = P2PMessage(key=START_TRANSFER, data=self.factory.dump)
+        update_msg = Basemessage(key=START_TRANSFER, data=self.factory.dump)
         self.bar = progressbar.ProgressBar(maxval=self.factory.file_details['size'],\
                 widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()]).start()
         self.sendLine(update_msg)

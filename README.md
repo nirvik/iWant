@@ -22,7 +22,7 @@ __download__: This is the folder where your downloaded files will be dumped into
 
 ###Installation
 ```sh
-sudo python setup.py install
+python setup.py install --user
 ```
 
 ###Server

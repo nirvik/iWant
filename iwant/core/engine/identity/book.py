@@ -1,4 +1,3 @@
-
 class CommonlogBook(object):
     __doc__ = '''
         This is a book which will store all the persistent data,

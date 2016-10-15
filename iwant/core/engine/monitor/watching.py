@@ -2,14 +2,16 @@ import time
 from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
 from twisted.internet import reactor
-from filehashIndex import FHIndex
+from ..fileindexer import findexer
 import sys
 import os
 
 class ScanFolder(object):
-	def __init__(self, folder, config_folder, callback):
+	def __init__(self, folder, first_callback, second_callback,\
+            config_folder, bootstrap=False):
 		self.path = folder
-		self.callback = callback
+		self.first_callback = first_callback
+        	self.second_callback = second_callback
  	        self.config_folder = config_folder
 		self.event_handler = PatternMatchingEventHandler(patterns=['*'])
 		self.event_handler.process = self.process
@@ -17,6 +19,10 @@ class ScanFolder(object):
 		self.observer = Observer()
 		self.observer.schedule(self.event_handler, self.path, recursive=True)
 		self.observer.start()
+        	if bootstrap:
+	    	    idx = findexer.FileHashIndexer(self.path, self.config_folder, bootstrap=True)
+            	    idx.index()
+            	    self.second_callback()
 
 	def on_any_event(self, event):
 		self.process(event)
@@ -24,7 +30,7 @@ class ScanFolder(object):
 	def process(self, event):
 		print event.src_path, event.event_type
 		if event.event_type in ["created", "modified"]:
-			idx = FHIndex.FileHashIndexer(event.src_path, self.config_folder)
+			idx = findexer.FileHashIndexer(event.src_path, self.config_folder)
 			if event.is_directory:
 				idx.index()
 			else:
@@ -36,13 +42,13 @@ class ScanFolder(object):
 				path = os.path.split(os.path.abspath(event.src_path))[0]  # parent directory
 			else:
 				path = os.path.dirname(event.src_path)
-			idx = FHIndex.FileHashIndexer(path, self.config_folder)
+			idx = findexer.FileHashIndexer(path, self.config_folder)
 			idx.index()
-		self.callback(self.config_folder) # informing the server daemon about changes
+		self.first_callback(self.config_folder) # informing the server daemon about changes
 
 if __name__ == '__main__':
 	args = sys.argv[1]
-	idx = FHIndex.FileHashIndexer(args)
+	idx = findexer.FileHashIndexer(args)
 	idx.index()
 	# eventHandler = MyHandler(print_hi)
 	# observer = Observer()

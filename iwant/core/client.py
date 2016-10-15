@@ -1,9 +1,12 @@
 from twisted.internet import reactor,defer,threads
 from twisted.internet.endpoints import TCP4ClientEndpoint,connectProtocol
 from twisted.internet.protocol import ClientFactory
-from iwant.communication.message import P2PMessage
-from iwant.protocols import BaseProtocol
-from iwant.constants.events.server import HANDSHAKE, LIST_ALL_FILES, SEARCH_REQ, SEARCH_RES, LEADER_NOT_READY, IWANT_PEER_FILE, PEER_LOOKUP_RESPONSE, IWANT, INIT_FILE_REQ, FILE_DETAILS_RESP, FILE_TO_BE_DOWNLOADED
+from messagebaker import Basemessage
+from constants import HANDSHAKE, LIST_ALL_FILES, SEARCH_REQ,\
+        SEARCH_RES, LEADER_NOT_READY, IWANT_PEER_FILE,\
+        PEER_LOOKUP_RESPONSE, IWANT, INIT_FILE_REQ, \
+        FILE_DETAILS_RESP, FILE_TO_BE_DOWNLOADED
+from protocols import BaseProtocol
 import pickle
 import json
 import tabulate
@@ -14,11 +17,11 @@ class Frontend(BaseProtocol):
         self.factory = factory
         self.special_handler = None
         self.events = {
-            HANDSHAKE : self.handshake,
-            LIST_ALL_FILES : self.listAll,
+            #HANDSHAKE : self.handshake,
+            #LIST_ALL_FILES : self.listAll,
             SEARCH_RES : self.show_search_results,
             LEADER_NOT_READY : self.leader_not_ready,
-            PEER_LOOKUP_RESPONSE : self.ask_for_file_details,
+            #PEER_LOOKUP_RESPONSE : self.ask_for_file_details,
             FILE_DETAILS_RESP : self.download_file,
             FILE_TO_BE_DOWNLOADED : self.show_file_to_be_downloaded
         }
@@ -27,27 +30,24 @@ class Frontend(BaseProtocol):
 
     def connectionMade(self):
         print 'Connection Established ... \n'
-        reqMessage = P2PMessage(key=self.factory.query, data=self.factory.arguments)
+        reqMessage = Basemessage(key=self.factory.query, data=self.factory.arguments)
         self.sendLine(reqMessage)
-        if self.factory.query == IWANT_PEER_FILE:
-            pass
-            #reactor.stop()
 
     def serviceMessage(self, data):
-        req = P2PMessage(message=data)
+        req = Basemessage(message=data)
         try:
             self.events[req.key]()
         except:
             self.events[req.key](req.data)
 
-    def handshake(self):
-        req = P2PMessage(key=LIST_ALL_FILES,data=None)
-        self.sendLine(req)
-
-    def listAll(self, data):
-        print data
-        print 'stopping reactor'
-        reactor.stop()
+#    def handshake(self):
+#        req = Basemessage(key=LIST_ALL_FILES,data=None)
+#        self.sendLine(req)
+#
+#    def listAll(self, data):
+#        print data
+#        print 'stopping reactor'
+#        reactor.stop()
 
     def show_search_results(self, data):
         print tabulate.tabulate(data, headers=["Filename", "Checksum", "Size"])
@@ -57,20 +57,20 @@ class Frontend(BaseProtocol):
         print 'Tracker not available..'
         reactor.stop()
 
-    def ask_for_file_details(self, data):
-        print 'Got peers addresses {0}'.format(data)
-        host, port = data[0]  # got list of peers
+    #def ask_for_file_details(self, data):
+    #    print 'Got peers addresses {0}'.format(data)
+    #    host, port = data[0]  # got list of peers
         #self.transport.loseConnection()  # drop connection with local server
         #self.factory.connectPeer(host, port)
         #reactor.connectTCP(host, port, FrontendFactory(INIT_FILE_REQ, data=self.factory.arguments))
 
     def download_file(self, data):
+        # Unused
         print data
         reactor.stop()
 
     def show_file_to_be_downloaded(self, data):
-        #print tabulate.tabulate(data)
-        print data
+        print data[0] , data[1]
         reactor.stop()
 
 class FrontendFactory(ClientFactory):

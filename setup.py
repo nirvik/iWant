@@ -1,4 +1,5 @@
 import os, sys
+from main import get_basepath
 try:
     from setuptools import setup, find_packages
 except ImportError:
@@ -6,19 +7,12 @@ except ImportError:
 
 requirement_list = [r.strip() for r in open('requirements.txt', 'r').readlines() if r]
 
-if sys.platform == 'win32':
-    if not os.path.exists(os.environ['USERPROFILE'] + '\\AppData\\iwant'):
-        os.mkdir(os.environ['USERPROFILE'] + '\\AppData\\iwant')
-    non_package_data = [(os.environ['USERPROFILE'] + '\\AppData\\iwant', ['iwant\\.iwant.conf'])]
 
-elif sys.platform == 'linux2' or sys.platform == 'linux':
-    if not os.path.exists('/var/log/iwant'):
-        os.mkdir('/var/log/iwant')
-    non_package_data = [('/home/'+os.getenv('SUDO_USER'), ['iwant/.iwant.conf'])]
-
-elif sys.platform == 'darwin':
-    # TODO
-    pass
+iwant_config_path = get_basepath()
+print iwant_config_path
+if not os.path.exists(iwant_config_path):
+    os.mkdir(iwant_config_path)
+non_package_data = [(iwant_config_path, ['iwant/.iwant.conf'])]
 
 setup(
         name='iwant',
@@ -28,11 +22,12 @@ setup(
         author_email='nirvik1993@gmail.com',
         packages = find_packages(),
         include_package_data = True,
-        data_files = non_package_data,  # [('/home/'+os.getenv('SUDO_USER'), ['iwant/.iwant.conf'])],
+        data_files = non_package_data,
+        scripts = ['main.py'],
         entry_points = {
             'console_scripts':[
-                'iwanto-start=iwant.main:main',
-                'iwanto=iwant.ui:main'
+                'iwanto=main:ui',
+                'iwanto-start=main:main'
                 ],
         },
         url="https://github.com/nirvik/iWant",

@@ -7,23 +7,51 @@ import time
 import time_uuid
 import pickle
 import random
-from iwant.config import SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, MCAST_IP, MCAST_PORT
-from iwant.constants.events.election import (
-        NEW_PEER, RE_ELECTION,
-        ALIVE, BCAST_LEDGER, HANDLE_PING,
-        HANDLE_ALIVE, NEW_LEADER,
-        HANDLE_PONG, REMOVE_LEADER,
-        PING, PONG, FACE_OFF, SECRET_VAL,
-        WITH_LEADER, WITHOUT_LEADER, DEAD)
-#from iwant.constants.server_event_constants import LEADER
-from iwant.constants.events.server import LEADER
-from iwant.communication.message import P2PMessage
-from iwant.communication.election_communication.message import *
-from iwant.utils.utils import generate_secret, generate_size, EventHooker
-from iwant.protocols import ServerElectionProtocol, ServerElectionFactory, PeerdiscoveryProtocol
+import string
+#from iwant.constants.events.election import (
+#        NEW_PEER, RE_ELECTION,
+#        ALIVE, BCAST_LEDGER, HANDLE_PING,
+#        HANDLE_ALIVE, NEW_LEADER,
+#        HANDLE_PONG, REMOVE_LEADER,
+#        PING, PONG, FACE_OFF, SECRET_VAL,
+#        WITH_LEADER, WITHOUT_LEADER, DEAD)
+#from iwant.constants.events.server import LEADER
+#from iwant.communication.message import Basemessage
+#from iwant.communication.election_communication.message import *
+from iwant.core.config import SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, MCAST_IP, MCAST_PORT
+from iwant.core.constants import NEW_PEER, RE_ELECTION, ALIVE, \
+        BCAST_LEDGER, HANDLE_PING,HANDLE_ALIVE, NEW_LEADER,\
+        HANDLE_PONG, REMOVE_LEADER,PING, PONG, FACE_OFF, \
+        SECRET_VAL,WITH_LEADER, WITHOUT_LEADER, DEAD, LEADER
+from iwant.core.messagebaker import Basemessage, CommonroomMessage
+from iwant.core.protocols import ServerElectionProtocol, ServerElectionFactory, PeerdiscoveryProtocol
+#from iwant.utils.utils import generate_secret, generate_size, EventHooker
+#TODO ADD UTILS FUNCTIONALITY
 
 MCAST_ADDR = (MCAST_IP, MCAST_PORT)
 
+class EventHooker(object):
+	__doc__ = """
+		Registering custom event callbacks
+	"""
+	def __init__(self):
+		self.events = {}
+
+	def bind(self,event,callback):
+		'''
+        Registers callbacks to an event
+		:param event : string
+		:param callback : function
+		'''
+		self.events[event] = callback
+
+	def unbind(self,event):
+		'''
+		Detach events from the hooker
+		:param event: string
+		'''
+		if event in self.events:
+			del self.events[event]
 
 class CommonroomProtocolException(Exception):
     def __init__(self, code, msg):
@@ -106,6 +134,10 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
     def generate_election_id():  # Make it static
         return time.time()
 
+    @staticmethod
+    def generate_secret(size=10, chars=string.ascii_uppercase + string.digits):
+        return ''.join(random.choice(chars) for _ in range(size))
+
     def startProtocol(self):
         """
         Join the multicast group and announce the identity
@@ -128,76 +160,76 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
         self.d = threads.deferToThread(self._poll)  # ideally, we should register a callback
 
     def _broadcast_identity(self):
-        self.send(FlashMessage(NEW_PEER, [self.book.uuidObj, self.book.leader]), MCAST_ADDR)
+        self.send(CommonroomMessage(NEW_PEER, [self.book.uuidObj, self.book.leader]), MCAST_ADDR)
 
     def _broadcast_leader_dead(self):
         #print 'broadcasting coz leader is dead'
-        self.send(FlashMessage(REMOVE_LEADER, [self.book.leader]), MCAST_ADDR)
+        self.send(CommonroomMessage(REMOVE_LEADER, [self.book.leader]), MCAST_ADDR)
         self._broadcast_re_election()
 
     def _broadcast_re_election(self):
         #print 'BROADCASTIN RE ELECTION'
         eid = self.generate_election_id()
-        self.send(FlashMessage(RE_ELECTION, [eid]), MCAST_ADDR)
+        self.send(CommonroomMessage(RE_ELECTION, [eid]), MCAST_ADDR)
 
     def _send_id_to(self, addr):
-        self.send(FlashMessage(NEW_PEER, [self.book.uuidObj, self.book.leader]), addr)
+        self.send(CommonroomMessage(NEW_PEER, [self.book.uuidObj, self.book.leader]), addr)
 
     def _send_pong_to(self, addr):
-        self.send(FlashMessage(HANDLE_PONG, [self.secret_value]), addr)
+        self.send(CommonroomMessage(HANDLE_PONG, [self.secret_value]), addr)
 
     def _broadcast_winner(self, eid):
         '''
             broadcasting winner message
         '''
         #print 'Sending SECRET {0}'.format(self.secret_value)
-        self.send(FlashMessage(NEW_LEADER, [self.book.leader, eid, self.secret_value]), MCAST_ADDR)
+        self.send(CommonroomMessage(NEW_LEADER, [self.book.leader, eid, self.secret_value]), MCAST_ADDR)
 
     def _send_election_msg_to(self, pid):
         eid = self.generate_election_id()
         addr = self.book.peers[pid]
-        self.send(FlashMessage(ALIVE, [eid]), addr)
+        self.send(CommonroomMessage(ALIVE, [eid]), addr)
 
     def _ping(self, addr):
-        self.send(FlashMessage(HANDLE_PING, [PING]), addr)  # might be a problem
+        self.send(CommonroomMessage(HANDLE_PING, [PING]), addr)  # might be a problem
 
     def _send_alive_msg_to(self, addr):
         eid = self.generate_election_id()
-        self.send(FlashMessage(HANDLE_ALIVE, [eid]), addr)
+        self.send(CommonroomMessage(HANDLE_ALIVE, [eid]), addr)
 
     def _broadcast_ledger(self, add_secret=False, just_sharing=False):
         ledger = self.book.peers
         if add_secret:
             # We add secret when we are sending the ledger to a new peer, so that the peer can ping the leader and expect the secret value
-            self.send(FlashMessage(BCAST_LEDGER, [self.book.leader, ledger, self.secret_value]), MCAST_ADDR)
+            self.send(CommonroomMessage(BCAST_LEDGER, [self.book.leader, ledger, self.secret_value]), MCAST_ADDR)
         elif just_sharing is not None and just_sharing is True:
             # This is necessary when the wrong winner is announced for the election. We then just exchange ledger with each other and organize a fresh new re-election
-            self.send(FlashMessage(BCAST_LEDGER, [ledger]), MCAST_ADDR)
+            self.send(CommonroomMessage(BCAST_LEDGER, [ledger]), MCAST_ADDR)
         else:
             # When split brain occurs, we exchange ledger and perform re-election
             # We cant really let all the peers to announce re-election. Lets make only the leaders of different clusters announce the re-election
-            self.send(FlashMessage(BCAST_LEDGER, [self.book.leader, ledger]), MCAST_ADDR)
+            self.send(CommonroomMessage(BCAST_LEDGER, [self.book.leader, ledger]), MCAST_ADDR)
 
     def _send_secret_value(self, addr):
         '''
             Send secret value to addr only when a new peer enters
         '''
-        self.send(FlashMessage(SECRET_VAL, [self.secret.value]), addr)
+        self.send(CommonroomMessage(SECRET_VAL, [self.secret.value]), addr)
 
     def _send_face_off(self, addr, with_leader=False, without_leader=False):
         '''
             Send a face off message: same election id but different winners
         '''
         if with_leader:
-            self.send(FlashMessage(FACE_OFF, WITH_LEADER), addr)
+            self.send(CommonroomMessage(FACE_OFF, WITH_LEADER), addr)
         else:
-            self.send(FlashMessage(FACE_OFF, WITHOUT_LEADER), addr)
+            self.send(CommonroomMessage(FACE_OFF, WITHOUT_LEADER), addr)
 
     def _dead(self):
         '''
             Announce dead message
         '''
-        self.send(FlashMessage(DEAD, [self.book.uuidObj, self.secret_value]), MCAST_ADDR)
+        self.send(CommonroomMessage(DEAD, [self.book.uuidObj, self.secret_value]), MCAST_ADDR)
 
     def isLeader(self):
         if self.book.leader == self.book.uuidObj:
@@ -252,7 +284,7 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
         '''
             This acts as a router because it dispatches functions based on the event received
         '''
-        msg = FlashMessage(message=req)
+        msg = CommonroomMessage(message=req)
         if msg.key in [NEW_PEER, ALIVE, HANDLE_PING, NEW_LEADER]:
             self.eventcontroller.events[msg.key](data=msg.data, addr=addr)
         else:
@@ -528,7 +560,7 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             self.cancel_wait_for_peers_callback()  # if leader wins due to no available peers, then cancel the wait for peers callback
             self.book.leader = leader
             size_value = random.randint(6, 10)
-            self.secret_value = generate_secret(size_value)
+            self.secret_value = self.generate_secret(size_value)
             self._broadcast_winner(eid)
 
     def _bully(self):

@@ -1,2 +1,0 @@
-NOT_READY = 0
-READY = 1

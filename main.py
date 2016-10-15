@@ -35,7 +35,7 @@ def get_basepath():
     if sys.platform =='linux2' or sys.platform == 'linux' or sys.platform == 'darwin':
         iwant_directory_path = os.path.join(iwant_directory_path, '.iwant')
     elif sys.platform == 'win32':
-        iwant_directory_path = os.path.join(iwant_directory_path, '\\AppData\\Roaming\\.iwant')
+        iwant_directory_path = os.path.join(os.getenv('APPDATA'),'.iwant')
 
     return iwant_directory_path
 

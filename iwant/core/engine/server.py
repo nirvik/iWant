@@ -50,6 +50,7 @@ class backend(BaseProtocol):
         '''
             Controller which processes the incoming messages and invokes the appropriate functions
         '''
+        print data
         req = Basemessage(message=data)
         try:
             self.message_codes[req.key]()
@@ -66,10 +67,12 @@ class backend(BaseProtocol):
             return False
 
     def _handshake(self):
+        # TODO: unused
         resMessage = Basemessage(key=HANDSHAKE, data=[])
         self.sendLine(resMessage)
 
     def _list_file(self):
+        # TODO: unused
         if self.factory.state == READY:
             resMessage = Basemessage(key=LIST_ALL_FILES, data=self.factory.indexer.reduced_index())
             self.sendLine(resMessage)
@@ -135,7 +138,7 @@ class backend(BaseProtocol):
 
     def _leader_send_list(self, data):
         if self.leaderThere():
-            #print 'asking leader to lookup'
+            print 'asking leader to lookup'
             self.factory._notify_leader(key=LOOKUP, data=data, persist=True, clientConn=self)
         else:
             msg = Basemessage(key=LEADER_NOT_READY, data=None)
@@ -144,22 +147,25 @@ class backend(BaseProtocol):
 
     def _leader_lookup(self, data):
         uuid, text_search = data
-        host, port = self.factory.book.peers[uuid]
-        #print ' At leader lookup '
+        print '@leader'
+        print self.factory.data_from_peers.values()
+        # host, port = self.factory.book.peers[uuid]
         filtered_response = []
         l = []
-        for val in self.factory.data_from_peers.values():
-            l = pickle.loads(val['hidx'])
-            for i in l.values():
-                if fuzz.partial_ratio(text_search.lower(), i.filename.lower()) >= 90:
-                    filtered_response.append(i)
-
+        if len(self.factory.data_from_peers.values()) != 0:
+            for val in self.factory.data_from_peers.values():
+                l = pickle.loads(val['hidx'])
+                for i in l.values():
+                    if fuzz.partial_ratio(text_search.lower(), i.filename.lower()) >= 90:
+                        filtered_response.append(i)
+        else:
+            filtered_response = []
         update_msg = Basemessage(key=SEARCH_RES, data=filtered_response)
         self.sendLine(update_msg)  # this we are sending it back to the server
         self.transport.loseConnection()  # leader will loseConnection with the requesting server
 
     def _send_resp_client(self, data):
-        #print 'sending to client'
+        #TODO : unused
         update_msg = Basemessage(key=SEARCH_RES, data=data)
         self.sendLine(update_msg)  # sending this response to the client
         self.transport.loseConnection()  # losing connection with the client
@@ -208,9 +214,6 @@ class backendFactory(Factory):
         self.data_from_peers = {}
         self.file_peer_indexer = {}
         self.indexer = FileHashIndexer(self.folder, self.config_folder)
-        #if sharing_folder is not None:
-        #    self.d = threads.deferToThread(self.indexer.index)  # starts indexing files in a folder
-        #    self.d.addCallbacks(self._file_hash_success, self._file_hash_failure)
 
     def clientConnectionLost(self, connector, reason):
         print 'Lost connection'
@@ -295,10 +298,6 @@ class backendFactory(Factory):
             print 'connecting to {0}:{1} for {2}'.format(host, port, key)
             reactor.connectTCP(host, port, factory)
 
-    #def _file_hash_success(self, data):
-    #    self.state = READY  # Ready
-    #    self.gather_data_then_notify()
-
     #def _file_hash_failure(self, reason):
     #    print reason
     #    raise NotImplementedError
@@ -308,8 +307,3 @@ class backendFactory(Factory):
 
     def connectionMade(self):
         print 'connection established'
-
-if __name__ == '__main__':
-    # folder = raw_input('Enter absolute path to share :')
-    endpoints.serverFromString(reactor, 'tcp:1235').listen(backendFactory('/home/nirvik/Pictures'))
-    reactor.run()

@@ -1,8 +1,4 @@
 from twisted.internet.protocol import Protocol, ClientFactory, DatagramProtocol, Factory
-#from iwant.exception import *
-#from iwant.communication.message import Basemessage
-#from iwant.constants.events.server import *
-#from iwant.constants.events.election import *
 from messagebaker import Basemessage
 from constants import FILE_SYS_EVENT, FILE_DETAILS_RESP, \
         LEADER, DEAD, FILE_TO_BE_DOWNLOADED, START_TRANSFER, INDEXED
@@ -42,14 +38,17 @@ class BaseProtocol(Protocol):
                     request_str = self.escape_dollar_sign(self.buff)
                     self.buff = ''
                     self.serviceMessage(request_str)
-            #self.buff = ''
 
     def serviceMessage(self,message):
         pass
 
 
 class FilemonitorClientProtocol(Protocol):
-
+    '''
+        This protocol updates the server about:
+        1. If all the files in the shared folder are indexed or not
+        2. Inform the server about the new updated indexed files(the entire dump)
+    '''
     def __init__(self, factory):
         self.factory = factory
 
@@ -69,6 +68,10 @@ class FilemonitorClientProtocol(Protocol):
 class FilemonitorClientFactory(ClientFactory):
 
     def __init__(self, config_path):
+        '''
+            :param config_path : string
+            config_path contains the .iwant directory path
+        '''
         self.config_path = config_path
 
     def buildProtocol(self, addr):
@@ -96,6 +99,11 @@ class PeerdiscoveryProtocol(DatagramProtocol):
 
 
 class ServerElectionProtocol(Protocol):
+    '''
+        This protocol is used by the election daemon to communicate with the server about:
+            1. New leader
+            2. Node is dead (only the leader node passes information about the dead node to its local server. Rest done)
+    '''
     def __init__(self, factory):
         self.factory = factory
 
@@ -110,6 +118,11 @@ class ServerElectionProtocol(Protocol):
 
 class ServerElectionFactory(ClientFactory):
     def __init__(self, leader_host, leader_port, dead_peer=None):
+        '''
+            :param leader_host : string
+            :param leader_port : int
+            :param dead_peer : bool
+        '''
         self.leader_host = leader_host
         self.leader_port = leader_port
         self.dead_peer = dead_peer
@@ -117,37 +130,11 @@ class ServerElectionFactory(ClientFactory):
     def buildProtocol(self, addr):
         return ServerElectionProtocol(self)
 
-#class ServerLeaderProtocol(BaseProtocol):
-#    def __init__(self, factory):
-#        self.buff = ''
-#        self.delimiter = '#'
-#        self.factory = factory
-#
-#    def connectionMade(self):
-#        update_msg = Basemessage(key=self.factory.key, data=self.factory.dump)
-#        self.transport.write(str(update_msg))
-#        if not persist:
-#            self.transport.loseConnection()
-#        else:
-#            print 'persistent connection'
-#
-#    def serviceMessage(self, data):
-#        print 'Sending this to client using the transport object'
-#        update_msg = Basemessage(message=data)
-#        update_msg = Basemessage(key=update_msg.key, data=update_msg.data)
-#        clientConn.sendLine(update_msg)
-#        clientConn.transport.loseConnection()
-#
-#class ServerLeaderFactory(ClientFactory):
-#    def __init__(self, key, dump):
-#        self.key = key
-#        self.dump = dump
-#
-#    def buildProtocol(self, addr):
-#        return ServerLeaderProtocol(self)
-
 
 class RemotepeerProtocol(BaseProtocol):
+    '''
+        Used for peer to peer download
+    '''
     def __init__(self, factory):
         self.buff = ''
         self.delimiter = '#'
@@ -163,7 +150,7 @@ class RemotepeerProtocol(BaseProtocol):
         self.sendLine(update_msg)
 
     def serviceMessage(self, data):
-        print 'got response from server about file'
+        # print 'got response from server about file'
         req = Basemessage(message=data)
         self.events[req.key](req.data)
 
@@ -176,15 +163,16 @@ class RemotepeerProtocol(BaseProtocol):
 
         filename = os.path.basename(data[0])
         print '****** iWanto Download {0} **********'.format(filename)
-        self.factory.file_container = open(os.path.join(DOWNLOAD_FOLDER, filename), 'wb')  # open(DOWNLOAD_FOLDER+os.path.basename(data[0]), 'wb')
-        print 'Downloading to: {0}'.format(os.path.join(DOWNLOAD_FOLDER, filename))
+        self.factory.file_container = open(os.path.join(DOWNLOAD_FOLDER,\
+                filename), 'wb')
+        print 'Downloading to: {0}'.format(os.path.join(DOWNLOAD_FOLDER\
+                , filename))
         self.factory.clientConn.sendLine(update_msg)
         self.factory.clientConn.transport.loseConnection()
         self.hookHandler(self.write_to_file)
-        # print 'Start Transfer {0}'.format(self.factory.dump)
         update_msg = Basemessage(key=START_TRANSFER, data=self.factory.dump)
         self.bar = progressbar.ProgressBar(maxval=self.factory.file_details['size'],\
-                widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()]).start()
+                        widgets=[progressbar.Bar('=', '[', ']'), ' ',progressbar.Percentage()]).start()
         self.sendLine(update_msg)
 
     def write_to_file(self, data):
@@ -203,6 +191,13 @@ class RemotepeerFactory(Factory):
     protocol = RemotepeerProtocol
 
     def __init__(self, key, checksum, clientConn, download_folder):
+        '''
+            :param key : string
+            :param checksum : string
+            :param clientConn : twisted connection object
+            :param download_folder : string
+
+        '''
         self.key = key
         self.dump = checksum
         self.clientConn = clientConn

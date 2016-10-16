@@ -8,16 +8,6 @@ import time_uuid
 import pickle
 import random
 import string
-#from iwant.constants.events.election import (
-#        NEW_PEER, RE_ELECTION,
-#        ALIVE, BCAST_LEDGER, HANDLE_PING,
-#        HANDLE_ALIVE, NEW_LEADER,
-#        HANDLE_PONG, REMOVE_LEADER,
-#        PING, PONG, FACE_OFF, SECRET_VAL,
-#        WITH_LEADER, WITHOUT_LEADER, DEAD)
-#from iwant.constants.events.server import LEADER
-#from iwant.communication.message import Basemessage
-#from iwant.communication.election_communication.message import *
 from iwant.core.config import SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, MCAST_IP, MCAST_PORT
 from iwant.core.constants import NEW_PEER, RE_ELECTION, ALIVE, \
         BCAST_LEDGER, HANDLE_PING,HANDLE_ALIVE, NEW_LEADER,\
@@ -25,8 +15,6 @@ from iwant.core.constants import NEW_PEER, RE_ELECTION, ALIVE, \
         SECRET_VAL,WITH_LEADER, WITHOUT_LEADER, DEAD, LEADER
 from iwant.core.messagebaker import Basemessage, CommonroomMessage
 from iwant.core.protocols import ServerElectionProtocol, ServerElectionFactory, PeerdiscoveryProtocol
-#from iwant.utils.utils import generate_secret, generate_size, EventHooker
-#TODO ADD UTILS FUNCTIONALITY
 
 MCAST_ADDR = (MCAST_IP, MCAST_PORT)
 
@@ -38,20 +26,20 @@ class EventHooker(object):
 		self.events = {}
 
 	def bind(self,event,callback):
-		'''
-        Registers callbacks to an event
-		:param event : string
-		:param callback : function
-		'''
-		self.events[event] = callback
+            '''
+            Registers callbacks to an event
+            :param event : string
+            :param callback : function
+            '''
+            self.events[event] = callback
 
 	def unbind(self,event):
-		'''
-		Detach events from the hooker
-		:param event: string
-		'''
-		if event in self.events:
-			del self.events[event]
+            '''
+            Detach events from the hooker
+            :param event: string
+            '''
+            if event in self.events:
+                del self.events[event]
 
 class CommonroomProtocolException(Exception):
     def __init__(self, code, msg):

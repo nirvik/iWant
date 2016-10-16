@@ -17,11 +17,8 @@ class Frontend(BaseProtocol):
         self.factory = factory
         self.special_handler = None
         self.events = {
-            #HANDSHAKE : self.handshake,
-            #LIST_ALL_FILES : self.listAll,
             SEARCH_RES : self.show_search_results,
             LEADER_NOT_READY : self.leader_not_ready,
-            #PEER_LOOKUP_RESPONSE : self.ask_for_file_details,
             FILE_DETAILS_RESP : self.download_file,
             FILE_TO_BE_DOWNLOADED : self.show_file_to_be_downloaded
         }
@@ -34,35 +31,31 @@ class Frontend(BaseProtocol):
         self.sendLine(reqMessage)
 
     def serviceMessage(self, data):
+        '''
+            Incoming messages are processed and appropriate functions are called
+        '''
         req = Basemessage(message=data)
         try:
             self.events[req.key]()
         except:
             self.events[req.key](req.data)
 
-#    def handshake(self):
-#        req = Basemessage(key=LIST_ALL_FILES,data=None)
-#        self.sendLine(req)
-#
-#    def listAll(self, data):
-#        print data
-#        print 'stopping reactor'
-#        reactor.stop()
-
     def show_search_results(self, data):
+        '''
+            callback: displays file search response from the leader(via local server)
+            triggered when server replies the file search response from the leader to the client
+
+        '''
         print tabulate.tabulate(data, headers=["Filename", "Checksum", "Size"])
         reactor.stop()
 
     def leader_not_ready(self):
+        '''
+            callback: displays leader/tracker not available
+            triggered when leader not ready
+        '''
         print 'Tracker not available..'
         reactor.stop()
-
-    #def ask_for_file_details(self, data):
-    #    print 'Got peers addresses {0}'.format(data)
-    #    host, port = data[0]  # got list of peers
-        #self.transport.loseConnection()  # drop connection with local server
-        #self.factory.connectPeer(host, port)
-        #reactor.connectTCP(host, port, FrontendFactory(INIT_FILE_REQ, data=self.factory.arguments))
 
     def download_file(self, data):
         # Unused
@@ -70,6 +63,10 @@ class Frontend(BaseProtocol):
         reactor.stop()
 
     def show_file_to_be_downloaded(self, data):
+        '''
+            callback: displays file to be downloaded
+            triggered when user downloads a file
+        '''
         print data[0] , data[1]
         reactor.stop()
 
@@ -87,9 +84,6 @@ class FrontendFactory(ClientFactory):
     def clientConnectionFailed(self, connector, reason):
         print reason
         reactor.stop()
-
-    #def connectPeer(self, host, port):
-    #    reactor.connectTCP(host, port, RemotepeerFactory(INIT_FILE_REQ, dump=self.arguments))
 
     def buildProtocol(self, addr):
         return Frontend(self)

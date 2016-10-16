@@ -7,10 +7,9 @@ import sys
 import os
 
 class ScanFolder(object):
-    def __init__(self, folder, first_callback, second_callback, config_folder, bootstrap=False):
+    def __init__(self, folder, config_folder, callback):
         self.path = folder
-        self.first_callback = first_callback
-        self.second_callback = second_callback
+        self.callback = callback
         self.config_folder = config_folder
         self.event_handler = PatternMatchingEventHandler(patterns=['*'])
         self.event_handler.process = self.process
@@ -18,10 +17,6 @@ class ScanFolder(object):
         self.observer = Observer()
         self.observer.schedule(self.event_handler, self.path, recursive=True)
         self.observer.start()
-        if bootstrap:
-            idx = findexer.FileHashIndexer(self.path, self.config_folder, bootstrap=True)
-            idx.index()
-            self.second_callback()
 
     def on_any_event(self, event):
         self.process(event)
@@ -43,4 +38,4 @@ class ScanFolder(object):
                     path = os.path.dirname(event.src_path)
             idx = findexer.FileHashIndexer(path, self.config_folder)
             idx.index()
-        self.first_callback(self.config_folder) # informing the server daemon about changes
+        self.callback(self.config_folder) # informing the server daemon about changes

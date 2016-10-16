@@ -9,7 +9,7 @@ from ..messagebaker import Basemessage
 from ..constants import HANDSHAKE, LIST_ALL_FILES, INIT_FILE_REQ, START_TRANSFER, \
         LEADER, DEAD, FILE_SYS_EVENT, HASH_DUMP, SEARCH_REQ, LOOKUP, SEARCH_RES,\
         IWANT_PEER_FILE, SEND_PEER_DETAILS, IWANT, INDEXED, FILE_DETAILS_RESP, \
-        ERROR_LIST_ALL_FILES, READY, NOT_READY, PEER_LOOKUP_RESPONSE
+        ERROR_LIST_ALL_FILES, READY, NOT_READY, PEER_LOOKUP_RESPONSE, LEADER_NOT_READY
 from ..protocols import BaseProtocol
 from ..config import CLIENT_DAEMON_HOST, CLIENT_DAEMON_PORT, SERVER_DAEMON_PORT
 
@@ -50,7 +50,6 @@ class backend(BaseProtocol):
         '''
             Controller which processes the incoming messages and invokes the appropriate functions
         '''
-        print data
         req = Basemessage(message=data)
         try:
             self.message_codes[req.key]()
@@ -82,11 +81,14 @@ class backend(BaseProtocol):
 
     def _load_file(self, data):
         fhash = data
-        self.fileObj = self.factory.indexer.getFile(fhash)
-        fname, _, fsize = self.factory.indexer.hash_index[fhash]
-        print fhash, fname, fsize
-        ack_msg = Basemessage(key=FILE_DETAILS_RESP, data=(fname, fsize))
-        self.sendLine(ack_msg)
+        if self.factory.state == READY:
+            self.fileObj = self.factory.indexer.getFile(fhash)
+            fname, _, fsize = self.factory.indexer.hash_index[fhash]
+            print fhash, fname, fsize
+            ack_msg = Basemessage(key=FILE_DETAILS_RESP, data=(fname, fsize))
+            self.sendLine(ack_msg)
+        else:
+            print 'files not indexed yet'
 
     def _start_transfer(self, data):
         producer = FileSender()
@@ -125,7 +127,6 @@ class backend(BaseProtocol):
 
     def _dump_data_from_peers(self, data):
         uuid, dump = data
-        #print 'UUID {0}'.format(uuid)
         self.factory.data_from_peers[uuid] = dump
 
     def _remove_dead_entry(self, data):
@@ -138,7 +139,7 @@ class backend(BaseProtocol):
 
     def _leader_send_list(self, data):
         if self.leaderThere():
-            print 'asking leader to lookup'
+            print 'lookup request sent to leader'
             self.factory._notify_leader(key=LOOKUP, data=data, persist=True, clientConn=self)
         else:
             msg = Basemessage(key=LEADER_NOT_READY, data=None)
@@ -146,12 +147,11 @@ class backend(BaseProtocol):
             self.transport.loseConnection()
 
     def _leader_lookup(self, data):
+        print 'damn i have to look up '
         uuid, text_search = data
-        print '@leader'
-        print self.factory.data_from_peers.values()
-        # host, port = self.factory.book.peers[uuid]
         filtered_response = []
         l = []
+        print ' the length of data_from_peers : {0}'.format(len(self.factory.data_from_peers.values()))
         if len(self.factory.data_from_peers.values()) != 0:
             for val in self.factory.data_from_peers.values():
                 l = pickle.loads(val['hidx'])
@@ -196,6 +196,8 @@ class backend(BaseProtocol):
 
     def fileindexing_complete(self):
         self.factory.state = READY
+        self.factory.indexer = FileHashIndexer(self.factory.folder,\
+                self.factory.config_folder)
         self.factory.gather_data_then_notify()
 
 
@@ -212,8 +214,7 @@ class backendFactory(Factory):
         self.leader = None
         self.cached_data = None
         self.data_from_peers = {}
-        self.file_peer_indexer = {}
-        self.indexer = FileHashIndexer(self.folder, self.config_folder)
+        self.indexer = None  # FileHashIndexer(self.folder, self.config_folder)
 
     def clientConnectionLost(self, connector, reason):
         print 'Lost connection'
@@ -292,11 +293,17 @@ class backendFactory(Factory):
             factory = ServerLeaderFactory(key=key, dump=(self.book.uuidObj, data))
         elif key == SEND_PEER_DETAILS:
             factory = ServerLeaderFactory(key=key, dump=data, dump_folder = self.download_folder)
-        if self.leader is not None and self.state == READY:
-            print self.leader[0], self.leader[1]
-            host, port = self.leader
-            print 'connecting to {0}:{1} for {2}'.format(host, port, key)
-            reactor.connectTCP(host, port, factory)
+
+        if key == SEND_PEER_DETAILS or key == LOOKUP:
+            if self.leader is not None:
+                host, port = self.leader[0] , self.leader[1]
+                print 'connecting to {0}:{1} for {2}'.format(host, port, key)
+                reactor.connectTCP(host, port, factory)
+        elif key == HASH_DUMP:
+            if self.leader is not None and self.state == READY:
+                host, port = self.leader[0] , self.leader[1]
+                print 'connecting to {0}:{1} for {2}'.format(host, port, key)
+                reactor.connectTCP(host, port, factory)
 
     #def _file_hash_failure(self, reason):
     #    print reason

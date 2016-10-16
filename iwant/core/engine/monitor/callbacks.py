@@ -6,6 +6,6 @@ def filechangeCB(config_path):
     factory = FilemonitorClientFactory(config_path)
     reactor.connectTCP(SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, factory)
 
-def fileindexedCB():
+def fileindexedCB(data):
     factory = FilemonitorClientFactory(None)
     reactor.connectTCP(SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, factory)

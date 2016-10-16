@@ -10,7 +10,8 @@ from iwant.core.config import SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, MCAST_IP, 
 from iwant.core.protocols import FilemonitorClientFactory, FilemonitorClientProtocol
 from iwant.core.engine.monitor.callbacks import filechangeCB, fileindexedCB
 from iwant.core.engine.identity.book import CommonlogBook
-from twisted.internet import reactor, endpoints
+from iwant.core.engine.fileindexer import findexer
+from twisted.internet import reactor, endpoints, threads
 from iwant.utils import get_ips, generate_id
 from iwant.core.client import FrontendFactory, Frontend
 from iwant.core.config import SERVER_DAEMON_HOST, SERVER_DAEMON_PORT
@@ -59,8 +60,12 @@ def main():
         endpoints.serverFromString(reactor, 'tcp:{0}'.format(SERVER_DAEMON_PORT)).\
                 listen(backendFactory(book, sharing_folder=SHARING_FOLDER,\
                 download_folder=DOWNLOAD_FOLDER, config_folder= CONFIG_PATH))  # spawning server daemon
-        ScanFolder(SHARING_FOLDER, filechangeCB, \
-                fileindexedCB, CONFIG_PATH, bootstrap=True)  # spawning filemonitoring daemon and registering callbacks
+
+        indexer = findexer.FileHashIndexer(SHARING_FOLDER, CONFIG_PATH, bootstrap=True)
+        indexingDeferred = threads.deferToThread(indexer.index)
+        indexingDeferred.addCallback(fileindexedCB)
+
+        ScanFolder(SHARING_FOLDER, CONFIG_PATH, filechangeCB)  # spawning filemonitoring daemon and registering callbacks
         reactor.run()
 
     except KeyboardInterrupt:

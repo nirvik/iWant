@@ -28,16 +28,20 @@ class FileHashIndexer(object):
             # We need to remove files which doesnot belong to the directory peer is sharing
             if os.path.exists(path):
                 files_to_be_deleted = filter(lambda x: not x.startswith(os.path.abspath(path)), self.path_index.keys())
-                print '@filehashIndex:bootstrap: FILES TO BE DELETED {0}'.format(files_to_be_deleted)
-                for files in files_to_be_deleted:
+                if len(files_to_be_deleted) > 0:
+                    print 'Deleting.. '
+                for count, files in enumerate(files_to_be_deleted):
+                    print count, files
                     self._delete(files)
                 self._save_hash_data()
 
         if not os.path.exists(path):
             try:
-                files_to_be_deleted = filter(lambda x:x.startswith(os.path.abspath(path)),self.path_index.keys())
-                print 'FILES TO BE DELETED {0}'.format(files_to_be_deleted)
-                for files in files_to_be_deleted:
+                files_to_be_deleted = filter(lambda x:x.startswith(os.path.abspath(path)), self.path_index.keys())
+                if len(files_to_be_deleted) > 0:
+                    print 'Deleting.. '
+                for count, files in enumerate(files_to_be_deleted):
+                    print count, files
                     self._delete(files)
                 self._save_hash_data()
             except:
@@ -102,6 +106,7 @@ class FileHashIndexer(object):
         count = 0
         self.bar = progressbar.ProgressBar(maxval=total,\
                 widgets=[progressbar.Bar('=','[',']'),' ', progressbar.Percentage()]).start()
+        print 'Indexing files in the shared folder'
         for root,_discard,filenames in os.walk(self.path):
             for filepath in filenames:
                 # print '{0} : Processing'.format(filepath)

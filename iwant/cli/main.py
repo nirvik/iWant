@@ -12,7 +12,7 @@ from iwant.core.engine.monitor.callbacks import filechangeCB, fileindexedCB
 from iwant.core.engine.identity.book import CommonlogBook
 from iwant.core.engine.fileindexer import findexer
 from twisted.internet import reactor, endpoints, threads
-from iwant.utils import get_ips, generate_id
+from iwant.utils import get_ips, generate_id, get_basepath
 from iwant.core.client import FrontendFactory, Frontend
 from iwant.core.config import SERVER_DAEMON_HOST, SERVER_DAEMON_PORT
 from iwant.core.constants import SEARCH_REQ, IWANT_PEER_FILE, INIT_FILE_REQ
@@ -31,14 +31,14 @@ def get_paths():
 
     return (SHARING_FOLDER, DOWNLOAD_FOLDER, CONFIG_PATH)
 
-def get_basepath():
-    iwant_directory_path = os.path.expanduser('~')
-    if sys.platform =='linux2' or sys.platform == 'linux' or sys.platform == 'darwin':
-        iwant_directory_path = os.path.join(iwant_directory_path, '.iwant')
-    elif sys.platform == 'win32':
-        iwant_directory_path = os.path.join(os.getenv('APPDATA'),'.iwant')
-
-    return iwant_directory_path
+#def get_basepath():
+#    iwant_directory_path = os.path.expanduser('~')
+#    if sys.platform =='linux2' or sys.platform == 'linux' or sys.platform == 'darwin':
+#        iwant_directory_path = os.path.join(iwant_directory_path, '.iwant')
+#    elif sys.platform == 'win32':
+#        iwant_directory_path = os.path.join(os.getenv('APPDATA'),'.iwant')
+#
+#    return iwant_directory_path
 
 def main():
     ips = get_ips()

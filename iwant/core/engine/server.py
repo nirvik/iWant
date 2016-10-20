@@ -266,11 +266,13 @@ class backendFactory(Factory):
                 print 'Got peers {0}'.format(data)
                 if len(data) == 0:
                     print 'Tell the client that peer lookup response is 0. Have to handle this'
-                host, port = data[0]
-                print 'hash {0}'.format(self.factory.dump)
-                print self.factory.dump_folder
-                from ..protocols import RemotepeerFactory, RemotepeerProtocol
-                reactor.connectTCP(host, SERVER_DAEMON_PORT, RemotepeerFactory(INIT_FILE_REQ, self.factory.dump, clientConn, self.factory.dump_folder))
+                    #update_msg = Basemessage(key=SEARCH_RES, data=data)
+                else:
+                    host, port = data[0]
+                    print 'hash {0}'.format(self.factory.dump)
+                    print self.factory.dump_folder
+                    from ..protocols import RemotepeerFactory, RemotepeerProtocol
+                    reactor.connectTCP(host, SERVER_DAEMON_PORT, RemotepeerFactory(INIT_FILE_REQ, self.factory.dump, clientConn, self.factory.dump_folder))
 
             def send_file_search_response(self, data):
                 update_msg = Basemessage(key=SEARCH_RES, data=data)

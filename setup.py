@@ -1,5 +1,5 @@
 import os, sys
-from main import get_basepath
+from iwant.utils import get_basepath
 try:
     from setuptools import setup, find_packages
 except ImportError:
@@ -23,11 +23,10 @@ setup(
         packages = find_packages(),
         include_package_data = True,
         data_files = non_package_data,
-        scripts = ['main.py'],
         entry_points = {
             'console_scripts':[
-                'iwanto=main:ui',
-                'iwanto-start=main:main'
+                'iwanto=iwant.cli.main:ui',
+                'iwanto-start=iwant.cli.main:main'
                 ],
         },
         url="https://github.com/nirvik/iWant",

@@ -1,22 +1,50 @@
 import os, sys
 import time_uuid
 import ConfigParser
+from netifaces import interfaces, ifaddresses, AF_INET
+import time_uuid
+import argparse
 from watchdog.observers import Observer
 from iwant.core.exception import MainException
 from iwant.core.engine.consensus.beacon import CommonroomProtocol
 from iwant.core.engine.server import backendFactory
 from iwant.core.engine.monitor.watching import ScanFolder
-from iwant.core.config import SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, MCAST_IP, MCAST_PORT
-from iwant.core.protocols import FilemonitorClientFactory, FilemonitorClientProtocol
-from iwant.core.engine.monitor.callbacks import filechangeCB, fileindexedCB
+from iwant.core.config import SERVER_DAEMON_HOST,\
+        SERVER_DAEMON_PORT, MCAST_IP, MCAST_PORT
+from iwant.core.protocols import FilemonitorClientFactory,\
+        FilemonitorClientProtocol
+from iwant.core.engine.monitor.callbacks import filechangeCB,\
+        fileindexedCB
 from iwant.core.engine.identity.book import CommonlogBook
 from iwant.core.engine.fileindexer import findexer
 from twisted.internet import reactor, endpoints, threads
-from iwant.utils import get_ips, generate_id, get_basepath
-from iwant.core.client import FrontendFactory, Frontend
+from iwant.core.engine.client import FrontendFactory, Frontend
 from iwant.core.config import SERVER_DAEMON_HOST, SERVER_DAEMON_PORT
-from iwant.core.constants import SEARCH_REQ, IWANT_PEER_FILE, INIT_FILE_REQ
-import argparse
+from iwant.core.constants import SEARCH_REQ, IWANT_PEER_FILE,\
+        INIT_FILE_REQ
+
+def get_ips():
+    ip_list = []
+    for interface in interfaces():
+        try:
+            for link in ifaddresses(interface)[AF_INET]:
+                ip_list.append(link['addr'])
+        except:
+            pass
+    return ip_list
+
+def generate_id():
+    timeuuid = time_uuid.TimeUUID.with_utcnow()  # generate uuid
+    return timeuuid
+
+def get_basepath():
+    iwant_directory_path = os.path.expanduser('~')
+    if sys.platform =='linux2' or sys.platform == 'linux' or sys.platform == 'darwin':
+        iwant_directory_path = os.path.join(iwant_directory_path, '.iwant')
+    elif sys.platform == 'win32':
+        iwant_directory_path = os.path.join(os.getenv('APPDATA'),'.iwant')
+
+    return iwant_directory_path
 
 def get_paths():
     Config = ConfigParser.ConfigParser()
@@ -31,15 +59,6 @@ def get_paths():
 
     return (SHARING_FOLDER, DOWNLOAD_FOLDER, CONFIG_PATH)
 
-#def get_basepath():
-#    iwant_directory_path = os.path.expanduser('~')
-#    if sys.platform =='linux2' or sys.platform == 'linux' or sys.platform == 'darwin':
-#        iwant_directory_path = os.path.join(iwant_directory_path, '.iwant')
-#    elif sys.platform == 'win32':
-#        iwant_directory_path = os.path.join(os.getenv('APPDATA'),'.iwant')
-#
-#    return iwant_directory_path
-
 def main():
     ips = get_ips()
     for count, ip in enumerate(ips):
@@ -47,7 +66,6 @@ def main():
     ip = input('Enter index of ip addr:')
     timeuuid = generate_id()
     book = CommonlogBook(identity=timeuuid, state=0, ip = ips[ip-1])  # creating shared memory between server and election daemon
-
 
     SHARING_FOLDER, DOWNLOAD_FOLDER, CONFIG_PATH = get_paths()
     if not os.path.exists(SHARING_FOLDER) or \
@@ -87,5 +105,28 @@ def ui():
         reactor.connectTCP(SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, FrontendFactory(SEARCH_REQ, args.search))
 
     elif args.download:
-        reactor.connectTCP(SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, FrontendFactory(IWANT_PEER_FILE, args.download))#, DOWNLOAD_FOLDER))
+        reactor.connectTCP(SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, FrontendFactory(IWANT_PEER_FILE, args.download))
     reactor.run()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,5 +1,5 @@
 import os, sys
-from iwant.utils import get_basepath
+import ConfigParser
 try:
     from setuptools import setup, find_packages
 except ImportError:
@@ -7,12 +7,27 @@ except ImportError:
 
 requirement_list = [r.strip() for r in open('requirements.txt', 'r').readlines() if r]
 
+def get_basepath():
+    iwant_directory_path = os.path.expanduser('~')
+    if sys.platform =='linux2' or sys.platform == 'linux' or sys.platform == 'darwin':
+        iwant_directory_path = os.path.join(iwant_directory_path, '.iwant')
+    elif sys.platform == 'win32':
+        iwant_directory_path = os.path.join(os.getenv('APPDATA'),'.iwant')
+    return iwant_directory_path
 
 iwant_config_path = get_basepath()
 print iwant_config_path
 if not os.path.exists(iwant_config_path):
     os.mkdir(iwant_config_path)
-non_package_data = [(iwant_config_path, ['iwant/.iwant.conf'])]
+
+config = ConfigParser.ConfigParser()
+config.add_section('Paths')
+config.set('Paths', 'Share', '')
+config.set('Paths', 'Download', '')
+
+with open(os.path.join(iwant_config_path, '.iwant.conf'), 'w') as configfile:
+    config.write(configfile)
+
 
 setup(
         name='iwant',
@@ -22,7 +37,6 @@ setup(
         author_email='nirvik1993@gmail.com',
         packages = find_packages(),
         include_package_data = True,
-        data_files = non_package_data,
         entry_points = {
             'console_scripts':[
                 'iwanto=iwant.cli.main:ui',

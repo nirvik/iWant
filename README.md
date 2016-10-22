@@ -1,13 +1,18 @@
 # iWanto
 ## CLI based decentralized peer to peer file sharing
 
-__What is this?__ 
-It's basically a commandline tool which lets you to look for and download files in the network. 
+###__What is this?__  
+A commandline tool for searching and downloading files in LAN network.  
 
 ###Installation
 ```sh
 python setup.py install --user
 ```
+1.This creates a .iwant folder in the home directory  
+2.Open ~/.iwant/.iwant.conf file  
+3.Update the __share__ which is absolute path of folder you wish to share. Similarly for __download__ which is the absolute path where the new files will be downloaded to.  
+4.Run the server  
+5.Run the client  
 
 ###Server
 
@@ -15,14 +20,22 @@ To run the server
 ```sh
 iwanto-start
 ```
+![Alt text](/images/server_start_downloading.png?raw=true "iwant local server downloading Silicon Valley Season 1 Episode 6")
 
 ### Client 
-want to look for files in your network? (P.S No need of accurate names, thanks to fuzzywuzzy)
+To look for files in the network, just type the name of file ;)  (P.S No need of accurate names, thanks to fuzzywuzzy)
 ```sh
-iwanto --search batman
+iwanto --search Siliconvalley
 ```
+![Alt text](/images/client_search.png?raw=true "Searching for silicon valley episodes")
+To download the file , just enter the hash of the file. 
+```sh
+iwanto --download <siliconvalley_episode_hash>
+```
+![Alt text](/images/client_download.png?raw=true "Requesting to download season 1 episode 6")
 
-want to download batman? 
-```sh
-iwanto --download <hash(batman)>
-```
+### Security
+
+
+
+### FAQ

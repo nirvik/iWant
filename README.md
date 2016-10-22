@@ -8,11 +8,12 @@ A commandline tool for searching and downloading files in LAN network.
 ```sh
 python setup.py install --user
 ```
-1.This creates a .iwant folder in the home directory  
-2.Open ~/.iwant/.iwant.conf file  
-3.Update the __share__ which is absolute path of folder you wish to share. Similarly for __download__ which is the absolute path where the new files will be downloaded to.  
-4.Run the server  
-5.Run the client  
+1.  This creates a .iwant folder in the home directory  
+2.  Open ~/.iwant/.iwant.conf file  
+3.  Update __share__ and __download__ values in the conf file. __share__ key is the absolute path of the folder you wish to share. Similarly __download__ key is the absolute path of the folder where new files will be downloaded to.  
+4.  Run the server  
+5.  Run the client 
+6.  Maintain the order of steps  
 
 ###Server
 

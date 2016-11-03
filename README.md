@@ -1,4 +1,4 @@
-# iWanto
+# iWant
 ## CLI based decentralized peer to peer file sharing
 
 ###__What is this?__  

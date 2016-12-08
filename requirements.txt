@@ -4,6 +4,7 @@ watchdog
 time_uuid
 fuzzywuzzy
 tabulate
+service_identity
 cryptography
 python-Levenshtein
 progressbar

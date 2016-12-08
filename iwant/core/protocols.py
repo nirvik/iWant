@@ -79,6 +79,9 @@ class FilemonitorClientFactory(ClientFactory):
 
 
 class PeerdiscoveryProtocol(DatagramProtocol):
+    '''
+        Used by the election daemon
+    '''
     def escape_hash_sign(self, string):
         return string.replace(self.delimiter, '')
 
@@ -137,7 +140,7 @@ class RemotepeerProtocol(BaseProtocol):
     '''
     def __init__(self, factory):
         self.buff = ''
-        self.delimiter = '#'
+        self.delimiter = '\r'
         self.factory = factory
         self.file_len_recv = 0.0
         self.special_handler = None

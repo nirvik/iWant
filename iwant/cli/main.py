@@ -4,6 +4,7 @@ import ConfigParser
 from netifaces import interfaces, ifaddresses, AF_INET
 import time_uuid
 import argparse
+from twisted.python import log
 from watchdog.observers import Observer
 from iwant.core.exception import MainException
 from iwant.core.engine.consensus.beacon import CommonroomProtocol
@@ -15,7 +16,8 @@ from iwant.core.protocols import FilemonitorClientFactory,\
         FilemonitorClientProtocol
 from iwant.core.engine.monitor.callbacks import filechangeCB,\
         fileindexedCB
-from iwant.core.engine.identity.book import CommonlogBook
+#from iwant.core.engine.identity.book import CommonlogBook
+from iwant.core.engine.identity import CommonlogBook
 from iwant.core.engine.fileindexer import findexer
 from twisted.internet import reactor, endpoints, threads
 from iwant.core.engine.client import FrontendFactory, Frontend
@@ -38,9 +40,9 @@ def generate_id():
     return timeuuid
 
 def get_basepath():
-    iwant_directory_path = os.path.expanduser('~')
+    home_directory_path = os.path.expanduser('~')
     if sys.platform =='linux2' or sys.platform == 'linux' or sys.platform == 'darwin':
-        iwant_directory_path = os.path.join(iwant_directory_path, '.iwant')
+        iwant_directory_path = os.path.join(home_directory_path, '.iwant')
     elif sys.platform == 'win32':
         iwant_directory_path = os.path.join(os.getenv('APPDATA'),'.iwant')
 
@@ -73,13 +75,16 @@ def main():
             not os.path.exists(CONFIG_PATH):
         raise MainException(1)
 
+    logfile = os.path.join(CONFIG_PATH, 'iwant.log')
+    log.startLogging(open(logfile, 'w'), setStdout=False)
+
     try:
-        reactor.listenMulticast(MCAST_PORT, CommonroomProtocol(book), listenMultiple=True)  # spawning election daemon
+        reactor.listenMulticast(MCAST_PORT, CommonroomProtocol(book, log), listenMultiple=True)  # spawning election daemon
         endpoints.serverFromString(reactor, 'tcp:{0}'.format(SERVER_DAEMON_PORT)).\
                 listen(backendFactory(book, sharing_folder=SHARING_FOLDER,\
                 download_folder=DOWNLOAD_FOLDER, config_folder= CONFIG_PATH))  # spawning server daemon
 
-        indexer = findexer.FileHashIndexer(SHARING_FOLDER, CONFIG_PATH, bootstrap=True)
+        indexer = findexer.FileHashIndexer(SHARING_FOLDER, CONFIG_PATH, bootstrap=True)  # better would be to add a classmethod rather than setting bootstrap to True
         indexingDeferred = threads.deferToThread(indexer.index)
         indexingDeferred.addCallback(fileindexedCB)
 

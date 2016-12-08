@@ -24,7 +24,7 @@ class Basemessage(object):
         self.NO_PARAM = [HANDSHAKE, LEADER_NOT_READY, INDEXED]
         self.DELIMITERS_PARAMS = [FILE, LIST_ALL_FILES, ERROR_LIST_ALL_FILES, LEADER, HASH_DUMP, FILE_SYS_EVENT, SEARCH_REQ, SEARCH_RES, LOOKUP, IWANT_PEER_FILE, PEER_LOOKUP_RESPONSE, SEND_PEER_DETAILS, FILE_DETAILS_RESP, INIT_FILE_REQ, IWANT, FILE_TO_BE_DOWNLOADED, START_TRANSFER, DEAD]
         self._delimiter = ';'
-        self._EOL = '#'
+        self._EOL = '\r'
 
         if message is not None:
             self.key, self.data = self._parse_message(message)
@@ -60,7 +60,7 @@ class CommonroomMessage(object):
         self.NO_PARAM = [HANDLE_PING]
         self.DELIMITERS = [NEW_PEER, BCAST_LEDGER, NEW_LEADER, REMOVE_LEADER, SECRET_VAL, HANDLE_PONG, FACE_OFF, DEAD]
         self.FLOATS = [RE_ELECTION, ALIVE, HANDLE_ALIVE, NEW_LEADER]
-        self.EOL = '#'
+        self.EOL = '\r'
         self.delimiter = ';'
 
         if message is not None:
@@ -71,7 +71,7 @@ class CommonroomMessage(object):
 
 
     def _parse_message(self,message):
-        id,msg = message.split(';')
+        id,msg = message.split(self.delimiter)
         try:
             key = id
         except:

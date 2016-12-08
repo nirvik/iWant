@@ -64,12 +64,13 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
     clock = None
     continueTrying = 1
 
-    def __init__(self, book):
+    def __init__(self, book, log):
         '''
             build the message codes
             :param book: CommonLogBook instance
         '''
         self.book = book
+        self.log = log
         self.secret_value = None
         self.eventcontroller = EventHooker()
         self.eventcontroller.bind(NEW_PEER, self._new_peers)
@@ -99,7 +100,7 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
         self._addr = (self.book.ip, MCAST_PORT)
         self._latest_election_id= None
         self.buff = ''
-        self.delimiter = '#'
+        self.delimiter = '\r'
         print 'ID : ' + self.book.uuid
         reactor.addSystemEventTrigger("before", "shutdown", self.logout)
 
@@ -135,10 +136,12 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
         self.transport.setTTL(5)
         self.transport.joinGroup(MCAST_ADDR[0])
         self._broadcast_identity()
+        self.log.msg('joining the multicast group and waiting for response')
         wait_for_response = 3
 
         def response_from_peers():
             self._eid = self.generate_election_id()
+            self.log.msg('Announcing itself as the winner')
             self._leader(leader=self.book.uuidObj, eid=self._eid)
 
         if self._npClock is None:
@@ -148,22 +151,27 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
         self.d = threads.deferToThread(self._poll)  # ideally, we should register a callback
 
     def _broadcast_identity(self):
+        self.log.msg('broadcast identity')
         self.send(CommonroomMessage(NEW_PEER, [self.book.uuidObj, self.book.leader]), MCAST_ADDR)
 
     def _broadcast_leader_dead(self):
         #print 'broadcasting coz leader is dead'
+        self.log.msg('broadcast leader is dead: {0}'.format(self.book.leader))
         self.send(CommonroomMessage(REMOVE_LEADER, [self.book.leader]), MCAST_ADDR)
         self._broadcast_re_election()
 
     def _broadcast_re_election(self):
         #print 'BROADCASTIN RE ELECTION'
         eid = self.generate_election_id()
+        self.log.msg('broadcast re-election id {0}'.format(eid))
         self.send(CommonroomMessage(RE_ELECTION, [eid]), MCAST_ADDR)
 
     def _send_id_to(self, addr):
+        self.log.msg('send id to {0}'.format(addr))
         self.send(CommonroomMessage(NEW_PEER, [self.book.uuidObj, self.book.leader]), addr)
 
     def _send_pong_to(self, addr):
+        self.log.msg('send pong to {0}'.format(addr))
         self.send(CommonroomMessage(HANDLE_PONG, [self.secret_value]), addr)
 
     def _broadcast_winner(self, eid):
@@ -171,17 +179,21 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             broadcasting winner message
         '''
         #print 'Sending SECRET {0}'.format(self.secret_value)
+        self.log.msg('Broadcasting winner for election id: {0} '.format(eid))
         self.send(CommonroomMessage(NEW_LEADER, [self.book.leader, eid, self.secret_value]), MCAST_ADDR)
 
-    def _send_election_msg_to(self, pid):
+    def _send_election_msg_to(self, peer_id):
+        self.log.msg('sending election message to {0}'.format(peer_id))
         eid = self.generate_election_id()
-        addr = self.book.peers[pid]
+        addr = self.book.peers[peer_id]
         self.send(CommonroomMessage(ALIVE, [eid]), addr)
 
     def _ping(self, addr):
+        self.log.msg('sending ping to leader {0}'.format(addr))
         self.send(CommonroomMessage(HANDLE_PING, [PING]), addr)  # might be a problem
 
     def _send_alive_msg_to(self, addr):
+        # this doesn't make any bloody sense.. why to even generate election id
         eid = self.generate_election_id()
         self.send(CommonroomMessage(HANDLE_ALIVE, [eid]), addr)
 

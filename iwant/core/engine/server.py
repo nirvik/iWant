@@ -43,7 +43,7 @@ class backend(BaseProtocol):
             INDEXED : self.fileindexing_complete
         }
         self.buff = ''
-        self.delimiter = '#'
+        self.delimiter = '\r'
         self.special_handler = None
 
     def serviceMessage(self, data):
@@ -127,6 +127,7 @@ class backend(BaseProtocol):
 
     def _dump_data_from_peers(self, data):
         uuid, dump = data
+        print 'got hash dump {0}'.format(uuid)
         self.factory.data_from_peers[uuid] = dump
 
     def _remove_dead_entry(self, data):
@@ -238,7 +239,7 @@ class backendFactory(Factory):
         class ServerLeaderProtocol(BaseProtocol):
             def __init__(self, factory):
                 self.buff = ''
-                self.delimiter = '#'
+                self.delimiter = '\r'
                 self.special_handler = None
                 self.factory = factory
                 self.events = {

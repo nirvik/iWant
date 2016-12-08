@@ -10,6 +10,35 @@ from ..protocols import BaseProtocol
 import pickle
 import json
 import tabulate
+import os
+
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+def color_metadata(func):
+    def wrapper(metadata):
+        print bcolors.OKBLUE + func(metadata) + bcolors.ENDC
+    return wrapper
+
+def color_warning(func):
+    def wrapper(warning_msg):
+        print bcolors.WARNING + func(warning_msg) + bcolors.ENDC
+    return wrapper
+
+@color_metadata
+def print_metadata(data):
+    return data
+
+@color_warning
+def print_warning(msg):
+    return msg
 
 class Frontend(BaseProtocol):
 
@@ -23,7 +52,7 @@ class Frontend(BaseProtocol):
             FILE_TO_BE_DOWNLOADED : self.show_file_to_be_downloaded
         }
         self.buff = ''
-        self.delimiter = '#'
+        self.delimiter = '\r'
 
     def connectionMade(self):
         print 'Connection Established ... \n'
@@ -54,7 +83,8 @@ class Frontend(BaseProtocol):
             callback: displays leader/tracker not available
             triggered when leader not ready
         '''
-        print 'Tracker not available..'
+        #print 'Tracker not available..'
+        print_warning('Tracker not available')
         reactor.stop()
 
     def download_file(self, data):
@@ -67,7 +97,13 @@ class Frontend(BaseProtocol):
             callback: displays file to be downloaded
             triggered when user downloads a file
         '''
-        print data[0] , data[1]
+        file_basename = os.path.basename(data[0])
+        file_type_split = data[0].rsplit('.')
+        if len(file_type_split) == 2:
+            file_type = file_type_split[-1]
+        else:
+            file_type = 'UNKNOWN'
+        print_metadata('Filename: {0}\nSize: {1}\nBasename: {2}\nFiletype: {3}\n'.format(data[0], data[1], file_basename, file_type))
         reactor.stop()
 
 class FrontendFactory(ClientFactory):

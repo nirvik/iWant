@@ -4,25 +4,28 @@ import hashlib
 import json
 import pickle
 import progressbar
+
 FileObj = namedtuple('FileObj','filename checksum size')
-HIDX_EXTENSION = '.hindex'
-PIDX_EXTENSION = '.pindex'
 
 class FileHashIndexer(object):
+
+    HIDX_EXTENSION = '.hindex'
+    PIDX_EXTENSION = '.pindex'
+
     def __init__(self , path, config_folder,  bootstrap=False):
         self.hash_index = {}
         self.path_index = {}
         self.current_path = config_folder
 
-        hashed_idx_path = os.path.join(self.current_path, HIDX_EXTENSION)
-        filename_idx_path = os.path.join(self.current_path, PIDX_EXTENSION)
+        hashed_idx_path = os.path.join(self.current_path, FileHashIndexer.HIDX_EXTENSION)
+        filename_idx_path = os.path.join(self.current_path, FileHashIndexer.PIDX_EXTENSION)
         self.state = "INDEX"
 
-        if os.path.exists(hashed_idx_path):
+        try:
             self.hash_index = self.loadJSON(hashed_idx_path)
-
-        if os.path.exists(filename_idx_path):
             self.path_index = self.loadJSON(filename_idx_path)
+        except:
+            raise NotImplementedError
 
         if bootstrap:
             # We need to remove files which doesnot belong to the directory peer is sharing
@@ -36,16 +39,7 @@ class FileHashIndexer(object):
                 self._save_hash_data()
 
         if not os.path.exists(path):
-            try:
-                files_to_be_deleted = filter(lambda x:x.startswith(os.path.abspath(path)), self.path_index.keys())
-                if len(files_to_be_deleted) > 0:
-                    print 'Deleting.. '
-                for count, files in enumerate(files_to_be_deleted):
-                    print count, files
-                    self._delete(files)
-                self._save_hash_data()
-            except:
-                raise NotImplementedError
+            raise NotImplementedError
             self.state = "CANNOT INDEX"
         else:
             self.path = os.path.abspath(path)
@@ -92,7 +86,7 @@ class FileHashIndexer(object):
             else:
                 return
         checksum = self.get_hash(destination_file_path)
-        fileObject = FileObj(filename=destination_file_path,checksum= checksum,size=filesize)
+        fileObject = FileObj(filename=destination_file_path,checksum=checksum,size=filesize)
         self.hash_index[checksum] = fileObject
         self.path_index[destination_file_path] = checksum
 
@@ -128,10 +122,10 @@ class FileHashIndexer(object):
 
 
     def _save_hash_data(self):
-        hashed_data  = os.path.join(self.current_path, HIDX_EXTENSION)
+        hashed_data  = os.path.join(self.current_path, FileHashIndexer.HIDX_EXTENSION)
         with open(hashed_data,'wb') as f:
             f.write(pickle.dumps(self.hash_index))
-        filepath_data = os.path.join(self.current_path, PIDX_EXTENSION)
+        filepath_data = os.path.join(self.current_path, FileHashIndexer.PIDX_EXTENSION)
         with open(filepath_data,'wb') as f:
             f.write(pickle.dumps(self.path_index))
         return (self.hash_index, self.path_index)
@@ -179,7 +173,7 @@ class FileHashIndexer(object):
         return dict([(k,red_fn(v)) for k,v in self.hash_index.iteritems()])
 
 if __name__ == '__main__':
-    new_file = FileHashIndexer('/home/nirvik/Pictures/')
+    new_file = FileHashIndexer('/home/nirvik/Pictures/', '/home/nirvik/.iwant/')
     new_file.index()
     #print new_file.getFile(u'6792d84bdf59de317d66e84e9f0f97facdfa0b23')
     print new_file.reduced_index()

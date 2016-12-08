@@ -18,7 +18,7 @@ from iwant.core.engine.monitor.callbacks import filechangeCB,\
         fileindexedCB
 #from iwant.core.engine.identity.book import CommonlogBook
 from iwant.core.engine.identity import CommonlogBook
-from iwant.core.engine.fileindexer import findexer
+from iwant.core.engine.fileindexer.findexer import FileHashIndexer
 from twisted.internet import reactor, endpoints, threads
 from iwant.core.engine.client import FrontendFactory, Frontend
 from iwant.core.config import SERVER_DAEMON_HOST, SERVER_DAEMON_PORT
@@ -84,7 +84,7 @@ def main():
                 listen(backendFactory(book, sharing_folder=SHARING_FOLDER,\
                 download_folder=DOWNLOAD_FOLDER, config_folder= CONFIG_PATH))  # spawning server daemon
 
-        indexer = findexer.FileHashIndexer(SHARING_FOLDER, CONFIG_PATH, bootstrap=True)  # better would be to add a classmethod rather than setting bootstrap to True
+        indexer = FileHashIndexer(SHARING_FOLDER, CONFIG_PATH, boostrap=True)  # better would be to add a classmethod rather than setting bootstrap to True
         indexingDeferred = threads.deferToThread(indexer.index)
         indexingDeferred.addCallback(fileindexedCB)
 

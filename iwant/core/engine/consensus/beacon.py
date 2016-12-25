@@ -15,6 +15,7 @@ from iwant.core.constants import NEW_PEER, RE_ELECTION, ALIVE, \
         SECRET_VAL,WITH_LEADER, WITHOUT_LEADER, DEAD, LEADER
 from iwant.core.messagebaker import Basemessage, CommonroomMessage
 from iwant.core.protocols import ServerElectionProtocol, ServerElectionFactory, PeerdiscoveryProtocol
+import struct
 
 MCAST_ADDR = (MCAST_IP, MCAST_PORT)
 
@@ -193,8 +194,7 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
         self.send(CommonroomMessage(HANDLE_PING, [PING]), addr)  # might be a problem
 
     def _send_alive_msg_to(self, addr):
-        # this doesn't make any bloody sense.. why to even generate election id
-        eid = self.generate_election_id()
+        eid = self.generate_election_id()  # have to use datetime module . some problem with the packing
         self.send(CommonroomMessage(HANDLE_ALIVE, [eid]), addr)
 
     def _broadcast_ledger(self, add_secret=False, just_sharing=False):

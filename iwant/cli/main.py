@@ -4,6 +4,7 @@ import ConfigParser
 from netifaces import interfaces, ifaddresses, AF_INET
 import time_uuid
 import argparse
+import sqlite3
 from twisted.python import log
 from watchdog.observers import Observer
 from iwant.core.exception import MainException
@@ -70,6 +71,12 @@ def main():
     book = CommonlogBook(identity=timeuuid, state=0, ip = ips[ip-1])  # creating shared memory between server and election daemon
 
     SHARING_FOLDER, DOWNLOAD_FOLDER, CONFIG_PATH = get_paths()
+    #connection = sqlite3.connect(os.path.join(CONFIG_PATH, 'iwant.db'))
+    #try:
+    #    connection.execute("create table INDEXER (hash text, pathname text, size integer, sharing integer);");
+    #except Exception as err:
+    #    print err
+
     if not os.path.exists(SHARING_FOLDER) or \
         not os.path.exists(DOWNLOAD_FOLDER) or \
             not os.path.exists(CONFIG_PATH):
@@ -82,13 +89,11 @@ def main():
         reactor.listenMulticast(MCAST_PORT, CommonroomProtocol(book, log), listenMultiple=True)  # spawning election daemon
         endpoints.serverFromString(reactor, 'tcp:{0}'.format(SERVER_DAEMON_PORT)).\
                 listen(backendFactory(book, sharing_folder=SHARING_FOLDER,\
-                download_folder=DOWNLOAD_FOLDER, config_folder= CONFIG_PATH))  # spawning server daemon
-
-        indexer = FileHashIndexer(SHARING_FOLDER, CONFIG_PATH, boostrap=True)  # better would be to add a classmethod rather than setting bootstrap to True
+                download_folder=DOWNLOAD_FOLDER, config_folder= CONFIG_PATH))
+        indexer = FileHashIndexer(SHARING_FOLDER, CONFIG_PATH, bootstrap=True)  # file indexer
         indexingDeferred = threads.deferToThread(indexer.index)
         indexingDeferred.addCallback(fileindexedCB)
-
-        ScanFolder(SHARING_FOLDER, CONFIG_PATH, filechangeCB)  # spawning filemonitoring daemon and registering callbacks
+        ScanFolder(SHARING_FOLDER, CONFIG_PATH, filechangeCB)  # spawning filemonitoring daemon.. use inlineDeferreds
         reactor.run()
 
     except KeyboardInterrupt:

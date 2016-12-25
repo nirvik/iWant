@@ -9,7 +9,8 @@ from ..messagebaker import Basemessage
 from ..constants import HANDSHAKE, LIST_ALL_FILES, INIT_FILE_REQ, START_TRANSFER, \
         LEADER, DEAD, FILE_SYS_EVENT, HASH_DUMP, SEARCH_REQ, LOOKUP, SEARCH_RES,\
         IWANT_PEER_FILE, SEND_PEER_DETAILS, IWANT, INDEXED, FILE_DETAILS_RESP, \
-        ERROR_LIST_ALL_FILES, READY, NOT_READY, PEER_LOOKUP_RESPONSE, LEADER_NOT_READY
+        ERROR_LIST_ALL_FILES, READY, NOT_READY, PEER_LOOKUP_RESPONSE, LEADER_NOT_READY,\
+        REQ_CHUNK, END_GAME
 from ..protocols import BaseProtocol
 from ..config import CLIENT_DAEMON_HOST, CLIENT_DAEMON_PORT, SERVER_DAEMON_PORT
 
@@ -40,7 +41,9 @@ class backend(BaseProtocol):
             IWANT_PEER_FILE: self._ask_leader_for_peers,
             SEND_PEER_DETAILS: self._leader_looksup_peer,
             IWANT: self._start_transfer,
-            INDEXED : self.fileindexing_complete
+            INDEXED : self.fileindexing_complete,
+            REQ_CHUNK: self._send_chunk_response,
+            END_GAME: self._end_game
         }
         self.buff = ''
         self.delimiter = '\r'
@@ -83,12 +86,21 @@ class backend(BaseProtocol):
         fhash = data
         if self.factory.state == READY:
             self.fileObj = self.factory.indexer.getFile(fhash)
-            fname, _, fsize = self.factory.indexer.hash_index[fhash]
-            print fhash, fname, fsize
+            fname, _, fsize, hash_string = self.factory.indexer.hash_index[fhash]
+            #print fhash, fname, fsize, hash_string
             ack_msg = Basemessage(key=FILE_DETAILS_RESP, data=(fname, fsize))
             self.sendLine(ack_msg)
         else:
             print 'files not indexed yet'
+
+    def _send_chunk_response(self, pieceNumber):
+        self.fileObj.seek(int(pieceNumber) * 16000)  # need a global variable for piece size
+        buffered = self.fileObj.read(16000)
+        self.sendRaw(buffered)
+
+    def _end_game(self):
+        print 'received end game'
+        self.fileObj.close()
 
     def _start_transfer(self, data):
         producer = FileSender()
@@ -115,7 +127,8 @@ class backend(BaseProtocol):
 
     def _filesystem_modified(self, data):
         if self.factory.state == READY and self.leaderThere():
-            self.factory.gather_data_then_notify()
+            self.fileindexing_complete()  # get the new instance of the file indexer and update leader
+            #self.factory.gather_data_then_notify()
         else:
             if self.factory.state == NOT_READY:
                 resMessage = Basemessage(key=ERROR_LIST_ALL_FILES, data='File hashing incomplete')
@@ -127,7 +140,7 @@ class backend(BaseProtocol):
 
     def _dump_data_from_peers(self, data):
         uuid, dump = data
-        print 'got hash dump {0}'.format(uuid)
+        print 'got hash dump from {0}'.format(uuid)
         self.factory.data_from_peers[uuid] = dump
 
     def _remove_dead_entry(self, data):
@@ -148,7 +161,6 @@ class backend(BaseProtocol):
             self.transport.loseConnection()
 
     def _leader_lookup(self, data):
-        print 'damn i have to look up '
         uuid, text_search = data
         filtered_response = []
         l = []
@@ -173,7 +185,7 @@ class backend(BaseProtocol):
 
     def _ask_leader_for_peers(self, data):
         if self.leaderThere():
-            #print 'asking leaders for peers'
+            print 'asking leaders for peers'
             print data
             self.factory._notify_leader(key=SEND_PEER_DETAILS, data=data, persist=True, clientConn=self)
         else:
@@ -182,15 +194,30 @@ class backend(BaseProtocol):
             self.transport.loseConnection()
 
     def _leader_looksup_peer(self, data):
+        '''
+            The leader looks up the peer who has the file
+            The leader sends a list of peers with the following data
+             1.piece hashes of the file
+             2.file size
+             3.file name
+        '''
         uuids = []
+        hash_string = ''
         sending_data = []
 
         for key, val in self.factory.data_from_peers.iteritems():
-            if data in pickle.loads(val['hidx']):
+            value = pickle.loads(val['hidx'])
+            if data in value:
+                hash_string = value[data].pieceHashes
+                file_size = value[data].size
+                file_name = value[data].filename
                 uuids.append(key)
 
         for uuid in uuids:
             sending_data.append(self.factory.book.peers[uuid])
+        sending_data.append(hash_string)  # appending hash of pieces
+        sending_data.append(file_size)  # appending filesize
+        sending_data.append(file_name)  # appending filename
         msg = Basemessage(key=PEER_LOOKUP_RESPONSE, data=sending_data)
         self.sendLine(msg)
         self.transport.loseConnection()
@@ -226,11 +253,11 @@ class backendFactory(Factory):
         pidx_file = os.path.join(self.config_folder, '.pindex')
         with open(hidx_file) as f:
             hidx = f.read()
-        with open(pidx_file) as f:
-            pidx = f.read()
+        #with open(pidx_file) as f:
+        #    pidx = f.read()
         self.cached_data['hidx'] = hidx
-        self.cached_data['pidx'] = pidx
-        self._notify_leader(key=HASH_DUMP, data=None)
+        #self.cached_data['pidx'] = pidx
+        self._notify_leader(key=HASH_DUMP)
 
     def _notify_leader(self, key=None, data=None, persist=False, clientConn=None):
         from twisted.internet.protocol import Protocol, ClientFactory
@@ -264,16 +291,25 @@ class backendFactory(Factory):
                 from twisted.internet.protocol import Protocol, ClientFactory, Factory
                 from twisted.internet import reactor
                 self.transport.loseConnection()
-                print 'Got peers {0}'.format(data)
+                #print 'Got peers {0}'.format(data)
                 if len(data) == 0:
                     print 'Tell the client that peer lookup response is 0. Have to handle this'
                     #update_msg = Basemessage(key=SEARCH_RES, data=data)
                 else:
-                    host, port = data[0]
-                    print 'hash {0}'.format(self.factory.dump)
-                    print self.factory.dump_folder
                     from ..protocols import RemotepeerFactory, RemotepeerProtocol
-                    reactor.connectTCP(host, SERVER_DAEMON_PORT, RemotepeerFactory(INIT_FILE_REQ, self.factory.dump, clientConn, self.factory.dump_folder))
+                    file_details = {
+                        'file_name' : data[-1],
+                        'file_size' : data[-2],
+                        'pieceHashes' : data[-3],
+                        'checksum' : self.factory.dump
+                    }
+                    download_folder = self.factory.dump_folder
+                    peers = data[:-3]
+                    #host, port = peers[0]
+                    P2PFactory = RemotepeerFactory(INIT_FILE_REQ, clientConn, download_folder, file_details)
+                    #reactor.connectTCP(host, SERVER_DAEMON_PORT, P2PFactory)
+                    map(lambda host: reactor.connectTCP(host,SERVER_DAEMON_PORT, P2PFactory),
+                            map(lambda host: host[0], peers))
 
             def send_file_search_response(self, data):
                 update_msg = Basemessage(key=SEARCH_RES, data=data)
@@ -295,7 +331,7 @@ class backendFactory(Factory):
         elif key == LOOKUP:
             factory = ServerLeaderFactory(key=key, dump=(self.book.uuidObj, data))
         elif key == SEND_PEER_DETAILS:
-            factory = ServerLeaderFactory(key=key, dump=data, dump_folder = self.download_folder)
+            factory = ServerLeaderFactory(key=key, dump=data, dump_folder=self.download_folder)
 
         if key == SEND_PEER_DETAILS or key == LOOKUP:
             if self.leader is not None:
@@ -307,10 +343,6 @@ class backendFactory(Factory):
                 host, port = self.leader[0] , self.leader[1]
                 print 'connecting to {0}:{1} for {2}'.format(host, port, key)
                 reactor.connectTCP(host, port, factory)
-
-    #def _file_hash_failure(self, reason):
-    #    print reason
-    #    raise NotImplementedError
 
     def buildProtocol(self, addr):
         return backend(self)

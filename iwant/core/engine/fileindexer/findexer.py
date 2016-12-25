@@ -5,14 +5,15 @@ import json
 import pickle
 import progressbar
 
-FileObj = namedtuple('FileObj','filename checksum size')
+FileObj = namedtuple('FileObj','filename checksum size pieceHashes')
 
 class FileHashIndexer(object):
 
     HIDX_EXTENSION = '.hindex'
     PIDX_EXTENSION = '.pindex'
+    PIECE_SIZE = 16000
 
-    def __init__(self , path, config_folder,  bootstrap=False):
+    def __init__(self , path, config_folder, bootstrap=False):
         self.hash_index = {}
         self.path_index = {}
         self.current_path = config_folder
@@ -30,7 +31,8 @@ class FileHashIndexer(object):
         if bootstrap:
             # We need to remove files which doesnot belong to the directory peer is sharing
             if os.path.exists(path):
-                files_to_be_deleted = filter(lambda x: not x.startswith(os.path.abspath(path)), self.path_index.keys())
+                files_to_be_deleted = filter(lambda x: not x.startswith(os.path.abspath(path)),\
+                        self.path_index.keys())
                 if len(files_to_be_deleted) > 0:
                     print 'Deleting.. '
                 for count, files in enumerate(files_to_be_deleted):
@@ -80,13 +82,14 @@ class FileHashIndexer(object):
         filesize = computed_file_size/ (1024.0 * 1024.0)
         if destination_file_path in self.path_index:
             md5_checksum = self.path_index[destination_file_path]
-            if self.hash_index[md5_checksum][-1] != filesize:
+            if self.hash_index[md5_checksum][-2] != filesize:
                 # print 'Change in file size'
                 self._delete(destination_file_path)
             else:
                 return
-        checksum = self.get_hash(destination_file_path)
-        fileObject = FileObj(filename=destination_file_path,checksum=checksum,size=filesize)
+        checksum, pieceHashes = self.get_hash(destination_file_path)
+        fileObject = FileObj(filename=destination_file_path, \
+                checksum=checksum,size=filesize, pieceHashes=pieceHashes)
         self.hash_index[checksum] = fileObject
         self.path_index[destination_file_path] = checksum
 
@@ -150,11 +153,11 @@ class FileHashIndexer(object):
             print 'This file is not present with us '
             self._create_file_index()
             raise NotImplementedError
-        filename , checksum , size = self.hash_index[fileHashIndex]
+        filename , checksum , size, pieceHashes = self.hash_index[fileHashIndex]
         if not os.path.exists(filename):
             print 'There has been a change in directory of the path'
             raise NotImplementedError
-        md5_hash = self.get_hash(filename)
+        md5_hash, hash_string = self.get_hash(filename)
         if md5_hash != checksum:
             print 'There has been a change in contents of the file'
             raise NotImplementedError
@@ -162,18 +165,23 @@ class FileHashIndexer(object):
 
     @staticmethod
     def get_hash(filepath):
+        hash_string = ''
         md5_hash = hashlib.md5()
         with open(filepath,'rb') as f:
-            for chunk in iter(lambda: f.read(4096), b""):
+            for chunk in iter(lambda: f.read(FileHashIndexer.PIECE_SIZE), b""):
                 md5_hash.update(chunk)
-        return md5_hash.hexdigest()
+                piece_hash = hashlib.md5()
+                piece_hash.update(chunk)
+                hash_string += piece_hash.hexdigest()
+        return md5_hash.hexdigest(), hash_string
 
     def reduced_index(self):
-        red_fn=lambda x:(os.path.basename(x[0]), x[2])
+        red_fn=lambda x:(os.path.basename(x[0]), x[2], x[3])
         return dict([(k,red_fn(v)) for k,v in self.hash_index.iteritems()])
 
 if __name__ == '__main__':
     new_file = FileHashIndexer('/home/nirvik/Pictures/', '/home/nirvik/.iwant/')
     new_file.index()
+    #d = new_file.hash_index
     #print new_file.getFile(u'6792d84bdf59de317d66e84e9f0f97facdfa0b23')
-    print new_file.reduced_index()
+    #print new_file.reduced_index()

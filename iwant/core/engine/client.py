@@ -75,7 +75,10 @@ class Frontend(BaseProtocol):
             triggered when server replies the file search response from the leader to the client
 
         '''
-        print tabulate.tabulate(data, headers=["Filename", "Checksum", "Size"])
+        response = []
+        for i in data:
+            response.append((i.filename, i.checksum, i.size))
+        print tabulate.tabulate(response, headers=["Filename", "Checksum", "Size"])
         reactor.stop()
 
     def leader_not_ready(self):

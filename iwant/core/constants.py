@@ -40,7 +40,8 @@ IWANT = 'iwant'
 START_TRANSFER = 'start-transfer'
 FILE_TO_BE_DOWNLOADED = 'filetobedownloaded'
 INDEXED = 'indexed'
-
+REQ_CHUNK = 'req-chunk'
+END_GAME = 'end-game'
 #Server States
 READY = 1
 NOT_READY = 0

@@ -15,7 +15,7 @@ python setup.py install --user
 5.  Run the client 
 6.  Maintain the order of steps  
 
-###Server
+##Server
 
 To run the server
 ```sh
@@ -23,7 +23,7 @@ iwanto-start
 ```
 ![Alt text](/images/server_start_downloading.png?raw=true "iwant local server downloading Silicon Valley Season 1 Episode 6")
 
-### Client 
+## Client 
 To look for files in the network, just type the name of file ;)  (P.S No need of accurate names, thanks to fuzzywuzzy)
 ```sh
 iwanto --search Siliconvalley
@@ -35,8 +35,12 @@ iwanto --download <siliconvalley_episode_hash>
 ```
 ![Alt text](/images/client_download.png?raw=true "Requesting to download season 1 episode 6")
 
-### Security
+## Security
 
 
+## Database 
 
-### FAQ
+### __why SQLite ?__ 
+self-contained, serverless, zero-configuration that means like other database you do not need to configure it in your system.
+
+## FAQ

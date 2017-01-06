@@ -33,7 +33,7 @@ class Basemessage(object):
             self.data = pickle.dumps(data)
 
     def _parse_message(self,message):
-        id, msg = message.split(self._delimiter)
+        id, msg = message.split(self._delimiter, 1)
         key = id
         if key in self.NO_PARAM:
             data = None
@@ -71,7 +71,7 @@ class CommonroomMessage(object):
 
 
     def _parse_message(self,message):
-        id,msg = message.split(self.delimiter)
+        id,msg = message.split(self.delimiter, 1)
         try:
             key = id
         except:

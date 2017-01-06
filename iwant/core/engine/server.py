@@ -5,6 +5,7 @@ from fuzzywuzzy import fuzz, process
 import pickle
 import os, sys
 from fileindexer.findexer import FileHashIndexer
+from fileindexer.piece import piece_size
 from ..messagebaker import Basemessage
 from ..constants import HANDSHAKE, LIST_ALL_FILES, INIT_FILE_REQ, START_TRANSFER, \
         LEADER, DEAD, FILE_SYS_EVENT, HASH_DUMP, SEARCH_REQ, LOOKUP, SEARCH_RES,\
@@ -87,15 +88,15 @@ class backend(BaseProtocol):
         if self.factory.state == READY:
             self.fileObj = self.factory.indexer.getFile(fhash)
             fname, _, fsize, hash_string = self.factory.indexer.hash_index[fhash]
-            #print fhash, fname, fsize, hash_string
+            self.chunk_size = piece_size(fsize)  # file size is in MB
             ack_msg = Basemessage(key=FILE_DETAILS_RESP, data=(fname, fsize))
             self.sendLine(ack_msg)
         else:
             print 'files not indexed yet'
 
     def _send_chunk_response(self, pieceNumber):
-        self.fileObj.seek(int(pieceNumber) * 16000)  # need a global variable for piece size
-        buffered = self.fileObj.read(16000)
+        self.fileObj.seek(int(pieceNumber) * self.chunk_size)  # need a global variable for piece size
+        buffered = self.fileObj.read(self.chunk_size)
         self.sendRaw(buffered)
 
     def _end_game(self):
@@ -110,14 +111,14 @@ class backend(BaseProtocol):
         deferred = producer.beginFileTransfer(fileObj, consumer)
         deferred.addCallbacks(self._success, self._failure)
 
-    def _success(self, data):
-        self.transport.loseConnection()
-        self.unhookHandler()
+    #def _success(self, data):
+    #    self.transport.loseConnection()
+    #    self.unhookHandler()
 
-    def _failure(self, reason):
-        print 'Failed {0}'.format(reason)
-        self.transport.loseConnection()
-        self.unhookHandler()
+    #def _failure(self, reason):
+    #    print 'Failed {0}'.format(reason)
+    #    self.transport.loseConnection()
+    #    self.unhookHandler()
 
     def _update_leader(self, leader):
         self.factory.leader = leader

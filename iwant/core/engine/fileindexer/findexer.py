@@ -4,14 +4,14 @@ import hashlib
 import json
 import pickle
 import progressbar
-
+from piece import piece_size
 FileObj = namedtuple('FileObj','filename checksum size pieceHashes')
 
 class FileHashIndexer(object):
 
     HIDX_EXTENSION = '.hindex'
     PIDX_EXTENSION = '.pindex'
-    PIECE_SIZE = 16000
+    #PIECE_SIZE = 16000
 
     def __init__(self , path, config_folder, bootstrap=False):
         self.hash_index = {}
@@ -36,7 +36,6 @@ class FileHashIndexer(object):
                 if len(files_to_be_deleted) > 0:
                     print 'Deleting.. '
                 for count, files in enumerate(files_to_be_deleted):
-                    print count, files
                     self._delete(files)
                 self._save_hash_data()
 
@@ -79,7 +78,7 @@ class FileHashIndexer(object):
 
     def compute_hash_diff_file(self, destination_file_path, singleFile=False):
         computed_file_size = self.getfilesize(destination_file_path)
-        filesize = computed_file_size/ (1024.0 * 1024.0)
+        filesize = computed_file_size/ (1000.0 * 1000.0)
         if destination_file_path in self.path_index:
             md5_checksum = self.path_index[destination_file_path]
             if self.hash_index[md5_checksum][-2] != filesize:
@@ -145,8 +144,12 @@ class FileHashIndexer(object):
             The checksum key of the hash_index will always point to
             the correct filepath.
         '''
-        if self.hash_index[checksum][0] == pathname:
-            del self.hash_index[checksum]
+        try:
+            if self.hash_index[checksum][0] == pathname:
+                del self.hash_index[checksum]
+        except Exception as e:
+            print e
+            print 'really have to handle this shitty error'
 
     def getFile(self,fileHashIndex):
         if fileHashIndex not in self.hash_index:
@@ -167,8 +170,10 @@ class FileHashIndexer(object):
     def get_hash(filepath):
         hash_string = ''
         md5_hash = hashlib.md5()
+        file_size = os.path.getsize(filepath) / (1000.0 * 1000.0)  # converting size to MB
+        chunk_size = piece_size(file_size)
         with open(filepath,'rb') as f:
-            for chunk in iter(lambda: f.read(FileHashIndexer.PIECE_SIZE), b""):
+            for chunk in iter(lambda: f.read(chunk_size), b""):
                 md5_hash.update(chunk)
                 piece_hash = hashlib.md5()
                 piece_hash.update(chunk)

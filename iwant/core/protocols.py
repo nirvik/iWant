@@ -3,6 +3,7 @@ from messagebaker import Basemessage
 from constants import FILE_SYS_EVENT, FILE_DETAILS_RESP, \
         LEADER, DEAD, FILE_TO_BE_DOWNLOADED, START_TRANSFER, INDEXED,\
         REQ_CHUNK, END_GAME
+from engine.fileindexer.piece import piece_size
 import ConfigParser
 import os, sys
 import progressbar
@@ -170,9 +171,6 @@ class RemotepeerProtocol(BaseProtocol):
 
         DOWNLOAD_FOLDER = self.factory.download_folder
         msg_to_client = Basemessage(key=FILE_TO_BE_DOWNLOADED, data=data)
-        #self.factory.file_details['fname'] = data[0]
-        #self.factory.file_details['size'] = data[1] * 1024.0 * 1024.0
-
         filename = os.path.basename(data[0])
         print '****** iWanto Download {0} **********'.format(filename)
         print 'Downloading to: {0}'.format(os.path.join(DOWNLOAD_FOLDER\
@@ -180,15 +178,16 @@ class RemotepeerProtocol(BaseProtocol):
         self.factory.clientConn.sendLine(msg_to_client)
         self.factory.clientConn.transport.loseConnection()
         self.hookHandler(self.rawDataReceived)
-        #load_the_file_msg = Basemessage(key=START_TRANSFER, data=self.factory.file_details['checksum'])
-        #self.sendLine(load_the_file_message)
         self.request_for_pieces()
 
     def rawDataReceived(self, data):
+        # since we are increasing the chunk size , we need to keep buffering till the delimiter is added
         self.file_buffer += data
-        stream, _ = self.file_buffer.rsplit(self.file_buffer_delimiter, 1)
-        self._process(stream)
-        self.file_buffer = ''
+        if data[-1] == self.file_buffer_delimiter:
+            print 'oh yeah'
+            stream, _ = self.file_buffer.rsplit(self.file_buffer_delimiter, 1)
+            self._process(stream)
+            self.file_buffer = ''
 
     def _process(self, stream):
         start = int(self.requestPieceNumber * self.factory.hash_chunksize)
@@ -198,7 +197,7 @@ class RemotepeerProtocol(BaseProtocol):
         #hasher.update(stream)
         # if verified_hash == hasher.hexdigest()
         self.writeToFile(stream)
-        print 'Progress {0}%'.format(self.factory.download_progress * 100.0/ self.factory.file_details['numberOfPieces'])
+        print 'Progress {0}% and #Pieces {1}'.format(self.factory.download_progress * 100.0/ self.factory.file_details['numberOfPieces'], self.factory.file_details['numberOfPieces'])
         if len(self.factory.processed_pieces) == self.factory.file_details['numberOfPieces']:
             self.factory.file_container.close()
             self.stop_requesting_for_pieces()
@@ -253,9 +252,9 @@ class RemotepeerFactory(Factory):
         self.download_folder = download_folder
         self.file_details = file_details
         self.hash_chunksize = 32.0  # length of hash is 32
-        self.chunk_size = 16000
-        self.file_details['numberOfPieces'] = math.ceil(self.file_details['file_size'] * 1024.0 * 1024.0 / self.chunk_size)
-        self.file_details['lastPieceSize'] = (self.file_details['file_size'] * 1024.0 * 1024.0) - (self.chunk_size * (self.file_details['numberOfPieces'] -1))
+        self.chunk_size = piece_size(self.file_details['file_size'])
+        self.file_details['numberOfPieces'] = math.ceil(self.file_details['file_size'] * 1000.0 * 1000.0 / self.chunk_size)
+        self.file_details['lastPieceSize'] = (self.file_details['file_size'] * 1000.0 * 1000.0) - (self.chunk_size * (self.file_details['numberOfPieces'] -1))
         self.bar = progressbar.ProgressBar(maxval=self.file_details['file_size'],\
                         widgets=[progressbar.Bar('=', '[', ']'), ' ',progressbar.Percentage()]).start()
         self.path_to_write = os.path.join(download_folder, os.path.basename(self.file_details['file_name']))
@@ -267,7 +266,7 @@ class RemotepeerFactory(Factory):
         self.initFile()
 
     def initFile(self):
-        self.file_container.seek(self.file_details['file_size'] * 1024.0 * 1024.0)
+        self.file_container.seek(self.file_details['file_size'] * 1000.0 * 1000.0)
         self.file_container.write('\0')
         self.file_container.close()
         self.file_container = open(self.path_to_write, 'r+b')

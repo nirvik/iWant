@@ -5,6 +5,7 @@ from fuzzywuzzy import fuzz, process
 import pickle
 import os, sys
 from fileindexer.findexer import FileHashIndexer
+from fileindexer import fileHashUtils
 from fileindexer.piece import piece_size
 from ..messagebaker import Basemessage
 from ..constants import HANDSHAKE, LIST_ALL_FILES, INIT_FILE_REQ, START_TRANSFER, \
@@ -28,20 +29,18 @@ class backend(BaseProtocol):
     def __init__(self, factory):
         self.factory = factory
         self.message_codes = {
-            #HANDSHAKE: self._handshake,
-            #LIST_ALL_FILES: self._list_file,
             INIT_FILE_REQ: self._load_file,
-            START_TRANSFER: self._start_transfer,
+            #START_TRANSFER: self._start_transfer,
             LEADER: self._update_leader,
             DEAD  : self._remove_dead_entry,
             FILE_SYS_EVENT: self._filesystem_modified,
             HASH_DUMP: self._dump_data_from_peers,
             SEARCH_REQ: self._leader_send_list,
             LOOKUP: self._leader_lookup,
-            SEARCH_RES: self._send_resp_client,
+            #SEARCH_RES: self._send_resp_client,
             IWANT_PEER_FILE: self._ask_leader_for_peers,
             SEND_PEER_DETAILS: self._leader_looksup_peer,
-            IWANT: self._start_transfer,
+            #IWANT: self._start_transfer,
             INDEXED : self.fileindexing_complete,
             REQ_CHUNK: self._send_chunk_response,
             END_GAME: self._end_game
@@ -69,20 +68,6 @@ class backend(BaseProtocol):
         else:
             return False
 
-    #def _handshake(self):
-    #    # TODO: unused
-    #    resMessage = Basemessage(key=HANDSHAKE, data=[])
-    #    self.sendLine(resMessage)
-
-    #def _list_file(self):
-    #    # TODO: unused
-    #    if self.factory.state == READY:
-    #        resMessage = Basemessage(key=LIST_ALL_FILES, data=self.factory.indexer.reduced_index())
-    #        self.sendLine(resMessage)
-    #    else:
-    #        resMessage = Basemessage(key=ERROR_LIST_ALL_FILES, data='File hashing incomplete')
-    #        self.sendLine(resMessage)
-
     def _load_file(self, data):
         fhash = data
         if self.factory.state == READY:
@@ -103,13 +88,13 @@ class backend(BaseProtocol):
         print 'received end game'
         self.fileObj.close()
 
-    def _start_transfer(self, data):
-        producer = FileSender()
-        consumer = self.transport
-        fhash = data
-        fileObj = self.factory.indexer.getFile(fhash)
-        deferred = producer.beginFileTransfer(fileObj, consumer)
-        deferred.addCallbacks(self._success, self._failure)
+    #def _start_transfer(self, data):
+    #    producer = FileSender()
+    #    consumer = self.transport
+    #    fhash = data
+    #    fileObj = self.factory.indexer.getFile(fhash)
+    #    deferred = producer.beginFileTransfer(fileObj, consumer)
+    #    deferred.addCallbacks(self._success, self._failure)
 
     #def _success(self, data):
     #    self.transport.loseConnection()
@@ -120,17 +105,20 @@ class backend(BaseProtocol):
     #    self.transport.loseConnection()
     #    self.unhookHandler()
 
+    @defer.inlineCallbacks
     def _update_leader(self, leader):
         self.factory.leader = leader
         print 'Updating Leader {0}'.format(self.factory.book.leader)
         if self.factory.state == READY and self.leaderThere():
-            self.factory.gather_data_then_notify()
+            file_meta_data = yield fileHashUtils.bootstrap(self.factory.folder, self.factory.dbpool)
+            self.factory._notify_leader(HASH_DUMP, file_meta_data)
+            #self.factory.gather_data_then_notify()
 
     def _filesystem_modified(self, data):
-        print 'oh fuck yeah , i got from file daemon'
+        print 'oh fuck yeah , i got from file daemon {0}'.format(data)
         if self.factory.state == READY and self.leaderThere():
-            self.fileindexing_complete()  # get the new instance of the file indexer and update leader
-            #self.factory.gather_data_then_notify()
+            #self.fileindexing_complete()  # get the new instance of the file indexer and update leader
+            self.factory._notify_leader(HASH_DUMP, data)
         else:
             if self.factory.state == NOT_READY:
                 resMessage = Basemessage(key=ERROR_LIST_ALL_FILES, data='File hashing incomplete')
@@ -142,8 +130,34 @@ class backend(BaseProtocol):
 
     def _dump_data_from_peers(self, data):
         uuid, dump = data
-        print 'got hash dump from {0}'.format(uuid)
-        self.factory.data_from_peers[uuid] = dump
+        operation = dump[0]
+        file_properties = dump[1:]
+        if uuid not in self.factory.data_from_peers.keys():
+            self.factory.data_from_peers[uuid] = {}
+            self.factory.data_from_peers[uuid]['hashes'] = {}
+            self.factory.data_from_peers[uuid]['filenames'] = {}
+
+        if operation == 'ADD':
+            for fproperty in file_properties:
+                file_hash = fproperty[2]
+                file_name = fproperty[0]
+                if file_name in self.factory.data_from_peers[uuid]['filenames']:
+                    old_hash_key = self.factory.data_from_peers[uuid]['filenames'][file_name]
+                    del self.factory.data_from_peers[uuid]['hashes'][old_hash_key]
+                if file_hash not in self.factory.data_from_peers[uuid]:
+                    self.factory.data_from_peers[uuid]['hashes'][file_hash] = fproperty
+                    self.factory.data_from_peers[uuid]['filenames'][file_name] = file_hash
+
+        elif operation == 'DEL':
+            for fproperty in file_properties:
+                file_name = fproperty[0]
+                file_hash = fproperty[2]
+                if file_hash in self.factory.data_from_peers[uuid]['hashes']:
+                    del self.factory.data_from_peers[uuid]['hashes'][file_hash]
+                    del self.factory.data_from_peers[uuid]['filenames'][file_name]
+
+        print 'got hash dump from {0}'.format(self.factory.data_from_peers[uuid]['filenames'])
+        #self.factory.data_from_peers[uuid] = dump
 
     def _remove_dead_entry(self, data):
         uuid = data
@@ -167,23 +181,30 @@ class backend(BaseProtocol):
         filtered_response = []
         l = []
         print ' the length of data_from_peers : {0}'.format(len(self.factory.data_from_peers.values()))
-        if len(self.factory.data_from_peers.values()) != 0:
-            for val in self.factory.data_from_peers.values():
-                l = pickle.loads(val['hidx'])
-                for i in l.values():
-                    if fuzz.partial_ratio(text_search.lower(), i.filename.lower()) >= 90:
-                        filtered_response.append(i)
-        else:
+        #if len(self.factory.data_from_peers.values()) != 0:
+        #    for val in self.factory.data_from_peers.values():
+        #        l = pickle.loads(val['hidx'])
+        #        for i in l.values():
+        #            if fuzz.partial_ratio(text_search.lower(), i.filename.lower()) >= 90:
+        #                filtered_response.append(i)
+        for uuid in self.factory.data_from_peers.keys():
+            for filename in self.factory.data_from_peers[uuid]['filenames']:
+                print fuzz.partial_ratio(text_search.lower(), filename.lower())
+                if fuzz.partial_ratio(text_search.lower(), filename.lower()) >= 90:
+                    file_hash = self.factory.data_from_peers[uuid]['filenames'][filename]
+                    filtered_response.append(self.factory.data_from_peers[uuid]['hashes'][file_hash])
+        if len(self.factory.data_from_peers.keys()) == 0:
             filtered_response = []
+
         update_msg = Basemessage(key=SEARCH_RES, data=filtered_response)
         self.sendLine(update_msg)  # this we are sending it back to the server
         self.transport.loseConnection()  # leader will loseConnection with the requesting server
 
-    def _send_resp_client(self, data):
-        #TODO : unused
-        update_msg = Basemessage(key=SEARCH_RES, data=data)
-        self.sendLine(update_msg)  # sending this response to the client
-        self.transport.loseConnection()  # losing connection with the client
+    #def _send_resp_client(self, data):
+    #    #TODO : unused
+    #    update_msg = Basemessage(key=SEARCH_RES, data=data)
+    #    self.sendLine(update_msg)  # sending this response to the client
+    #    self.transport.loseConnection()  # losing connection with the client
 
     def _ask_leader_for_peers(self, data):
         if self.leaderThere():
@@ -224,19 +245,21 @@ class backend(BaseProtocol):
         self.sendLine(msg)
         self.transport.loseConnection()
 
-    def fileindexing_complete(self):
+    def fileindexing_complete(self, updates):
         print 'server, indexing complete'
+        print 'got the updates as {0}'.format(updates)
         self.factory.state = READY
-        self.factory.indexer = FileHashIndexer(self.factory.folder,\
-                self.factory.config_folder)
-        self.factory.gather_data_then_notify()
+        self.factory._notify_leader(HASH_DUMP, updates)
+        #self.factory.indexer = FileHashIndexer(self.factory.folder,\
+        #        self.factory.config_folder)
+        #self.factory.gather_data_then_notify()
 
 
 class backendFactory(Factory):
 
     protocol = backend
 
-    def __init__(self, book, sharing_folder=None, download_folder=None, config_folder=None):
+    def __init__(self, book, dbpool, sharing_folder=None, download_folder=None, config_folder=None):
         self.state = NOT_READY  # file indexing state
         self.folder = sharing_folder
         self.download_folder = download_folder
@@ -246,21 +269,19 @@ class backendFactory(Factory):
         self.cached_data = None
         self.data_from_peers = {}
         self.indexer = None  # FileHashIndexer(self.folder, self.config_folder)
+        self.dbpool = dbpool
 
     def clientConnectionLost(self, connector, reason):
         print 'Lost connection'
 
-    def gather_data_then_notify(self):
-        self.cached_data = {}
-        hidx_file = os.path.join(self.config_folder, '.hindex')
-        pidx_file = os.path.join(self.config_folder, '.pindex')
-        with open(hidx_file) as f:
-            hidx = f.read()
-        #with open(pidx_file) as f:
-        #    pidx = f.read()
-        self.cached_data['hidx'] = hidx
-        #self.cached_data['pidx'] = pidx
-        self._notify_leader(key=HASH_DUMP)
+    #def gather_data_then_notify(self):
+    #    self.cached_data = {}
+    #    hidx_file = os.path.join(self.config_folder, '.hindex')
+    #    pidx_file = os.path.join(self.config_folder, '.pindex')
+    #    with open(hidx_file) as f:
+    #        hidx = f.read()
+    #    self.cached_data['hidx'] = hidx
+    #    self._notify_leader(key=HASH_DUMP)
 
     def _notify_leader(self, key=None, data=None, persist=False, clientConn=None):
         from twisted.internet.protocol import Protocol, ClientFactory
@@ -330,7 +351,7 @@ class backendFactory(Factory):
                 return ServerLeaderProtocol(self)
 
         if key == HASH_DUMP:
-            factory = ServerLeaderFactory(key=key, dump=(self.book.uuidObj, self.cached_data))
+            factory = ServerLeaderFactory(key=key, dump=(self.book.uuidObj, data))
         elif key == LOOKUP:
             factory = ServerLeaderFactory(key=key, dump=(self.book.uuidObj, data))
         elif key == SEND_PEER_DETAILS:

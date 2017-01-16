@@ -1,11 +1,12 @@
 from iwant.core.protocols import  FilemonitorClientFactory
 from iwant.core.config import SERVER_DAEMON_HOST, SERVER_DAEMON_PORT
 from twisted.internet import reactor
+from iwant.core.constants import INDEXED, FILE_SYS_EVENT
 
-def filechangeCB(config_path):
-    factory = FilemonitorClientFactory(config_path)
+def filechangeCB(updates):
+    factory = FilemonitorClientFactory(FILE_SYS_EVENT, updates)
     reactor.connectTCP(SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, factory)
 
-def fileindexedCB(data):
-    factory = FilemonitorClientFactory(None)
+def fileindexedCB(files):
+    factory = FilemonitorClientFactory(INDEXED, files)
     reactor.connectTCP(SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, factory)

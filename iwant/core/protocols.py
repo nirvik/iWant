@@ -61,26 +61,36 @@ class FilemonitorClientProtocol(Protocol):
         self.factory = factory
 
     def connectionMade(self):
-        if self.factory.config_path:
-            path = os.path.join(self.factory.config_path, '.hindex')
-            with open(path) as f:
-                dump = f.read()
-            pd = pickle.loads(dump)
-            updated_msg = Basemessage(key=FILE_SYS_EVENT, data=pd)
-        else:
-            updated_msg = Basemessage(key=INDEXED, data=None)
-        self.transport.write(str(updated_msg))
-        self.transport.loseConnection()
+        print '@filemonitor protocol'
+        print 'event {0}'.format(self.factory.event)
+        real_updates = self.factory.updates[1:]
+        if len(real_updates)!=0:
+            updated_msg = Basemessage(key=self.factory.event, data=self.factory.updates)
+            self.transport.write(str(updated_msg))
+            self.transport.loseConnection()
+
+        #if self.factory.config_path:
+        #    path = os.path.join(self.factory.config_path, '.hindex')
+        #    with open(path) as f:
+        #        dump = f.read()
+        #    pd = pickle.loads(dump)
+        #    updated_msg = Basemessage(key=FILE_SYS_EVENT, data=pd)
+        #else:
+        #    updated_msg = Basemessage(key=INDEXED, data=None)
+        #self.transport.write(str(updated_msg))
+        #self.transport.loseConnection()
 
 
 class FilemonitorClientFactory(ClientFactory):
 
-    def __init__(self, config_path):
+    def __init__(self, event, updates):
         '''
             :param config_path : string
             config_path contains the .iwant directory path
         '''
-        self.config_path = config_path
+        #self.config_path = config_path
+        self.event = event
+        self.updates = updates
 
     def buildProtocol(self, addr):
         return FilemonitorClientProtocol(self)

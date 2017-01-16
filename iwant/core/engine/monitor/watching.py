@@ -5,6 +5,7 @@ from twisted.internet import reactor
 from iwant.core.engine.fileindexer import fileHashUtils
 import sys
 import os
+from iwant.core.constants import FILE_SYS_EVENT
 
 class ScanFolder(object):
     def __init__(self, folder, callback, dbpool):
@@ -23,7 +24,8 @@ class ScanFolder(object):
 
     def fuckit(self, data):
         print 'scanfolder successcallback'
-        self.callback()
+        print data
+        self.callback(data)
 
     def process(self, event):
         print event.src_path, event.event_type

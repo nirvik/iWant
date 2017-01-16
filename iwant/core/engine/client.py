@@ -77,8 +77,8 @@ class Frontend(BaseProtocol):
         '''
         response = []
         for i in data:
-            response.append((i.filename, i.checksum, i.size))
-        print tabulate.tabulate(response, headers=["Filename", "Checksum", "Size"])
+            response.append(i)
+        print tabulate.tabulate(response, headers=["Filename", "Size", "Checksum", "RootHash"])
         reactor.stop()
 
     def leader_not_ready(self):

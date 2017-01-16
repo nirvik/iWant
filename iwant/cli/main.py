@@ -26,7 +26,7 @@ from twisted.internet import reactor, endpoints, threads
 from iwant.core.engine.client import FrontendFactory, Frontend
 from iwant.core.config import SERVER_DAEMON_HOST, SERVER_DAEMON_PORT
 from iwant.core.constants import SEARCH_REQ, IWANT_PEER_FILE,\
-        INIT_FILE_REQ
+        INIT_FILE_REQ, INDEXED
 
 def get_ips():
     ip_list = []
@@ -65,7 +65,8 @@ def get_paths():
     return (SHARING_FOLDER, DOWNLOAD_FOLDER, CONFIG_PATH)
 
 def fuckthisshit(data):
-    print data
+    print 'indexing done'
+    fileindexedCB(data)
 
 def main():
     ips = get_ips()
@@ -90,9 +91,9 @@ def main():
     filename = os.path.join(CONFIG_PATH, 'iwant.db')
     dbpool = adbapi.ConnectionPool('sqlite3', filename, check_same_thread=False)
     try:
-        #reactor.listenMulticast(MCAST_PORT, CommonroomProtocol(book, log), listenMultiple=True)  # spawning election daemon
+        reactor.listenMulticast(MCAST_PORT, CommonroomProtocol(book, log), listenMultiple=True)  # spawning election daemon
         endpoints.serverFromString(reactor, 'tcp:{0}'.format(SERVER_DAEMON_PORT)).\
-                listen(backendFactory(book, sharing_folder=SHARING_FOLDER,\
+                listen(backendFactory(book, dbpool, sharing_folder=SHARING_FOLDER,\
                 download_folder=DOWNLOAD_FOLDER, config_folder= CONFIG_PATH))
 
         #indexer = FileHashIndexer(SHARING_FOLDER, CONFIG_PATH, bootstrap=True)  # file indexer
@@ -101,7 +102,8 @@ def main():
         #ScanFolder(SHARING_FOLDER, CONFIG_PATH, filechangeCB)  # spawning filemonitoring daemon.. use inlineDeferreds
 
         indexer = fileHashUtils.bootstrap(SHARING_FOLDER, dbpool)
-        indexer.addCallback(fileindexedCB, None)
+        #indexer.addCallback(fileindexedCB, None)
+        indexer.addCallback(fileindexedCB)
         ScanFolder(SHARING_FOLDER, filechangeCB, dbpool)
         reactor.run()
 
@@ -126,26 +128,4 @@ def ui():
     elif args.download:
         reactor.connectTCP(SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, FrontendFactory(IWANT_PEER_FILE, args.download))
     reactor.run()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

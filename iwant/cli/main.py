@@ -6,6 +6,7 @@ import time_uuid
 import argparse
 import sqlite3
 from twisted.python import log
+from twisted.enterprise import adbapi
 from watchdog.observers import Observer
 from iwant.core.exception import MainException
 from iwant.core.engine.consensus.beacon import CommonroomProtocol
@@ -20,6 +21,7 @@ from iwant.core.engine.monitor.callbacks import filechangeCB,\
 #from iwant.core.engine.identity.book import CommonlogBook
 from iwant.core.engine.identity import CommonlogBook
 from iwant.core.engine.fileindexer.findexer import FileHashIndexer
+from iwant.core.engine.fileindexer import fileHashUtils
 from twisted.internet import reactor, endpoints, threads
 from iwant.core.engine.client import FrontendFactory, Frontend
 from iwant.core.config import SERVER_DAEMON_HOST, SERVER_DAEMON_PORT
@@ -62,6 +64,9 @@ def get_paths():
 
     return (SHARING_FOLDER, DOWNLOAD_FOLDER, CONFIG_PATH)
 
+def fuckthisshit(data):
+    print data
+
 def main():
     ips = get_ips()
     for count, ip in enumerate(ips):
@@ -71,11 +76,9 @@ def main():
     book = CommonlogBook(identity=timeuuid, state=0, ip = ips[ip-1])  # creating shared memory between server and election daemon
 
     SHARING_FOLDER, DOWNLOAD_FOLDER, CONFIG_PATH = get_paths()
-    #connection = sqlite3.connect(os.path.join(CONFIG_PATH, 'iwant.db'))
-    #try:
-    #    connection.execute("create table INDEXER (hash text, pathname text, size integer, sharing integer);");
-    #except Exception as err:
-    #    print err
+    SHARING_FOLDER = '/home/nirvik/Documents'
+    DOWNLOAD_FOLDER = '/home/nirvik/iWant'
+    CONFIG_PATH = '/home/nirvik/.iwant/'
 
     if not os.path.exists(SHARING_FOLDER) or \
         not os.path.exists(DOWNLOAD_FOLDER) or \
@@ -84,16 +87,22 @@ def main():
 
     logfile = os.path.join(CONFIG_PATH, 'iwant.log')
     log.startLogging(open(logfile, 'w'), setStdout=False)
-
+    filename = os.path.join(CONFIG_PATH, 'iwant.db')
+    dbpool = adbapi.ConnectionPool('sqlite3', filename, check_same_thread=False)
     try:
-        reactor.listenMulticast(MCAST_PORT, CommonroomProtocol(book, log), listenMultiple=True)  # spawning election daemon
+        #reactor.listenMulticast(MCAST_PORT, CommonroomProtocol(book, log), listenMultiple=True)  # spawning election daemon
         endpoints.serverFromString(reactor, 'tcp:{0}'.format(SERVER_DAEMON_PORT)).\
                 listen(backendFactory(book, sharing_folder=SHARING_FOLDER,\
                 download_folder=DOWNLOAD_FOLDER, config_folder= CONFIG_PATH))
-        indexer = FileHashIndexer(SHARING_FOLDER, CONFIG_PATH, bootstrap=True)  # file indexer
-        indexingDeferred = threads.deferToThread(indexer.index)
-        indexingDeferred.addCallback(fileindexedCB)
-        ScanFolder(SHARING_FOLDER, CONFIG_PATH, filechangeCB)  # spawning filemonitoring daemon.. use inlineDeferreds
+
+        #indexer = FileHashIndexer(SHARING_FOLDER, CONFIG_PATH, bootstrap=True)  # file indexer
+        #indexingDeferred = threads.deferToThread(indexer.index)
+        #indexingDeferred.addCallback(fileindexedCB)
+        #ScanFolder(SHARING_FOLDER, CONFIG_PATH, filechangeCB)  # spawning filemonitoring daemon.. use inlineDeferreds
+
+        indexer = fileHashUtils.bootstrap(SHARING_FOLDER, dbpool)
+        indexer.addCallback(fileindexedCB, None)
+        ScanFolder(SHARING_FOLDER, filechangeCB, dbpool)
         reactor.run()
 
     except KeyboardInterrupt:

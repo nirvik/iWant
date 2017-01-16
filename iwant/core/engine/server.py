@@ -28,8 +28,8 @@ class backend(BaseProtocol):
     def __init__(self, factory):
         self.factory = factory
         self.message_codes = {
-            HANDSHAKE: self._handshake,
-            LIST_ALL_FILES: self._list_file,
+            #HANDSHAKE: self._handshake,
+            #LIST_ALL_FILES: self._list_file,
             INIT_FILE_REQ: self._load_file,
             START_TRANSFER: self._start_transfer,
             LEADER: self._update_leader,
@@ -69,19 +69,19 @@ class backend(BaseProtocol):
         else:
             return False
 
-    def _handshake(self):
-        # TODO: unused
-        resMessage = Basemessage(key=HANDSHAKE, data=[])
-        self.sendLine(resMessage)
+    #def _handshake(self):
+    #    # TODO: unused
+    #    resMessage = Basemessage(key=HANDSHAKE, data=[])
+    #    self.sendLine(resMessage)
 
-    def _list_file(self):
-        # TODO: unused
-        if self.factory.state == READY:
-            resMessage = Basemessage(key=LIST_ALL_FILES, data=self.factory.indexer.reduced_index())
-            self.sendLine(resMessage)
-        else:
-            resMessage = Basemessage(key=ERROR_LIST_ALL_FILES, data='File hashing incomplete')
-            self.sendLine(resMessage)
+    #def _list_file(self):
+    #    # TODO: unused
+    #    if self.factory.state == READY:
+    #        resMessage = Basemessage(key=LIST_ALL_FILES, data=self.factory.indexer.reduced_index())
+    #        self.sendLine(resMessage)
+    #    else:
+    #        resMessage = Basemessage(key=ERROR_LIST_ALL_FILES, data='File hashing incomplete')
+    #        self.sendLine(resMessage)
 
     def _load_file(self, data):
         fhash = data
@@ -127,6 +127,7 @@ class backend(BaseProtocol):
             self.factory.gather_data_then_notify()
 
     def _filesystem_modified(self, data):
+        print 'oh fuck yeah , i got from file daemon'
         if self.factory.state == READY and self.leaderThere():
             self.fileindexing_complete()  # get the new instance of the file indexer and update leader
             #self.factory.gather_data_then_notify()
@@ -224,6 +225,7 @@ class backend(BaseProtocol):
         self.transport.loseConnection()
 
     def fileindexing_complete(self):
+        print 'server, indexing complete'
         self.factory.state = READY
         self.factory.indexer = FileHashIndexer(self.factory.folder,\
                 self.factory.config_folder)

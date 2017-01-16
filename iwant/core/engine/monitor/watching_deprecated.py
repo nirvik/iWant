@@ -2,15 +2,15 @@ import time
 from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
 from twisted.internet import reactor
-from iwant.core.engine.fileindexer import fileHashUtils
+from ..fileindexer import findexer
 import sys
 import os
 
 class ScanFolder(object):
-    def __init__(self, folder, callback, dbpool):
+    def __init__(self, folder, config_folder, callback):
         self.path = folder
         self.callback = callback
-        self.dbpool = dbpool
+        self.config_folder = config_folder
         self.event_handler = PatternMatchingEventHandler(patterns=['*'])
         self.event_handler.process = self.process
         self.event_handler.on_any_event = self.on_any_event
@@ -21,31 +21,21 @@ class ScanFolder(object):
     def on_any_event(self, event):
         self.process(event)
 
-    def fuckit(self, data):
-        print 'scanfolder successcallback'
-        self.callback()
-
     def process(self, event):
         print event.src_path, event.event_type
         if event.event_type in ["created", "modified"]:
+            idx = findexer.FileHashIndexer(event.src_path, self.config_folder)
             if event.is_directory:
-                add_event = fileHashUtils.index_folder(event.src_path, self.dbpool)
+                idx.index()
             else:
-                add_event = fileHashUtils.index_file(event.src_path, self.dbpool)
-            add_event.addCallback(self.fuckit)
+                idx.compute_hash_diff_file(event.src_path, singleFile=True)
         else:
             '''If file/directory is moved or deleted If directory is removed , pass the parent directory'''
 
             if event.is_directory:
-                remove_event = fileHashUtils.folder_delete_handler(event.src_path, self.dbpool)
+                    path = os.path.split(os.path.abspath(event.src_path))[0]  # parent directory
             else:
-                remove_event = fileHashUtils.file_delete_handler(event.src_path, self.dbpool)
-            remove_event.addCallback(self.fuckit)
-        #self.callback() # informing the server daemon about changes
-
-def hey():
-    pass
-
-if __name__ == '__main__':
-    ScanFolder('/home/nirvik/Music/Maa', hey)
-    reactor.run()
+                    path = os.path.dirname(event.src_path)
+            idx = findexer.FileHashIndexer(path, self.config_folder)
+            idx.index()
+        self.callback(self.config_folder) # informing the server daemon about changes

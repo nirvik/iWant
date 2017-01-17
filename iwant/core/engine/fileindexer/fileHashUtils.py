@@ -80,7 +80,7 @@ def index_file(path, dbpool):
     try:
         if filesize_from_db[0][0] != filesize:
             file_hash, piece_hashes, root_hash = get_file_hashes(path)
-            file_index_entry = (filesize, file_hash, buffer(piece_hashes), root_hash, path.decode('utf8'))
+            file_index_entry = (filesize, file_hash, piece_hashes, root_hash, path.decode('utf8'))
             print 'updating the hash'
             yield dbpool.runQuery('update indexer set size=?, hash=?, piecehashes=?, roothash=? where filename=?', (file_index_entry))
             file_property_list = ['ADD', (path, filesize, file_hash, root_hash)]
@@ -90,7 +90,7 @@ def index_file(path, dbpool):
         if len(filesize_from_db)==0:
             file_hash, piece_hashes, root_hash = get_file_hashes(path)
             print 'this is a new entry {0}'.format(path)
-            file_index_entry = (path.decode('utf8'), 1, filesize, file_hash, buffer(piece_hashes), root_hash)
+            file_index_entry = (path.decode('utf8'), 1, filesize, file_hash, piece_hashes, root_hash)
             yield dbpool.runQuery('insert into indexer values (?,?,?,?,?,?)', (file_index_entry))
             file_property_list = ['ADD', (path, filesize, file_hash, root_hash)]
             defer.returnValue(file_property_list)

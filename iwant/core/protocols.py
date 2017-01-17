@@ -4,7 +4,7 @@ from messagebaker import Basemessage
 from constants import FILE_SYS_EVENT, FILE_DETAILS_RESP, \
         LEADER, DEAD, FILE_TO_BE_DOWNLOADED, START_TRANSFER, INDEXED,\
         REQ_CHUNK, END_GAME, FILE_CONFIRMATION_MESSAGE, INIT_FILE_REQ,\
-        INTERESTED
+        INTERESTED, UNCHOKE
 from engine.fileindexer.piece import piece_size
 import ConfigParser
 import os, sys
@@ -18,7 +18,6 @@ class BaseProtocol(Protocol):
 
     def __init__(self):
         self.special_handler = None
-        self.file_buffer_delimiter = r'\r'
 
     def connectionMade(self):
         pass
@@ -27,7 +26,7 @@ class BaseProtocol(Protocol):
         self.transport.write(str(line))
 
     def sendRaw(self, buffered):
-        buffered = buffered + self.file_buffer_delimiter
+        buffered = buffered + r'\r'
         self.transport.write(buffered)
 
     def escape_dollar_sign(self, data):
@@ -199,7 +198,7 @@ class RemotepeerProtocol(BaseProtocol):
         # since we are increasing the chunk size , we need to keep buffering till the delimiter is added
         self.file_buffer += data
         if data.endswith(self.file_buffer_delimiter):
-            fileBuffer= self.fileBuffer[:-(len(self.file_buffer_delimiter))]
+            fileBuffer= self.file_buffer[:-(len(self.file_buffer_delimiter))]
             self._process(fileBuffer)
             self.file_buffer = ''
 
@@ -210,7 +209,7 @@ class RemotepeerProtocol(BaseProtocol):
             verified_hash = self.factory.file_details['pieceHashes'][start:end]
             hasher = hashlib.md5()
             hasher.update(stream)
-            if hasher.hexdigest() == verfied_hash:
+            if hasher.hexdigest() == verified_hash:
                 self.writeToFile(stream)
                 print 'Progress {0}%'.format(self.factory.download_progress * 100.0/ self.factory.number_of_pieces)
             else:
@@ -285,7 +284,7 @@ class RemotepeerFactory(Factory):
         self.path_to_write = os.path.join(download_folder, os.path.basename(self.file_details['file_name']))
         self.file_container = open(self.path_to_write, 'wb')
         self.request_queue = range(self.number_of_pieces)
-        self.super_set = set(range(number_of_pieces))
+        self.super_set = set(range(self.number_of_pieces))
         self.processed_queue = set()
         self.initFile()
 

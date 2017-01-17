@@ -76,11 +76,11 @@ def index_folder(folder, dbpool):
 @defer.inlineCallbacks
 def index_file(path, dbpool):
     filesize = get_file_size(path)
-    filesize_from_db = yield dbpool.runQuery('select size from indexer where filename=?',(path,))
+    filesize_from_db = yield dbpool.runQuery('select size from indexer where filename=?',(path.decode('utf8'),))
     try:
         if filesize_from_db[0][0] != filesize:
             file_hash, piece_hashes, root_hash = get_file_hashes(path)
-            file_index_entry = (filesize, file_hash, buffer(piece_hashes), root_hash, path)
+            file_index_entry = (filesize, file_hash, buffer(piece_hashes), root_hash, path.decode('utf8'))
             print 'updating the hash'
             yield dbpool.runQuery('update indexer set size=?, hash=?, piecehashes=?, roothash=? where filename=?', (file_index_entry))
             file_property_list = ['ADD', (path, filesize, file_hash, root_hash)]
@@ -90,8 +90,7 @@ def index_file(path, dbpool):
         if len(filesize_from_db)==0:
             file_hash, piece_hashes, root_hash = get_file_hashes(path)
             print 'this is a new entry {0}'.format(path)
-            file_index_entry = (path, 1, filesize, file_hash, buffer(piece_hashes), root_hash)
-            print file_index_entry
+            file_index_entry = (path.decode('utf8'), 1, filesize, file_hash, buffer(piece_hashes), root_hash)
             yield dbpool.runQuery('insert into indexer values (?,?,?,?,?,?)', (file_index_entry))
             file_property_list = ['ADD', (path, filesize, file_hash, root_hash)]
             defer.returnValue(file_property_list)
@@ -127,6 +126,11 @@ def get_file(file_hash, dbpool):
     file_query_response = yield dbpool.runQuery('select filename from indexer where hash=?', (file_hash,))
     print file_query_response[0][0]
     defer.returnValue(open(file_query_response[0][0], 'rb'))
+
+@defer.inlineCallbacks
+def get_piecehashes(file_hash, dbpool):
+    file_pieces_response = yield dbpool.runQuery('select piecehashes from indexer where hash=?', (file_hash,))
+    defer.returnValue(file_pieces_response[0][0])
 
 if __name__ == '__main__':
     bootstrap('/home/nirvik/Music/Maa')

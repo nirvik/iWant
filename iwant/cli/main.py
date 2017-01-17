@@ -77,7 +77,7 @@ def main():
     book = CommonlogBook(identity=timeuuid, state=0, ip = ips[ip-1])  # creating shared memory between server and election daemon
 
     SHARING_FOLDER, DOWNLOAD_FOLDER, CONFIG_PATH = get_paths()
-    SHARING_FOLDER = '/run/media/nirvik/Data/Movies'
+    SHARING_FOLDER = '/run/media/nirvik/Data/TOEFL'
     DOWNLOAD_FOLDER = '/home/nirvik/iWant'
     CONFIG_PATH = '/home/nirvik/.iwant/'
 

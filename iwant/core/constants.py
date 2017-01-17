@@ -20,7 +20,7 @@ WITHOUT_LEADER = 'WTL'
 
 #Server Daemon
 HANDSHAKE = 'handshake'
-FILE_SYS_EVENT = 'filesys_modified'
+FILE_SYS_EVENT = 'filesys-modified'
 FILE = 'file'
 LIST_ALL_FILES = 'listAll'
 ERROR_LIST_ALL_FILES = 'ErrorListingAll'
@@ -42,6 +42,9 @@ FILE_TO_BE_DOWNLOADED = 'filetobedownloaded'
 INDEXED = 'indexed'
 REQ_CHUNK = 'req-chunk'
 END_GAME = 'end-game'
+FILE_CONFIRMATION_MESSAGE = 'file-confirmation-message'
+INTERESTED = 'interested'
+UNCHOKE = 'unchoke'
 #Server States
 READY = 1
 NOT_READY = 0

@@ -12,7 +12,7 @@ from ..constants import HANDSHAKE, LIST_ALL_FILES, INIT_FILE_REQ, START_TRANSFER
         LEADER, DEAD, FILE_SYS_EVENT, HASH_DUMP, SEARCH_REQ, LOOKUP, SEARCH_RES,\
         IWANT_PEER_FILE, SEND_PEER_DETAILS, IWANT, INDEXED, FILE_DETAILS_RESP, \
         ERROR_LIST_ALL_FILES, READY, NOT_READY, PEER_LOOKUP_RESPONSE, LEADER_NOT_READY,\
-        REQ_CHUNK, END_GAME
+        REQ_CHUNK, END_GAME, FILE_CONFIRMATION_MESSAGE, INTERESTED, UNCHOKE
 from ..protocols import BaseProtocol
 from ..config import CLIENT_DAEMON_HOST, CLIENT_DAEMON_PORT, SERVER_DAEMON_PORT
 
@@ -29,7 +29,9 @@ class backend(BaseProtocol):
     def __init__(self, factory):
         self.factory = factory
         self.message_codes = {
+            INTERESTED : self._handshake,
             INIT_FILE_REQ: self._load_file,
+            #LOAD_FILE : self._load_file,
             #START_TRANSFER: self._start_transfer,
             LEADER: self._update_leader,
             DEAD  : self._remove_dead_entry,
@@ -68,42 +70,39 @@ class backend(BaseProtocol):
         else:
             return False
 
+    @defer.inlineCallbacks
+    def _handshake(self, data):
+        if self.factory.state == READY:
+            piece_hashes = yield fileHashUtils.get_piecehashes(data, self.factory.dbpool)
+            ack_msg = Basemessage(key=FILE_CONFIRMATION_MESSAGE, data=piece_hashes)
+            self.sendLine(ack_msg)
+        else:
+            print 'not ready yet'
+
+    @defer.inlineCallbacks
     def _load_file(self, data):
         fhash = data
         if self.factory.state == READY:
-            self.fileObj = self.factory.indexer.getFile(fhash)
-            fname, _, fsize, hash_string = self.factory.indexer.hash_index[fhash]
-            self.chunk_size = piece_size(fsize)  # file size is in MB
-            ack_msg = Basemessage(key=FILE_DETAILS_RESP, data=(fname, fsize))
-            self.sendLine(ack_msg)
+            self.fileObj = yield fileHashUtils.get_file(fhash, self.factory.dbpool)
+            unchoke_msg = Basemessage(key=UNCHOKE, data=None)
+            self.sendLine(unchoke_msg)
+            #self.fileObj = self.factory.indexer.getFile(fhash)
+            #fname, _, fsize, hash_string = self.factory.indexer.hash_index[fhash]
+            #self.chunk_size = piece_size(fsize)  # file size is in MB
+            #ack_msg = Basemessage(key=FILE_DETAILS_RESP, data=(fname, fsize))
+            #self.sendLine(ack_msg)
         else:
             print 'files not indexed yet'
 
-    def _send_chunk_response(self, pieceNumber):
-        self.fileObj.seek(int(pieceNumber) * self.chunk_size)  # need a global variable for piece size
-        buffered = self.fileObj.read(self.chunk_size)
+    def _send_chunk_response(self, piece_data):
+        piece_number, chunk_size = piece_data
+        self.fileObj.seek(int(piece_number) * chunk_size)  # need a global variable for piece size
+        buffered = self.fileObj.read(chunk_size)
         self.sendRaw(buffered)
 
     def _end_game(self):
         print 'received end game'
         self.fileObj.close()
-
-    #def _start_transfer(self, data):
-    #    producer = FileSender()
-    #    consumer = self.transport
-    #    fhash = data
-    #    fileObj = self.factory.indexer.getFile(fhash)
-    #    deferred = producer.beginFileTransfer(fileObj, consumer)
-    #    deferred.addCallbacks(self._success, self._failure)
-
-    #def _success(self, data):
-    #    self.transport.loseConnection()
-    #    self.unhookHandler()
-
-    #def _failure(self, reason):
-    #    print 'Failed {0}'.format(reason)
-    #    self.transport.loseConnection()
-    #    self.unhookHandler()
 
     @defer.inlineCallbacks
     def _update_leader(self, leader):
@@ -180,17 +179,11 @@ class backend(BaseProtocol):
         uuid, text_search = data
         filtered_response = []
         l = []
-        print ' the length of data_from_peers : {0}'.format(len(self.factory.data_from_peers.values()))
-        #if len(self.factory.data_from_peers.values()) != 0:
-        #    for val in self.factory.data_from_peers.values():
-        #        l = pickle.loads(val['hidx'])
-        #        for i in l.values():
-        #            if fuzz.partial_ratio(text_search.lower(), i.filename.lower()) >= 90:
-        #                filtered_response.append(i)
+        #print ' the length of data_from_peers : {0}'.format(len(self.factory.data_from_peers.values()))
         for uuid in self.factory.data_from_peers.keys():
             for filename in self.factory.data_from_peers[uuid]['filenames']:
                 print fuzz.partial_ratio(text_search.lower(), filename.lower())
-                if fuzz.partial_ratio(text_search.lower(), filename.lower()) >= 90:
+                if fuzz.partial_ratio(text_search.lower(), filename.lower()) >= 55:
                     file_hash = self.factory.data_from_peers[uuid]['filenames'][filename]
                     filtered_response.append(self.factory.data_from_peers[uuid]['hashes'][file_hash])
         if len(self.factory.data_from_peers.keys()) == 0:
@@ -199,12 +192,6 @@ class backend(BaseProtocol):
         update_msg = Basemessage(key=SEARCH_RES, data=filtered_response)
         self.sendLine(update_msg)  # this we are sending it back to the server
         self.transport.loseConnection()  # leader will loseConnection with the requesting server
-
-    #def _send_resp_client(self, data):
-    #    #TODO : unused
-    #    update_msg = Basemessage(key=SEARCH_RES, data=data)
-    #    self.sendLine(update_msg)  # sending this response to the client
-    #    self.transport.loseConnection()  # losing connection with the client
 
     def _ask_leader_for_peers(self, data):
         if self.leaderThere():
@@ -229,16 +216,18 @@ class backend(BaseProtocol):
         sending_data = []
 
         for key, val in self.factory.data_from_peers.iteritems():
-            value = pickle.loads(val['hidx'])
+            value = val['hashes']
             if data in value:
-                hash_string = value[data].pieceHashes
-                file_size = value[data].size
-                file_name = value[data].filename
+                file_name, file_size, file_hash, file_root_hash = value[data]
                 uuids.append(key)
+                #hash_string = value[data].pieceHashes
+                #file_size = value[data].size
+                #file_name = value[data].filename
+                #uuids.append(key)
 
         for uuid in uuids:
             sending_data.append(self.factory.book.peers[uuid])
-        sending_data.append(hash_string)  # appending hash of pieces
+        sending_data.append(file_root_hash)  # appending hash of pieces
         sending_data.append(file_size)  # appending filesize
         sending_data.append(file_name)  # appending filename
         msg = Basemessage(key=PEER_LOOKUP_RESPONSE, data=sending_data)
@@ -324,14 +313,13 @@ class backendFactory(Factory):
                     file_details = {
                         'file_name' : data[-1],
                         'file_size' : data[-2],
-                        'pieceHashes' : data[-3],
+                        'file_root_hash' : data[-3],
                         'checksum' : self.factory.dump
                     }
                     download_folder = self.factory.dump_folder
                     peers = data[:-3]
-                    #host, port = peers[0]
+                    print 'the following data is received from the leader \n{0}\n{1}'.format(file_details, peers)
                     P2PFactory = RemotepeerFactory(INIT_FILE_REQ, clientConn, download_folder, file_details)
-                    #reactor.connectTCP(host, SERVER_DAEMON_PORT, P2PFactory)
                     map(lambda host: reactor.connectTCP(host,SERVER_DAEMON_PORT, P2PFactory),
                             map(lambda host: host[0], peers))
 

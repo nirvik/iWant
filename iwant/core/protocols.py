@@ -13,6 +13,7 @@ import pickle
 import math
 import hashlib
 import random
+import time
 
 class BaseProtocol(Protocol):
 
@@ -193,6 +194,7 @@ class RemotepeerProtocol(BaseProtocol):
         self.factory.clientConn.transport.loseConnection()
         self.hookHandler(self.rawDataReceived)
         self.request_for_pieces()
+        self.factory.start_time = time.time()
 
     def rawDataReceived(self, data):
         # since we are increasing the chunk size , we need to keep buffering till the delimiter is added
@@ -211,7 +213,6 @@ class RemotepeerProtocol(BaseProtocol):
             hasher.update(stream)
             if hasher.hexdigest() == verified_hash:
                 self.writeToFile(stream)
-                print 'Progress {0}%'.format(self.factory.download_progress * 100.0/ self.factory.number_of_pieces)
             else:
                 print 'we are fucked while receiving pieces'
 
@@ -224,6 +225,7 @@ class RemotepeerProtocol(BaseProtocol):
                     self.request_for_pieces()
                 else:
                     self.factory.file_container.close()
+                    self.factory.end_time = time.time()
                     self.stop_requesting_for_pieces()
 
     def writeToFile(self, stream):
@@ -232,6 +234,7 @@ class RemotepeerProtocol(BaseProtocol):
         self.factory.file_container.write(stream)
         self.factory.processed_queue.add(self.requestPieceNumber)
         self.factory.download_progress += 1
+        self.factory.bar.update(self.factory.download_progress)
 
     def request_for_pieces(self):
         try:
@@ -246,16 +249,6 @@ class RemotepeerProtocol(BaseProtocol):
     def stop_requesting_for_pieces(self):
         stop_msg = Basemessage(key=END_GAME, data=None)
         self.sendLine(stop_msg)
-
-    #def write_to_file(self, data):
-    #    self.file_len_recv += len(data)
-    #    self.factory.bar.update(self.file_len_recv)
-    #    self.factory.file_container.write(data)
-    #    if self.file_len_recv >= self.factory.file_details['file_size']:
-    #        self.factory.bar.finish()
-    #        self.factory.file_container.close()
-    #        print '{0} downloaded'.format(os.path.basename(self.factory.file_details['file_name']))
-    #        self.transport.loseConnection()
 
 
 class RemotepeerFactory(Factory):
@@ -279,16 +272,16 @@ class RemotepeerFactory(Factory):
         self.hash_chunksize = 32
         self.chunk_size = piece_size(self.file_details['file_size'])
         self.number_of_pieces = int(math.ceil(self.file_details['file_size'] * 1000.0 * 1000.0 / self.chunk_size))
-        self.bar = progressbar.ProgressBar(maxval=self.file_details['file_size'],\
-                        widgets=[progressbar.Bar('=', '[', ']'), ' ',progressbar.Percentage()]).start()
+        self.bar = progressbar.ProgressBar(maxval=self.number_of_pieces,\
+                        widgets=[progressbar.Bar('=', '[', ']'), ' ',progressbar.Percentage(), ' ', progressbar.Timer()]).start()
         self.path_to_write = os.path.join(download_folder, os.path.basename(self.file_details['file_name']))
-        self.file_container = open(self.path_to_write, 'wb')
-        self.request_queue = range(self.number_of_pieces)
+        self.request_queue = set(range(self.number_of_pieces))
         self.super_set = set(range(self.number_of_pieces))
         self.processed_queue = set()
         self.initFile()
 
     def initFile(self):
+        self.file_container = open(self.path_to_write, 'wb')
         self.file_container.seek((self.file_details['file_size'] * 1000.0 * 1000.0) - 1)
         self.file_container.write('\0')
         self.file_container.close()
@@ -298,10 +291,14 @@ class RemotepeerFactory(Factory):
         pass
 
     def clientConnectionLost(self, connector, reason):
-        pass
+        self.number_of_peers -= 1
+        if self.number_of_peers <= 0:
+            self.file_container.close()
+            print 'lost all the connections.. safely closing the file'
 
     def clientConnectionFailed(self, connector, reason):
         print reason.getErrorMessage()
 
     def buildProtocol(self, addr):
+        self.number_of_peers += 1
         return RemotepeerProtocol(self)

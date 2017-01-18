@@ -22,7 +22,7 @@ class bcolors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
-def color_metadata(func):
+def color(func):
     def wrapper(metadata):
         print bcolors.OKBLUE + func(metadata) + bcolors.ENDC
     return wrapper
@@ -32,7 +32,7 @@ def color_warning(func):
         print bcolors.WARNING + func(warning_msg) + bcolors.ENDC
     return wrapper
 
-@color_metadata
+@color
 def print_metadata(data):
     return data
 
@@ -77,7 +77,7 @@ class Frontend(BaseProtocol):
         '''
         response = []
         for i in data:
-            response.append(i)
+            response.append(i[:-1])
         print tabulate.tabulate(response, headers=["Filename", "Size", "Checksum", "RootHash"])
         reactor.stop()
 

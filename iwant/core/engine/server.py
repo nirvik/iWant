@@ -31,18 +31,14 @@ class backend(BaseProtocol):
         self.message_codes = {
             INTERESTED : self._handshake,
             INIT_FILE_REQ: self._load_file,
-            #LOAD_FILE : self._load_file,
-            #START_TRANSFER: self._start_transfer,
             LEADER: self._update_leader,
             DEAD  : self._remove_dead_entry,
             FILE_SYS_EVENT: self._filesystem_modified,
             HASH_DUMP: self._dump_data_from_peers,
             SEARCH_REQ: self._leader_send_list,
             LOOKUP: self._leader_lookup,
-            #SEARCH_RES: self._send_resp_client,
             IWANT_PEER_FILE: self._ask_leader_for_peers,
             SEND_PEER_DETAILS: self._leader_looksup_peer,
-            #IWANT: self._start_transfer,
             INDEXED : self.fileindexing_complete,
             REQ_CHUNK: self._send_chunk_response,
             END_GAME: self._end_game
@@ -86,13 +82,8 @@ class backend(BaseProtocol):
             self.fileObj = yield fileHashUtils.get_file(fhash, self.factory.dbpool)
             unchoke_msg = Basemessage(key=UNCHOKE, data=None)
             self.sendLine(unchoke_msg)
-            #self.fileObj = self.factory.indexer.getFile(fhash)
-            #fname, _, fsize, hash_string = self.factory.indexer.hash_index[fhash]
-            #self.chunk_size = piece_size(fsize)  # file size is in MB
-            #ack_msg = Basemessage(key=FILE_DETAILS_RESP, data=(fname, fsize))
-            #self.sendLine(ack_msg)
         else:
-            print 'files not indexed yet'
+            print 'need to handle this part where files are  not indexed yet'
 
     def _send_chunk_response(self, piece_data):
         piece_number, chunk_size = piece_data
@@ -111,12 +102,10 @@ class backend(BaseProtocol):
         if self.factory.state == READY and self.leaderThere():
             file_meta_data = yield fileHashUtils.bootstrap(self.factory.folder, self.factory.dbpool)
             self.factory._notify_leader(HASH_DUMP, file_meta_data)
-            #self.factory.gather_data_then_notify()
 
     def _filesystem_modified(self, data):
         print 'oh fuck yeah , i got from file daemon {0}'.format(data)
         if self.factory.state == READY and self.leaderThere():
-            #self.fileindexing_complete()  # get the new instance of the file indexer and update leader
             self.factory._notify_leader(HASH_DUMP, data)
         else:
             if self.factory.state == NOT_READY:
@@ -156,7 +145,6 @@ class backend(BaseProtocol):
                     del self.factory.data_from_peers[uuid]['filenames'][file_name]
 
         print 'got hash dump from {0}'.format(self.factory.data_from_peers[uuid]['filenames'])
-        #self.factory.data_from_peers[uuid] = dump
 
     def _remove_dead_entry(self, data):
         uuid = data
@@ -220,10 +208,6 @@ class backend(BaseProtocol):
             if data in value:
                 file_name, file_size, file_hash, file_root_hash = value[data]
                 uuids.append(key)
-                #hash_string = value[data].pieceHashes
-                #file_size = value[data].size
-                #file_name = value[data].filename
-                #uuids.append(key)
 
         for uuid in uuids:
             sending_data.append(self.factory.book.peers[uuid])

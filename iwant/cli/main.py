@@ -68,6 +68,9 @@ def fuckthisshit(data):
     print 'indexing done'
     fileindexedCB(data)
 
+def set_text_factory(conn):
+    conn.text_factory = str
+
 def main():
     ips = get_ips()
     for count, ip in enumerate(ips):
@@ -78,7 +81,7 @@ def main():
 
     SHARING_FOLDER, DOWNLOAD_FOLDER, CONFIG_PATH = get_paths()
     SHARING_FOLDER = '/run/media/nirvik/Data/TOEFL'
-    DOWNLOAD_FOLDER = '/home/nirvik/iWant'
+    DOWNLOAD_FOLDER = '/run/media/nirvik/Data/iWantDownload'
     CONFIG_PATH = '/home/nirvik/.iwant/'
 
     if not os.path.exists(SHARING_FOLDER) or \
@@ -89,7 +92,7 @@ def main():
     logfile = os.path.join(CONFIG_PATH, 'iwant.log')
     log.startLogging(open(logfile, 'w'), setStdout=False)
     filename = os.path.join(CONFIG_PATH, 'iwant.db')
-    dbpool = adbapi.ConnectionPool('sqlite3', filename, check_same_thread=False)
+    dbpool = adbapi.ConnectionPool('sqlite3', filename, check_same_thread=False, cp_openfun = set_text_factory)
     try:
         reactor.listenMulticast(MCAST_PORT, CommonroomProtocol(book, log), listenMultiple=True)  # spawning election daemon
         endpoints.serverFromString(reactor, 'tcp:{0}'.format(SERVER_DAEMON_PORT)).\

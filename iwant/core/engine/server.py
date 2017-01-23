@@ -69,7 +69,7 @@ class backend(BaseProtocol):
     @defer.inlineCallbacks
     def _handshake(self, data):
         if self.factory.state == READY:
-            piece_hashes = yield fileHashUtils.get_piecehashes(data, self.factory.dbpool)
+            piece_hashes = yield fileHashUtils.get_piecehashes_of(data, self.factory.dbpool)
             ack_msg = Basemessage(key=FILE_CONFIRMATION_MESSAGE, data=piece_hashes)
             self.sendLine(ack_msg)
         else:
@@ -303,7 +303,7 @@ class backendFactory(Factory):
                     download_folder = self.factory.dump_folder
                     peers = data[:-3]
                     print 'the following data is received from the leader \n{0}\n{1}'.format(file_details, peers)
-                    P2PFactory = RemotepeerFactory(INIT_FILE_REQ, clientConn, download_folder, file_details)
+                    P2PFactory = RemotepeerFactory(INIT_FILE_REQ, clientConn, download_folder, file_details, self.factory.dbpool)
                     map(lambda host: reactor.connectTCP(host,SERVER_DAEMON_PORT, P2PFactory),
                             map(lambda host: host[0], peers))
 
@@ -313,11 +313,13 @@ class backendFactory(Factory):
                 clientConn.transport.loseConnection()
 
         class ServerLeaderFactory(ClientFactory):
-            def __init__(self, key, dump, dump_folder=None):
+            def __init__(self, key, dump, dump_folder=None, dbpool=None):
                 self.key = key
                 self.dump = dump
                 if dump_folder is not None:
                     self.dump_folder = dump_folder
+                if dbpool is not None:
+                    self.dbpool = dbpool
 
             def buildProtocol(self, addr):
                 return ServerLeaderProtocol(self)
@@ -327,7 +329,8 @@ class backendFactory(Factory):
         elif key == LOOKUP:
             factory = ServerLeaderFactory(key=key, dump=(self.book.uuidObj, data))
         elif key == SEND_PEER_DETAILS:
-            factory = ServerLeaderFactory(key=key, dump=data, dump_folder=self.download_folder)
+            factory = ServerLeaderFactory(key=key, dump=data, \
+                    dump_folder=self.download_folder, dbpool=self.dbpool)
 
         if key == SEND_PEER_DETAILS or key == LOOKUP:
             if self.leader is not None:

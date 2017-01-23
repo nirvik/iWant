@@ -1,4 +1,5 @@
-import os, sys
+import os
+import sys
 import time_uuid
 import ConfigParser
 from netifaces import interfaces, ifaddresses, AF_INET
@@ -18,7 +19,7 @@ from iwant.core.protocols import FilemonitorClientFactory,\
         FilemonitorClientProtocol
 from iwant.core.engine.monitor.callbacks import filechangeCB,\
         fileindexedCB
-#from iwant.core.engine.identity.book import CommonlogBook
+# from iwant.core.engine.identity.book import CommonlogBook
 from iwant.core.engine.identity import CommonlogBook
 from iwant.core.engine.fileindexer.findexer import FileHashIndexer
 from iwant.core.engine.fileindexer import fileHashUtils
@@ -44,10 +45,11 @@ def generate_id():
 
 def get_basepath():
     home_directory_path = os.path.expanduser('~')
-    if sys.platform =='linux2' or sys.platform == 'linux' or sys.platform == 'darwin':
+    if sys.platform == 'linux2' or sys.platform == 'linux'\
+            or sys.platform == 'darwin':
         iwant_directory_path = os.path.join(home_directory_path, '.iwant')
     elif sys.platform == 'win32':
-        iwant_directory_path = os.path.join(os.getenv('APPDATA'),'.iwant')
+        iwant_directory_path = os.path.join(os.getenv('APPDATA'), '.iwant')
 
     return iwant_directory_path
 
@@ -55,7 +57,7 @@ def get_paths():
     Config = ConfigParser.ConfigParser()
     conf_path = get_basepath()
     try:
-        Config.read(os.path.join(conf_path,'.iwant.conf'))
+        Config.read(os.path.join(conf_path, '.iwant.conf'))
         CONFIG_PATH = conf_path
         SHARING_FOLDER = Config.get('Paths', 'share')
         DOWNLOAD_FOLDER = Config.get('Paths', 'download')
@@ -77,10 +79,10 @@ def main():
         print count+1, ip
     ip = input('Enter index of ip addr:')
     timeuuid = generate_id()
-    book = CommonlogBook(identity=timeuuid, state=0, ip = ips[ip-1])  # creating shared memory between server and election daemon
+    book = CommonlogBook(identity=timeuuid, state=0, ip=ips[ip-1])
 
     SHARING_FOLDER, DOWNLOAD_FOLDER, CONFIG_PATH = get_paths()
-    SHARING_FOLDER = '/run/media/nirvik/Data/TOEFL'
+    SHARING_FOLDER = '/home/nirvik/Documents'#'/run/media/nirvik/Data/Movies'
     DOWNLOAD_FOLDER = '/run/media/nirvik/Data/iWantDownload'
     CONFIG_PATH = '/home/nirvik/.iwant/'
 
@@ -92,17 +94,18 @@ def main():
     logfile = os.path.join(CONFIG_PATH, 'iwant.log')
     log.startLogging(open(logfile, 'w'), setStdout=False)
     filename = os.path.join(CONFIG_PATH, 'iwant.db')
+    if not os.path.isfile(filename):
+        conn = sqlite3.connect(filename)
+        conn.execute('''CREATE TABLE indexer (filename text primary key, share integer, size real, hash text, piecehashes text, roothash text)''')
+        conn.execute('''CREATE TABLE resume (filename text primary key, hash text) ''')
+        conn.commit()
+
     dbpool = adbapi.ConnectionPool('sqlite3', filename, check_same_thread=False, cp_openfun = set_text_factory)
     try:
         reactor.listenMulticast(MCAST_PORT, CommonroomProtocol(book, log), listenMultiple=True)  # spawning election daemon
         endpoints.serverFromString(reactor, 'tcp:{0}'.format(SERVER_DAEMON_PORT)).\
                 listen(backendFactory(book, dbpool, sharing_folder=SHARING_FOLDER,\
                 download_folder=DOWNLOAD_FOLDER, config_folder= CONFIG_PATH))
-
-        #indexer = FileHashIndexer(SHARING_FOLDER, CONFIG_PATH, bootstrap=True)  # file indexer
-        #indexingDeferred = threads.deferToThread(indexer.index)
-        #indexingDeferred.addCallback(fileindexedCB)
-        #ScanFolder(SHARING_FOLDER, CONFIG_PATH, filechangeCB)  # spawning filemonitoring daemon.. use inlineDeferreds
 
         indexer = fileHashUtils.bootstrap(SHARING_FOLDER, dbpool)
         #indexer.addCallback(fileindexedCB, None)

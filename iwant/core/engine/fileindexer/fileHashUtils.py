@@ -106,6 +106,28 @@ def get_file_size(path):
     '''
     return os.stat(path).st_size/(1000.0 * 1000.0)
 
+@defer.inlineCallbacks
+def check_hash_present(hash_value, dbpool):
+    response = yield dbpool.runQuery('select hash from resume where hash = ?', (hash_value,))
+    if len(response) == 0:
+        defer.returnValue(False)
+    else:
+        defer.returnValue(True)
+
+
+@defer.inlineCallbacks
+def remove_resume_entry(hash_value, dbpool):
+    filename_response = yield dbpool.runQuery('select filename from indexer where hash=?', (hash_value,))
+    filename = filename_response[0][0]
+    yield dbpool.runQuery('delete from resume where hash=?', (hash_value,))
+    yield dbpool.runQuery('delete from indexer where filename=?', (filename,))
+
+@defer.inlineCallbacks
+def add_new_file_entry_resume(file_entry, dbpool):
+    filename, checksum = file_entry[0], file_entry[3]
+    print 'going to get fucked for {0}'.format(filename)
+    yield dbpool.runQuery('insert into indexer values (?,?,?,?,?,?)', (file_entry))
+    yield dbpool.runQuery('insert into resume values (?,?)', (filename, checksum))
 
 def get_file_hashes(filepath):
     hash_list = ''
@@ -131,7 +153,7 @@ def get_file(file_hash, dbpool):
     defer.returnValue(open(file_query_response[0][0], 'rb'))
 
 @defer.inlineCallbacks
-def get_piecehashes(file_hash, dbpool):
+def get_piecehashes_of(file_hash, dbpool):
     file_pieces_response = yield dbpool.runQuery('select piecehashes from indexer where hash=?', (file_hash,))
     defer.returnValue(file_pieces_response[0][0])
 

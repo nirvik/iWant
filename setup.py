@@ -31,7 +31,7 @@ with open(os.path.join(iwant_config_path, '.iwant.conf'), 'w') as configfile:
 
 setup(
         name='iwant',
-        version='1.0.0',
+        version='1.0.1',
         install_requires= requirement_list,
         author='Nirvik Ghosh',
         author_email='nirvik1993@gmail.com',

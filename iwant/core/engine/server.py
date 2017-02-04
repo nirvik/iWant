@@ -90,6 +90,7 @@ class backend(BaseProtocol):
         self.fileObj.seek(int(piece_number) * chunk_size)  # need a global variable for piece size
         buffered = self.fileObj.read(chunk_size)
         self.sendRaw(buffered)
+        # run a loop for piece_numbers and send it like this : piece_number;buffered
 
     def _end_game(self):
         print 'received end game'

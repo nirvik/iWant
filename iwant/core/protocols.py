@@ -16,6 +16,7 @@ import math
 import hashlib
 import random
 import time
+from struct import pack, unpack, calcsize
 
 class BaseProtocol(Protocol):
 
@@ -157,7 +158,14 @@ class RemotepeerProtocol(BaseProtocol):
         self.file_len_recv = 0.0
         self.special_handler = None
         self.requestPieceNumber = 0
-        self.file_buffer = ''
+        self._file_buffer = b""
+        self._unprocessed = b""
+        self.send_format = "!I"
+        self.receive_format = "!II"
+        self.prefixLength = calcsize(self.receive_format)
+        self.chunk_number = None
+        self.length = None
+        self._complete_chunk_received = True
         self.events = {
             #FILE_DETAILS_RESP: self.start_transfer,
             FILE_CONFIRMATION_MESSAGE : self.verify_pieces,
@@ -210,25 +218,45 @@ class RemotepeerProtocol(BaseProtocol):
         self.factory.start_time = time.time()
 
     def rawDataReceived(self, data):
-        # since we are increasing the chunk size , we need to keep buffering till the delimiter is added
-        self.file_buffer += data
-        if data.endswith(self.file_buffer_delimiter):
-            fileBuffer= self.file_buffer[:-(len(self.file_buffer_delimiter))]
-            self._process(fileBuffer)
-            self.file_buffer = ''
+        all_data = self._unprocessed + data
+        currentOffset = 0
+        prefixLength = self.prefixLength
+        self._unprocessed = all_data
+        receive_format = self.receive_format
 
-    def _process(self, stream):
-        if self.requestPieceNumber not in self.factory.processed_queue:
-            start = int(self.requestPieceNumber * self.factory.hash_chunksize)
-            end = int(start + self.factory.hash_chunksize)
-            verified_hash = self.factory.file_details['pieceHashes'][start:end]
+        while len(all_data) >= (currentOffset + prefixLength):
+            messageStart = currentOffset + prefixLength
+            if self._complete_chunk_received:
+                self.length, self.chunk_number = unpack(receive_format, all_data[currentOffset: messageStart])
+                messageEnd = messageStart + self.length
+                currentOffset = messageEnd
+                self._file_buffer = all_data[messageStart: messageEnd]
+                if len(self._file_buffer) == self.length:
+                    self.verify_and_write(self._file_buffer, self.chunk_number)
+                else:
+                    self._complete_chunk_received = False
+            else:
+                old_length = len(self._file_buffer)
+                self._file_buffer += all_data[currentOffset : (self.length - old_length)]
+                currentOffset = self.length - old_length
+                if len(self._file_buffer) == self.length:
+                    self.verify_and_write(self._file_buffer, self.chunk_number)
+                    self._file_buffer = b""
+                    self._complete_chunk_received = True
+        self._unprocessed = all_data[currentOffset:]
+
+    def verify_and_write(self, stream, chunk_number):
+        if chunk_number not in self.factory.processed_queue:
+            start = chunk_number * self.factory.hash_chunksize
+            end = start + self.factory.hash_chunksize
+            verified_hash = self.factory.file_details['pieceHashes'][start: end]
             hasher = hashlib.md5()
             hasher.update(stream)
             if hasher.hexdigest() == verified_hash:
-                self.writeToFile(stream)
+                self.writeToFile(stream, chunk_number)
             else:
                 print 'we are fucked while receiving pieces {0} and \
-                        size is {1} and chunk size should be {2}'.format(self.requestPieceNumber, len(stream),\
+                        size is {1} and chunk size should be {2}'.format(chunk_number, len(stream),\
                         self.factory.chunk_size)
 
             if len(self.factory.request_queue) > 0:
@@ -244,18 +272,19 @@ class RemotepeerProtocol(BaseProtocol):
                     self.stop_requesting_for_pieces()
                     fileHashUtils.remove_resume_entry(self.factory.file_details['checksum'], self.factory.dbpool)
 
-    def writeToFile(self, stream):
-        seek_position = int(self.requestPieceNumber * self.factory.chunk_size)
+    def writeToFile(self, stream, chunk_number):
+        seek_position = chunk_number * self.factory.chunk_size
         self.factory.file_container.seek(seek_position)
         self.factory.file_container.write(stream)
-        self.factory.processed_queue.add(self.requestPieceNumber)
+        self.factory.processed_queue.add(chunk_number)
         self.factory.download_progress += 1
         self.factory.bar.update(self.factory.download_progress)
 
     def request_for_pieces(self):
         try:
-            self.requestPieceNumber = self.factory.request_queue.pop()
+            self.requestPieceNumber = self.factory.request_queue.pop()  # ask for 5 pieces in flight
             request_chunk_msg = Basemessage(key=REQ_CHUNK, data=(self.requestPieceNumber, self.factory.chunk_size))
+            # data = ([list of pieces], chunk_size)
             self.sendLine(request_chunk_msg)
         except Exception as e:
             print 'file is already written'

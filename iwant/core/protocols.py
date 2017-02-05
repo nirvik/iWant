@@ -30,7 +30,7 @@ class BaseProtocol(Protocol):
         self.transport.write(str(line))
 
     def sendRaw(self, buffered):
-        buffered = buffered + r'\r'
+        #buffered = buffered + r'\r'
         self.transport.write(buffered)
 
     def escape_dollar_sign(self, data):
@@ -214,7 +214,7 @@ class RemotepeerProtocol(BaseProtocol):
         self.factory.clientConn.sendLine(msg_to_client)
         self.factory.clientConn.transport.loseConnection()
         self.hookHandler(self.rawDataReceived)
-        self.request_for_pieces()
+        self.request_for_pieces(bootstrap=True)
         self.factory.start_time = time.time()
 
     def rawDataReceived(self, data):
@@ -264,12 +264,14 @@ class RemotepeerProtocol(BaseProtocol):
             else:
                 if self.factory.super_set - self.factory.processed_queue:
                     remaining_pieces = self.factory.super_set - self.factory.processed_queue
-                    self.factory.request_queue.update(remaining_pieces)
-                    self.request_for_pieces()
+                    #self.factory.request_queue.update(remaining_pieces)
+                    self.factory.end_game_queue.update(remaining_pieces)
+                    self.request_for_pieces(endgame=True)
                 else:
                     self.factory.file_container.close()
                     self.factory.end_time = time.time()
                     self.stop_requesting_for_pieces()
+                    print 'file written'
                     fileHashUtils.remove_resume_entry(self.factory.file_details['checksum'], self.factory.dbpool)
 
     def writeToFile(self, stream, chunk_number):
@@ -280,16 +282,36 @@ class RemotepeerProtocol(BaseProtocol):
         self.factory.download_progress += 1
         self.factory.bar.update(self.factory.download_progress)
 
-    def request_for_pieces(self):
-        try:
-            self.requestPieceNumber = self.factory.request_queue.pop()  # ask for 5 pieces in flight
-            request_chunk_msg = Basemessage(key=REQ_CHUNK, data=(self.requestPieceNumber, self.factory.chunk_size))
-            # data = ([list of pieces], chunk_size)
+    def request_for_pieces(self, bootstrap=False, endgame=False):
+        #try:
+        #    self.requestPieceNumber = self.factory.request_queue.pop()  # ask for 5 pieces in flight
+        #    request_chunk_msg = Basemessage(key=REQ_CHUNK, data=(self.requestPieceNumber, self.factory.chunk_size))
+        #    self.sendLine(request_chunk_msg)
+        #except Exception as e:
+        #    print 'file is already written'
+        #    self.factory.file_container.close()
+        #    self.transport.loseConnection()
+        request_piece_numbers = self.generate_pieces(bootstrap, endgame)
+        for i in request_piece_numbers:
+            request_chunk_msg = Basemessage(key=REQ_CHUNK, data=pack(self.send_format, i))
             self.sendLine(request_chunk_msg)
-        except Exception as e:
-            print 'file is already written'
-            self.factory.file_container.close()
-            self.transport.loseConnection()
+
+    def generate_pieces(self, bootstrap=False, endgame=False):
+        piece_list = []
+        if bootstrap:
+            number_of_pieces = 5
+        else:
+            number_of_pieces = 3
+        for count in range(number_of_pieces):
+            try:
+                if not endgame:
+                    piece_number = self.factory.request_queue.pop()
+                else:
+                    piece_number = self.factory.end_game_queue.pop()
+                piece_list.append(piece_number)
+            except:
+                pass
+        return piece_list
 
     def stop_requesting_for_pieces(self):
         stop_msg = Basemessage(key=END_GAME, data=None)
@@ -323,6 +345,7 @@ class RemotepeerFactory(Factory):
         self.path_to_write = os.path.join(download_folder, os.path.basename(self.file_details['file_name']))
         self.request_queue = set(range(self.number_of_pieces))
         self.super_set = set(range(self.number_of_pieces))
+        self.end_game_queue = set()
         self.processed_queue = set()
         self._is_new_file = False
         x = fileHashUtils.check_hash_present(self.file_details['checksum'], self.dbpool)

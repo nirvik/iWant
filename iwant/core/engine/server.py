@@ -15,7 +15,7 @@ from ..constants import HANDSHAKE, LIST_ALL_FILES, INIT_FILE_REQ, START_TRANSFER
         REQ_CHUNK, END_GAME, FILE_CONFIRMATION_MESSAGE, INTERESTED, UNCHOKE
 from ..protocols import BaseProtocol
 from ..config import CLIENT_DAEMON_HOST, CLIENT_DAEMON_PORT, SERVER_DAEMON_PORT
-
+from struct import pack, unpack, calcsize
 
 class ServerException(Exception):
     def __init__(self, code, msg):
@@ -80,17 +80,22 @@ class backend(BaseProtocol):
         fhash = data
         if self.factory.state == READY:
             self.fileObj = yield fileHashUtils.get_file(fhash, self.factory.dbpool)
+            self.chunk_size = piece_size(fileHashUtils.get_file_size(self.fileObj.name))
             unchoke_msg = Basemessage(key=UNCHOKE, data=None)
             self.sendLine(unchoke_msg)
         else:
             print 'need to handle this part where files are  not indexed yet'
 
     def _send_chunk_response(self, piece_data):
-        piece_number, chunk_size = piece_data
-        self.fileObj.seek(int(piece_number) * chunk_size)  # need a global variable for piece size
-        buffered = self.fileObj.read(chunk_size)
-        self.sendRaw(buffered)
-        # run a loop for piece_numbers and send it like this : piece_number;buffered
+        #piece_number, chunk_size = piece_data
+        receive_format = "!I"
+        piece_number, = unpack(receive_format, piece_data)
+        self.fileObj.seek(int(piece_number) * self.chunk_size)  # need a global variable for piece size
+        #buffered = self.fileObj.read(chunk_size)
+        file_buffer = self.fileObj.read(self.chunk_size)
+        len_of_file = len(file_buffer)
+        file_chunk_response = pack("!II", len_of_file, piece_number) + file_buffer
+        self.sendRaw(file_chunk_response)
 
     def _end_game(self):
         print 'received end game'

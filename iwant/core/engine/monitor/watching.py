@@ -45,9 +45,6 @@ class ScanFolder(object):
             remove_event.addCallback(self.fuckit)
         #self.callback() # informing the server daemon about changes
 
-def hey():
-    pass
-
 if __name__ == '__main__':
     ScanFolder('/home/nirvik/Music/Maa', hey)
     reactor.run()

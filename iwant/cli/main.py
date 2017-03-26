@@ -66,6 +66,18 @@ def get_paths():
 
     return (SHARING_FOLDER, DOWNLOAD_FOLDER, CONFIG_PATH)
 
+def change_paths(sharing_folder=None, downloading_folder=None):
+    Config = ConfigParser.ConfigParser()
+    conf_path = get_basepath()
+    try:
+        Config.read(os.path.join(conf_path, '.iwant.conf'))
+        if sharing_folder is not None:
+            Config.set('Paths', 'share', sharing_folder)
+        if downloading_folder is not None:
+            Config.set('Paths', 'download', downloading_folder)
+    except:
+        raise MainException(2)
+
 def fuckthisshit(data):
     print 'indexing done'
     fileindexedCB(data)
@@ -104,11 +116,9 @@ def main():
     try:
         reactor.listenMulticast(MCAST_PORT, CommonroomProtocol(book, log), listenMultiple=True)  # spawning election daemon
         endpoints.serverFromString(reactor, 'tcp:{0}'.format(SERVER_DAEMON_PORT)).\
-                listen(backendFactory(book, dbpool, sharing_folder=SHARING_FOLDER,\
-                download_folder=DOWNLOAD_FOLDER, config_folder= CONFIG_PATH))
+                listen(backendFactory(book, dbpool))
 
         indexer = fileHashUtils.bootstrap(SHARING_FOLDER, dbpool)
-        #indexer.addCallback(fileindexedCB, None)
         indexer.addCallback(fileindexedCB)
         ScanFolder(SHARING_FOLDER, filechangeCB, dbpool)
         reactor.run()
@@ -126,6 +136,7 @@ def ui():
     parser = argparse.ArgumentParser(description='iwant')
     parser.add_argument("--search", help="instant fuzzy search", type=str)
     parser.add_argument("--download", help="download file by giving hash", type=str)
+    parser.add_argument("--share", help="change the share folder directory", type=str)
     args = parser.parse_args()
 
     if args.search:
@@ -133,5 +144,22 @@ def ui():
 
     elif args.download:
         reactor.connectTCP(SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, FrontendFactory(IWANT_PEER_FILE, args.download))
+
+    elif args.share:
+        NEW_SHARING_FOLDER = args.share
+        _, _, CONFIG_PATH = get_paths()
+        change_paths(sharing_folder=NEW_SHARING_FOLDER)
+        filename = os.path.join(CONFIG_PATH, 'iwant.db')
+        if not os.path.isfile(filename):
+            conn = sqlite3.connect(filename)
+            conn.execute('''CREATE TABLE indexer (filename text primary key, share integer, size real, hash text, piecehashes text, roothash text)''')
+            conn.execute('''CREATE TABLE resume (filename text primary key, hash text) ''')
+            conn.commit()
+
+        dbpool = adbapi.ConnectionPool('sqlite3', filename, check_same_thread=False, cp_openfun = set_text_factory)
+        indexer = fileHashUtils.bootstrap(NEW_SHARING_FOLDER, dbpool)
+        indexer.addCallback(fileindexedCB)
+        ScanFolder(NEW_SHARING_FOLDER, filechangeCB, dbpool)
+
     reactor.run()
 

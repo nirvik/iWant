@@ -249,15 +249,15 @@ class RemotepeerProtocol(BaseProtocol):
         if chunk_number not in self.factory.processed_queue:
             start = chunk_number * self.factory.hash_chunksize
             end = start + self.factory.hash_chunksize
-            verified_hash = self.factory.file_details['pieceHashes'][start: end]
-            hasher = hashlib.md5()
-            hasher.update(stream)
-            if hasher.hexdigest() == verified_hash:
-                self.writeToFile(stream, chunk_number)
-            else:
-                print 'we are fucked while receiving pieces {0} and \
-                        size is {1} and chunk size should be {2}'.format(chunk_number, len(stream),\
-                        self.factory.chunk_size)
+            #verified_hash = self.factory.file_details['pieceHashes'][start: end]
+            #hasher = hashlib.md5()
+            #hasher.update(stream)
+            #if hasher.hexdigest() == verified_hash:
+            self.writeToFile(stream, chunk_number)
+            #else:
+            #    print 'we are fucked while receiving pieces {0} and \
+            #            size is {1} and chunk size should be {2}'.format(chunk_number, len(stream),\
+            #            self.factory.chunk_size)
 
             if len(self.factory.request_queue) > 0:
                 self.request_for_pieces()
@@ -299,9 +299,9 @@ class RemotepeerProtocol(BaseProtocol):
     def generate_pieces(self, bootstrap=False, endgame=False):
         piece_list = []
         if bootstrap:
-            number_of_pieces = 5
+            number_of_pieces = 1
         else:
-            number_of_pieces = 3
+            number_of_pieces = 1
         for count in range(number_of_pieces):
             try:
                 if not endgame:

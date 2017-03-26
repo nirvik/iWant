@@ -25,10 +25,21 @@ def bootstrap(folder, dbpool):
         unshare_msg = unshare(unshare_remaining_files, dbpool)
         indexing_done = yield index_folder(folder, dbpool)
 
-        file_property_list = ['ADD']
+        combined_response = []
+        files_added_metainfo = ['ADD', folder]
+        files_removed_metainfo = ['DEL']
+        removed_files_temp = []
+
+        for filepath in unshare_remaining_files:
+            file_entry = yield dbpool.runQuery('select filename, size, hash, roothash from indexer where filename=?', (filepath,))
+            removed_files_temp.append(file_entry)
+
+        files_removed_metainfo.extend(removed_files_temp)
         sharing_files = yield dbpool.runQuery('select filename, size, hash, roothash from indexer where share=1')
-        file_property_list.extend(sharing_files)
-        defer.returnValue(file_property_list)
+        files_added_metainfo.extend(sharing_files)
+        combined_response.append(files_added_metainfo)
+        combined_response.append(files_removed_metainfo)  # consists of a list containing two lists .. ADD and DEL
+        defer.returnValue(combined_response)
 
 
 @defer.inlineCallbacks
@@ -76,12 +87,10 @@ def index_folder(folder, dbpool):
 @defer.inlineCallbacks
 def index_file(path, dbpool):
     filesize = get_file_size(path)
-    #filesize_from_db = yield dbpool.runQuery('select size from indexer where filename=?',(path.decode('utf8'),))
     filesize_from_db = yield dbpool.runQuery('select size from indexer where filename=?',(path,))
     try:
         if filesize_from_db[0][0] != filesize:
             file_hash, piece_hashes, root_hash = get_file_hashes(path)
-            #file_index_entry = (filesize, file_hash, piece_hashes, root_hash, path.decode('utf8'))
             file_index_entry = (filesize, file_hash, piece_hashes, root_hash, path)
             print 'updating the hash'
             yield dbpool.runQuery('update indexer set size=?, hash=?, piecehashes=?, roothash=? where filename=?', (file_index_entry))
@@ -92,7 +101,6 @@ def index_file(path, dbpool):
         if len(filesize_from_db)==0:
             file_hash, piece_hashes, root_hash = get_file_hashes(path)
             print 'this is a new entry {0}'.format(path)
-            #file_index_entry = (path.decode('utf8'), 1, filesize, file_hash, piece_hashes, root_hash)
             file_index_entry = (path, 1, filesize, file_hash, piece_hashes, root_hash)
             yield dbpool.runQuery('insert into indexer values (?,?,?,?,?,?)', (file_index_entry))
             file_property_list = ['ADD', (path, filesize, file_hash, root_hash)]

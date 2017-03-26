@@ -110,10 +110,10 @@ class backend(BaseProtocol):
             self.factory._notify_leader(HASH_DUMP, file_meta_data)
 
     def _filesystem_modified(self, data):
-        print 'oh fuck yeah , i got from file daemon {0}'.format(data)
+        print 'got updates from watchdog daemon {0}'.format(data)
         if self.factory.state == READY and self.leaderThere():
             self.factory._notify_leader(HASH_DUMP, data)
-        else:
+        else:  # dont think this part is required at all
             if self.factory.state == NOT_READY:
                 resMessage = Basemessage(key=ERROR_LIST_ALL_FILES, data='File hashing incomplete')
                 self.sendLine(resMessage)
@@ -224,43 +224,37 @@ class backend(BaseProtocol):
         self.sendLine(msg)
         self.transport.loseConnection()
 
-    def fileindexing_complete(self, updates):
+    def fileindexing_complete(self, indexing_response):
         print 'server, indexing complete'
-        print 'got the updates as {0}'.format(updates)
+        print 'got the updates as {0}'.format(indexing_response)
         self.factory.state = READY
-        self.factory._notify_leader(HASH_DUMP, updates)
-        #self.factory.indexer = FileHashIndexer(self.factory.folder,\
-        #        self.factory.config_folder)
-        #self.factory.gather_data_then_notify()
+        old_sharing_folder = None
+        if self.factory.sharing_folder is not None:
+            old_sharing_folder = self.factory.sharing_folder
+        new_folder_indexed_response, old_folder_indexed_response = indexing_response
+        self.factory.sharing_folder = indexing_response[1]
+        new_folder_request_payload = new_folder_indexed_response[0:1] + new_folder_indexed_response[2:]
+        self.factory._notify_leader(HASH_DUMP, new_folder_request_payload)
+        if old_sharing_folder != self.factory.sharing_folder and old_sharing_folder is not None:
+            self.factory._notify_leader(HASH_DUMP, old_folder_request_payload)
 
 
 class backendFactory(Factory):
 
     protocol = backend
 
-    def __init__(self, book, dbpool, sharing_folder=None, download_folder=None, config_folder=None):
+    def __init__(self, book, dbpool):
         self.state = NOT_READY  # file indexing state
-        self.folder = sharing_folder
-        self.download_folder = download_folder
-        self.config_folder = config_folder
-        self.book = book
+        self.sharing_folder = None
+        self.book = book  # book contains all the peer addresses
         self.leader = None
         self.cached_data = None
         self.data_from_peers = {}
-        self.indexer = None  # FileHashIndexer(self.folder, self.config_folder)
+        self.indexer = None
         self.dbpool = dbpool
 
     def clientConnectionLost(self, connector, reason):
         print 'Lost connection'
-
-    #def gather_data_then_notify(self):
-    #    self.cached_data = {}
-    #    hidx_file = os.path.join(self.config_folder, '.hindex')
-    #    pidx_file = os.path.join(self.config_folder, '.pindex')
-    #    with open(hidx_file) as f:
-    #        hidx = f.read()
-    #    self.cached_data['hidx'] = hidx
-    #    self._notify_leader(key=HASH_DUMP)
 
     def _notify_leader(self, key=None, data=None, persist=False, clientConn=None):
         from twisted.internet.protocol import Protocol, ClientFactory
@@ -308,6 +302,7 @@ class backendFactory(Factory):
                     }
                     download_folder = self.factory.dump_folder
                     peers = data[:-3]
+                    peers = peers * 4
                     print 'the following data is received from the leader \n{0}\n{1}'.format(file_details, peers)
                     P2PFactory = RemotepeerFactory(INIT_FILE_REQ, clientConn, download_folder, file_details, self.factory.dbpool)
                     map(lambda host: reactor.connectTCP(host,SERVER_DAEMON_PORT, P2PFactory),
@@ -336,7 +331,9 @@ class backendFactory(Factory):
             factory = ServerLeaderFactory(key=key, dump=(self.book.uuidObj, data))
         elif key == SEND_PEER_DETAILS:
             factory = ServerLeaderFactory(key=key, dump=data, \
-                    dump_folder=self.download_folder, dbpool=self.dbpool)
+                    dump_folder='', dbpool=self.dbpool)
+            #factory = ServerLeaderFactory(key=key, dump=data, \
+            #        dump_folder=self.download_folder, dbpool=self.dbpool)
 
         if key == SEND_PEER_DETAILS or key == LOOKUP:
             if self.leader is not None:

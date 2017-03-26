@@ -6,6 +6,7 @@ import piece
 
 @defer.inlineCallbacks
 def bootstrap(folder, dbpool):
+    print 'this is where its fucked up {0}'.format(folder)
     if not os.path.exists(folder):
         raise NotImplementedError
     else:
@@ -32,9 +33,10 @@ def bootstrap(folder, dbpool):
 
         for filepath in unshare_remaining_files:
             file_entry = yield dbpool.runQuery('select filename, size, hash, roothash from indexer where filename=?', (filepath,))
-            removed_files_temp.append(file_entry)
+            #removed_files_temp.append(file_entry)
+            files_removed_metainfo.append(file_entry[0])
 
-        files_removed_metainfo.extend(removed_files_temp)
+        #files_removed_metainfo.extend(removed_files_temp)
         sharing_files = yield dbpool.runQuery('select filename, size, hash, roothash from indexer where share=1')
         files_added_metainfo.extend(sharing_files)
         combined_response.append(files_added_metainfo)

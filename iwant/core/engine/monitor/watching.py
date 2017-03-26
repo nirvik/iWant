@@ -9,6 +9,7 @@ from iwant.core.constants import FILE_SYS_EVENT
 
 class ScanFolder(object):
     def __init__(self, folder, callback, dbpool):
+        print 'now scanning {0}'.format(folder)
         self.path = folder
         self.callback = callback
         self.dbpool = dbpool

@@ -106,8 +106,9 @@ class backend(BaseProtocol):
         self.factory.leader = leader
         print 'Updating Leader {0}'.format(self.factory.book.leader)
         if self.factory.state == READY and self.leaderThere():
-            file_meta_data = yield fileHashUtils.bootstrap(self.factory.folder, self.factory.dbpool)
-            self.factory._notify_leader(HASH_DUMP, file_meta_data)
+            file_meta_data = yield fileHashUtils.bootstrap(self.factory.sharing_folder, self.factory.dbpool)
+            #self.factory._notify_leader(HASH_DUMP, file_meta_data)
+            self.fileindexing_complete(file_meta_data)
 
     def _filesystem_modified(self, data):
         print 'got updates from watchdog daemon {0}'.format(data)
@@ -126,6 +127,9 @@ class backend(BaseProtocol):
         uuid, dump = data
         operation = dump[0]
         file_properties = dump[1:]
+        print 'Operating for leader: {0}'.format(operation)
+        print 'File properties\n{0}'.format(file_properties)
+
         if uuid not in self.factory.data_from_peers.keys():
             self.factory.data_from_peers[uuid] = {}
             self.factory.data_from_peers[uuid]['hashes'] = {}
@@ -137,7 +141,10 @@ class backend(BaseProtocol):
                 file_name = fproperty[0]
                 if file_name in self.factory.data_from_peers[uuid]['filenames']:
                     old_hash_key = self.factory.data_from_peers[uuid]['filenames'][file_name]
-                    del self.factory.data_from_peers[uuid]['hashes'][old_hash_key]
+                    try:
+                        del self.factory.data_from_peers[uuid]['hashes'][old_hash_key]
+                    except:
+                        print 'STUFF GETS FUCKED RIGHT HERE : {0}'.format(file_name)
                 if file_hash not in self.factory.data_from_peers[uuid]:
                     self.factory.data_from_peers[uuid]['hashes'][file_hash] = fproperty
                     self.factory.data_from_peers[uuid]['filenames'][file_name] = file_hash
@@ -149,8 +156,14 @@ class backend(BaseProtocol):
                 if file_hash in self.factory.data_from_peers[uuid]['hashes']:
                     del self.factory.data_from_peers[uuid]['hashes'][file_hash]
                     del self.factory.data_from_peers[uuid]['filenames'][file_name]
+                    print 'deleting hash : {0} filename {1}'.format(file_hash, file_name)
+                else:
+                    if file_name in self.factory.data_from_peers[uuid]['filenames']:
+                        # very very stupid hack [ just because of empty files ]
+                        del self.factory.data_from_peers[uuid]['filenames'][file_name]
+                        print 'deleting HACK : {0} filename {1}'.format(file_hash, file_name)
 
-        print 'got hash dump from {0}'.format(self.factory.data_from_peers[uuid]['filenames'])
+        #print 'got hash dump from {0}'.format(self.factory.data_from_peers[uuid]['filenames'])
 
     def _remove_dead_entry(self, data):
         uuid = data
@@ -173,13 +186,14 @@ class backend(BaseProtocol):
         uuid, text_search = data
         filtered_response = []
         l = []
-        #print ' the length of data_from_peers : {0}'.format(len(self.factory.data_from_peers.values()))
         for uuid in self.factory.data_from_peers.keys():
             for filename in self.factory.data_from_peers[uuid]['filenames']:
-                print fuzz.partial_ratio(text_search.lower(), filename.lower())
                 if fuzz.partial_ratio(text_search.lower(), filename.lower()) >= 55:
                     file_hash = self.factory.data_from_peers[uuid]['filenames'][filename]
-                    filtered_response.append(self.factory.data_from_peers[uuid]['hashes'][file_hash])
+                    try:
+                        filtered_response.append(self.factory.data_from_peers[uuid]['hashes'][file_hash])
+                    except:
+                        print 'BIGGEST MESS UP {0}'.format(filename)
         if len(self.factory.data_from_peers.keys()) == 0:
             filtered_response = []
 
@@ -226,17 +240,21 @@ class backend(BaseProtocol):
 
     def fileindexing_complete(self, indexing_response):
         print 'server, indexing complete'
-        print 'got the updates as {0}'.format(indexing_response)
         self.factory.state = READY
         old_sharing_folder = None
         if self.factory.sharing_folder is not None:
             old_sharing_folder = self.factory.sharing_folder
         new_folder_indexed_response, old_folder_indexed_response = indexing_response
-        self.factory.sharing_folder = indexing_response[1]
+
+        self.factory.sharing_folder = new_folder_indexed_response[1]
+        print 'this is the new sharing folder {0}'.format(self.factory.sharing_folder)
+
         new_folder_request_payload = new_folder_indexed_response[0:1] + new_folder_indexed_response[2:]
+        #print 'oh god ! this is what we are sending {0}'.format(new_folder_request_payload)
         self.factory._notify_leader(HASH_DUMP, new_folder_request_payload)
         if old_sharing_folder != self.factory.sharing_folder and old_sharing_folder is not None:
-            self.factory._notify_leader(HASH_DUMP, old_folder_request_payload)
+            self.factory._notify_leader(HASH_DUMP, old_folder_indexed_response)
+            #print 'we are sending this as well {0}'.format(old_folder_indexed_response)
 
 
 class backendFactory(Factory):

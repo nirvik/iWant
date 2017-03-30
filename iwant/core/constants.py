@@ -17,6 +17,7 @@ SECRET_VAL = 'secret value'
 FACE_OFF = 'face off'
 WITH_LEADER = 'WL'
 WITHOUT_LEADER = 'WTL'
+PEER_DEAD = 'peer dead'
 
 #Server Daemon
 HANDSHAKE = 'handshake'

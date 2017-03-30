@@ -1,9 +1,9 @@
 from twisted.internet.protocol import Protocol, ClientFactory, DatagramProtocol, Factory
 from twisted.internet import defer
 from engine.fileindexer.piece import piece_size
-from messagebaker import Basemessage
+from messagebaker import Basemessage, bake, unbake
 from constants import FILE_SYS_EVENT, FILE_DETAILS_RESP, \
-        LEADER, DEAD, FILE_TO_BE_DOWNLOADED, START_TRANSFER, INDEXED,\
+        LEADER, PEER_DEAD, FILE_TO_BE_DOWNLOADED, START_TRANSFER, INDEXED,\
         REQ_CHUNK, END_GAME, FILE_CONFIRMATION_MESSAGE, INIT_FILE_REQ,\
         INTERESTED, UNCHOKE
 from iwant.core.engine.fileindexer import fileHashUtils
@@ -30,7 +30,6 @@ class BaseProtocol(Protocol):
         self.transport.write(str(line))
 
     def sendRaw(self, buffered):
-        #buffered = buffered + r'\r'
         self.transport.write(buffered)
 
     def escape_dollar_sign(self, data):
@@ -71,7 +70,8 @@ class FilemonitorClientProtocol(Protocol):
         print 'event {0}'.format(self.factory.event)
         real_updates = self.factory.updates[1:]
         if len(real_updates)!=0:
-            updated_msg = Basemessage(key=self.factory.event, data=self.factory.updates)
+            #updated_msg = Basemessage(key=self.factory.event, data=self.factory.updates)
+            updated_msg = bake(key=self.factory.event, data=self.factory.updates)
             self.transport.write(str(updated_msg))
             self.transport.loseConnection()
 
@@ -124,9 +124,11 @@ class ServerElectionProtocol(Protocol):
 
     def connectionMade(self):
         if self.factory.dead_peer is None:
-            update_msg = Basemessage(key=LEADER, data=(self.factory.leader_host, self.factory.leader_port))
+            update_msg = bake(key=LEADER, data=(self.factory.leader_host, self.factory.leader_port))
+            #update_msg = Basemessage(key=LEADER, data=(self.factory.leader_host, self.factory.leader_port))
         else:
-            update_msg = Basemessage(key=DEAD, data=self.factory.dead_peer)
+            update_msg = bake(key=PEER_DEAD, data=self.factory.dead_peer)
+            #update_msg = Basemessage(key=DEAD, data=self.factory.dead_peer)
         self.transport.write(str(update_msg))
         self.transport.loseConnection()
 
@@ -174,12 +176,15 @@ class RemotepeerProtocol(BaseProtocol):
 
 
     def connectionMade(self):
-        update_msg = Basemessage(key=INTERESTED, data=self.factory.file_details['checksum'])
+        #update_msg = Basemessage(key=INTERESTED, data=self.factory.file_details['checksum'])
+        update_msg = bake(key=INTERESTED, data=self.factory.file_details['checksum'])
         self.sendLine(update_msg)
 
     def serviceMessage(self, data):
-        req = Basemessage(message=data)
-        self.events[req.key](req.data)
+        key, value = unbake(message=data)
+        self.events[key](value)
+        #req = Basemessage(message=data)
+        #self.events[req.key](req.data)
 
     def verify_pieces(self, data):
         print '@initiate request {0}'.format(data)
@@ -200,7 +205,8 @@ class RemotepeerProtocol(BaseProtocol):
                 )
                 self.factory._is_new_file = False
             self.factory.file_details['pieceHashes'] = data
-            load_file_msg = Basemessage(key=INIT_FILE_REQ, data=self.factory.file_details['checksum'])
+            #load_file_msg = Basemessage(key=INIT_FILE_REQ, data=self.factory.file_details['checksum'])
+            load_file_msg = bake(key=INIT_FILE_REQ, data=self.factory.file_details['checksum'])
             self.sendLine(load_file_msg)
 
     def start_transfer(self, data):
@@ -208,7 +214,8 @@ class RemotepeerProtocol(BaseProtocol):
         DOWNLOAD_FOLDER = self.factory.download_folder
         filename = os.path.basename(self.factory.file_details['file_name'])
         filesize = self.factory.file_details['file_size']
-        msg_to_client = Basemessage(key=FILE_TO_BE_DOWNLOADED, data=(filename, filesize))
+        #msg_to_client = Basemessage(key=FILE_TO_BE_DOWNLOADED, data=(filename, filesize))
+        msg_to_client = bake(key=FILE_TO_BE_DOWNLOADED, data=(filename, filesize))
         print '****** iWanto Download {0} **********'.format(filename)
         print 'Downloading to: {0}'.format(self.factory.path_to_write)
         self.factory.clientConn.sendLine(msg_to_client)
@@ -293,7 +300,8 @@ class RemotepeerProtocol(BaseProtocol):
         #    self.transport.loseConnection()
         request_piece_numbers = self.generate_pieces(bootstrap, endgame)
         for i in request_piece_numbers:
-            request_chunk_msg = Basemessage(key=REQ_CHUNK, data=pack(self.send_format, i))
+            #request_chunk_msg = Basemessage(key=REQ_CHUNK, data=pack(self.send_format, i))
+            request_chunk_msg = bake(key=REQ_CHUNK, data=pack(self.send_format, i))
             self.sendLine(request_chunk_msg)
 
     def generate_pieces(self, bootstrap=False, endgame=False):
@@ -314,7 +322,8 @@ class RemotepeerProtocol(BaseProtocol):
         return piece_list
 
     def stop_requesting_for_pieces(self):
-        stop_msg = Basemessage(key=END_GAME, data=None)
+        stop_msg = bake(key=END_GAME, data=None)
+        #stop_msg = Basemessage(key=END_GAME, data=None)
         self.sendLine(stop_msg)
 
 

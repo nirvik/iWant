@@ -3,7 +3,6 @@ import sys
 import time_uuid
 import ConfigParser
 from netifaces import interfaces, ifaddresses, AF_INET
-import time_uuid
 import argparse
 import sqlite3
 from twisted.python import log
@@ -159,7 +158,9 @@ def ui():
         dbpool = adbapi.ConnectionPool('sqlite3', filename, check_same_thread=False, cp_openfun = set_text_factory)
         indexer = fileHashUtils.bootstrap(NEW_SHARING_FOLDER, dbpool)
         indexer.addCallback(fileindexedCB)
-        ScanFolder(NEW_SHARING_FOLDER, filechangeCB, dbpool)
+        print 'planning on scanning this new folder {0}'.format(NEW_SHARING_FOLDER)
+        x = ScanFolder(NEW_SHARING_FOLDER, filechangeCB, dbpool)
+        print x
 
     reactor.run()
 

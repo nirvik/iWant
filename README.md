@@ -1,10 +1,10 @@
 # iWant
 ## CLI based decentralized peer to peer file sharing
 
-###__What is this?__  
+### __What is this?__  
 A commandline tool for searching and downloading files in LAN network.  
 
-###Installation
+### Installation
 ```sh
 python setup.py install --user
 ```
@@ -15,7 +15,7 @@ python setup.py install --user
 5.  Run the client 
 6.  Maintain the order of steps  
 
-##Server
+## Server
 
 To run the server
 ```sh

@@ -7,9 +7,9 @@ import os, sys
 from fileindexer.findexer import FileHashIndexer
 from fileindexer import fileHashUtils
 from fileindexer.piece import piece_size
-from ..messagebaker import Basemessage
+from ..messagebaker import Basemessage, bake, unbake
 from ..constants import HANDSHAKE, LIST_ALL_FILES, INIT_FILE_REQ, START_TRANSFER, \
-        LEADER, DEAD, FILE_SYS_EVENT, HASH_DUMP, SEARCH_REQ, LOOKUP, SEARCH_RES,\
+        LEADER, PEER_DEAD, FILE_SYS_EVENT, HASH_DUMP, SEARCH_REQ, LOOKUP, SEARCH_RES,\
         IWANT_PEER_FILE, SEND_PEER_DETAILS, IWANT, INDEXED, FILE_DETAILS_RESP, \
         ERROR_LIST_ALL_FILES, READY, NOT_READY, PEER_LOOKUP_RESPONSE, LEADER_NOT_READY,\
         REQ_CHUNK, END_GAME, FILE_CONFIRMATION_MESSAGE, INTERESTED, UNCHOKE
@@ -32,7 +32,7 @@ class backend(BaseProtocol):
             INTERESTED : self._handshake,
             INIT_FILE_REQ: self._load_file,
             LEADER: self._update_leader,
-            DEAD  : self._remove_dead_entry,
+            PEER_DEAD  : self._remove_dead_entry,
             FILE_SYS_EVENT: self._filesystem_modified,
             HASH_DUMP: self._dump_data_from_peers,
             SEARCH_REQ: self._leader_send_list,
@@ -51,11 +51,13 @@ class backend(BaseProtocol):
         '''
             Controller which processes the incoming messages and invokes the appropriate functions
         '''
-        req = Basemessage(message=data)
-        try:
-            self.message_codes[req.key]()
-        except:
-            self.message_codes[req.key](req.data)
+        #req = Basemessage(message=data)
+        key, value = unbake(message=data)
+        #try:
+        #    self.message_codes[req.key]()
+        #except:
+        #    #self.message_codes[req.key](req.data)
+        self.message_codes[key](value)
 
     def leaderThere(self):
         '''
@@ -81,7 +83,8 @@ class backend(BaseProtocol):
         if self.factory.state == READY:
             self.fileObj = yield fileHashUtils.get_file(fhash, self.factory.dbpool)
             self.chunk_size = piece_size(fileHashUtils.get_file_size(self.fileObj.name))
-            unchoke_msg = Basemessage(key=UNCHOKE, data=None)
+            #unchoke_msg = Basemessage(key=UNCHOKE, data=None)
+            unchoke_msg = bake(key=UNCHOKE, data=None)
             self.sendLine(unchoke_msg)
         else:
             print 'need to handle this part where files are  not indexed yet'
@@ -97,7 +100,7 @@ class backend(BaseProtocol):
         file_chunk_response = pack("!II", len_of_file, piece_number) + file_buffer
         self.sendRaw(file_chunk_response)
 
-    def _end_game(self):
+    def _end_game(self, data=None):
         print 'received end game'
         self.fileObj.close()
 
@@ -116,10 +119,12 @@ class backend(BaseProtocol):
             self.factory._notify_leader(HASH_DUMP, data)
         else:  # dont think this part is required at all
             if self.factory.state == NOT_READY:
-                resMessage = Basemessage(key=ERROR_LIST_ALL_FILES, data='File hashing incomplete')
+                #resMessage = Basemessage(key=ERROR_LIST_ALL_FILES, data='File hashing incomplete')
+                resMessage = bake(key=ERROR_LIST_ALL_FILES, data='File hashing incomplete')
                 self.sendLine(resMessage)
             else:
-                msg = Basemessage(key=LEADER_NOT_READY, data=None)
+                #msg = Basemessage(key=LEADER_NOT_READY, data=None)
+                msg = bake(key=LEADER_NOT_READY, data=None)
                 self.sendLine(msg)
             self.transport.loseConnection()
 
@@ -178,11 +183,13 @@ class backend(BaseProtocol):
             print 'lookup request sent to leader'
             self.factory._notify_leader(key=LOOKUP, data=data, persist=True, clientConn=self)
         else:
-            msg = Basemessage(key=LEADER_NOT_READY, data=None)
+            #msg = Basemessage(key=LEADER_NOT_READY, data=None)
+            msg = bake(key=LEADER_NOT_READY, data=None)
             self.sendLine(msg)
             self.transport.loseConnection()
 
     def _leader_lookup(self, data):
+        # TODO: there is absolutely no use of sending uuid of the message initiator
         uuid, text_search = data
         filtered_response = []
         l = []
@@ -197,7 +204,8 @@ class backend(BaseProtocol):
         if len(self.factory.data_from_peers.keys()) == 0:
             filtered_response = []
 
-        update_msg = Basemessage(key=SEARCH_RES, data=filtered_response)
+        #update_msg = Basemessage(key=SEARCH_RES, data=filtered_response)
+        update_msg = bake(key=SEARCH_RES, data=filtered_response)
         self.sendLine(update_msg)  # this we are sending it back to the server
         self.transport.loseConnection()  # leader will loseConnection with the requesting server
 
@@ -207,7 +215,8 @@ class backend(BaseProtocol):
             print data
             self.factory._notify_leader(key=SEND_PEER_DETAILS, data=data, persist=True, clientConn=self)
         else:
-            msg = Basemessage(key=LEADER_NOT_READY, data=None)
+            #msg = Basemessage(key=LEADER_NOT_READY, data=None)
+            msg = bake(key=LEADER_NOT_READY, data=None)
             self.sendLine(msg)
             self.transport.loseConnection()
 
@@ -234,7 +243,8 @@ class backend(BaseProtocol):
         sending_data.append(file_root_hash)  # appending hash of pieces
         sending_data.append(file_size)  # appending filesize
         sending_data.append(file_name)  # appending filename
-        msg = Basemessage(key=PEER_LOOKUP_RESPONSE, data=sending_data)
+        #msg = Basemessage(key=PEER_LOOKUP_RESPONSE, data=sending_data)
+        msg = bake(key=PEER_LOOKUP_RESPONSE, data=sending_data)
         self.sendLine(msg)
         self.transport.loseConnection()
 
@@ -290,17 +300,20 @@ class backendFactory(Factory):
                 }
 
             def connectionMade(self):
-                update_msg = Basemessage(key=self.factory.key, data=self.factory.dump)
+                #update_msg = Basemessage(key=self.factory.key, data=self.factory.dump)
+                update_msg = bake(key=self.factory.key, data=self.factory.dump)
                 self.transport.write(str(update_msg))
                 if not persist:
                     self.transport.loseConnection()
 
             def serviceMessage(self, data):
-                req = Basemessage(message=data)
-                try:
-                    self.events[req.key]()
-                except:
-                    self.events[req.key](req.data)
+                #req = Basemessage(message=data)
+                key, value = unbake(message=data)
+                #try:
+                #    self.events[req.key]()
+                #except:
+                #    self.events[req.key](req.data)
+                self.events[key](value)
 
             def talk_to_peer(self, data):
                 from twisted.internet.protocol import Protocol, ClientFactory, Factory
@@ -327,7 +340,8 @@ class backendFactory(Factory):
                             map(lambda host: host[0], peers))
 
             def send_file_search_response(self, data):
-                update_msg = Basemessage(key=SEARCH_RES, data=data)
+                #update_msg = Basemessage(key=SEARCH_RES, data=data)
+                update_msg = bake(key=SEARCH_RES, data=data)
                 clientConn.sendLine(update_msg)
                 clientConn.transport.loseConnection()
 

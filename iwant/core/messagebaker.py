@@ -340,15 +340,18 @@ def unbake(message=None):
     json_msg = json.loads(message)
     if 'leader_id' in json_msg['payload']:
         leader_uuid = json_msg['payload']['leader_id']
-        json_msg['payload']['leader_id'] = time_uuid.TIME_UUID(leader_uuid)
+        if leader_uuid is not None:
+            json_msg['payload']['leader_id'] = time_uuid.TIME_UUID(leader_uuid)
 
     if 'identity' in json_msg['payload']:
         identity_uuid = json_msg['payload']['identity']
-        json_msg['payload']['identity'] = time_uuid.TIME_UUID(identity_uuid)
+        if identity_uuid is not None:
+            json_msg['payload']['identity'] = time_uuid.TIME_UUID(identity_uuid)
 
     if 'dead_uuid' in json_msg['payload']:
         dead_uuid = json_msg['payload']['dead_uuid']
-        json_msg['payload']['dead_uuid'] = time_uuid.TIME_UUID(dead_uuid)
+        if dead_uuid is not None:
+            json_msg['payload']['dead_uuid'] = time_uuid.TIME_UUID(dead_uuid)
 
     action_dispatcher, action_payload = json_msg['type'], json_msg['payload']
     return action_dispatcher, action_payload

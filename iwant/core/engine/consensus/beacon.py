@@ -20,27 +20,27 @@ import struct
 MCAST_ADDR = (MCAST_IP, MCAST_PORT)
 
 class EventHooker(object):
-	__doc__ = """
-		Registering custom event callbacks
-	"""
-	def __init__(self):
-		self.events = {}
+    __doc__ = """
+            Registering custom event callbacks
+    """
+    def __init__(self):
+        self.events = {}
 
-	def bind(self,event,callback):
-            '''
-            Registers callbacks to an event
-            :param event : string
-            :param callback : function
-            '''
-            self.events[event] = callback
+    def bind(self,event,callback):
+        '''
+        Registers callbacks to an event
+        :param event : string
+        :param callback : function
+        '''
+        self.events[event] = callback
 
-	def unbind(self,event):
-            '''
-            Detach events from the hooker
-            :param event: string
-            '''
-            if event in self.events:
-                del self.events[event]
+    def unbind(self,event):
+        '''
+        Detach events from the hooker
+        :param event: string
+        '''
+        if event in self.events:
+            del self.events[event]
 
 class CommonroomProtocolException(Exception):
     def __init__(self, code, msg):
@@ -222,7 +222,7 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             msg = bake(BCAST_LEDGER, leader_id=self.book.leader, ledger=ledger, secret_value=self.secret_value)
             self.send(msg, MCAST_ADDR)
             #self.send(CommonroomMessage(BCAST_LEDGER, [self.book.leader, ledger, self.secret_value]), MCAST_ADDR)
-        elif just_sharing is not None and just_sharing is True:
+        elif just_sharing is True:
             # This is necessary when the wrong winner is announced for the election. We then just exchange ledger with each other and organize a fresh new re-election
             msg = bake(BCAST_LEDGER, ledger=ledger, leader_id=None, secret_value=None)
             self.send(msg, MCAST_ADDR)
@@ -325,16 +325,16 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             self.eventcontroller.events[key](data=value)
             #self.eventcontroller.events[msg.key](data=msg.data)
 
-    def _new_peers(self, data=None, peer=None, leader=None, addr=None):
+    def _new_peers(self, data=None, addr=None):
         '''
             Add new peers and decide whether to accept them as leaders or bully them
-            :param data: represents a list containing peer and leader
-            :param peer: represents the uuid of other peers
-            :param leader: represents the uuid of the leader
+            :param data: represents a list containing peer_uuid and leader_uuid
             :param addr: (ip,port) of the new peer
         '''
         if data is not None:
-            peer, leader = data
+            #peer, leader = data
+            peer = data['identity']
+            leader = data['leader_id']
 
         if peer != self.book.uuidObj:
             self.cancel_wait_for_peers_callback()
@@ -348,21 +348,28 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
                         print ' no leader at all and then broadcast re-election'
                         self._broadcast_re_election()
 
-    def _manage_ledger(self, data=None, ledger=None, leader=None):
+    def _manage_ledger(self, data):
         '''
             If there is a newcomer or if there are multiple leaders,
             send them an updated copy of the ledger containing all the peers in the network
         '''
         just_sharing = False
-        if data is not None:
-            try:
-                leader, ledger = data
-            except ValueError:
-                try:
-                    leader, ledger, secret = data  # for the new peer
-                except ValueError:
-                    ledger = data[0]  # its just for sharing
-                    just_sharing = True
+        #if data is not None:
+        #    try:
+        #        leader, ledger = data
+        #    except ValueError:
+        #        try:
+        #            leader, ledger, secret = data  # for the new peer
+        #        except ValueError:
+        #            ledger = data[0]  # its just for sharing
+        #            just_sharing = True
+
+        leader = data['leader_id']
+        ledger = data['ledger']
+        secret = data['secret_value']
+
+        if leader is None and secret is None:
+            just_sharing = True
 
         self.cancel_wait_for_peers_callback()
 
@@ -395,18 +402,20 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             '''
             self._new_leader_callback(leader=leader)
 
-    def _handle_ping(self, data=None, addr=None):
+    def _handle_ping(self, data, addr=None):
         '''
             Along with pong, also append the secret value
         '''
         self._send_pong_to(addr)
 
-    def _remove_leader(self, data=None, leader=None):
+    def _remove_leader(self, data):
         """
             Todo: For removing leader, the announcing peer must also broadcast the previous electionId.
         """
-        if data is not None:
-            leader = data[0]
+        #if data is not None:
+            #leader = data[0]
+        leader = data['leader_id']
+
         if leader == self.book.leader and leader in self.book.peers:
             try:
                 del self.book.peers[leader]
@@ -440,8 +449,8 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
         '''
         self._ping_ack = 1
         if data is not None:
-            secret = data[0]
-            #print 'PONG : SECRET RECVD: {0}'.format(secret)
+            #secret = data[0]
+            secret = data['secret_value']
             if secret != self.secret_value:
                 # broadcast leader is dead
                 print 'MISMATCH WITH {0}'.format(self.secret_value)
@@ -449,7 +458,9 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
 
     def _re_election_event(self, data=None, eid=None):
         if data is not None:
-            eid = data
+            #eid = data
+            eid = data['election_id']
+
         if self._eid is None:
             print 'NEW ELECTION COMMENCEMENT : {0}'.format(eid)
             self._eid = eid
@@ -485,22 +496,23 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             self._eCallId = self._eClock.callLater(self.delay, election_callback, eid)
 
 
-    def _alive(self, data=None, eid=None, addr=None):
+    def _alive(self, data, addr=None):
         '''
             Responding to the election message from lower Peer ID , I am alive.
         '''
-        if data is not None:
-            eid =  data
+        #if data is not None:
+            #eid =  data
+        eid = data['election_id']
         if self._eid == eid:
             self._send_alive_msg_to(addr)
 
-    def _alive_handler(self, data=None, eid=None):
+    def _alive_handler(self, data):
         '''
             Gets an "Alive" message from higher peer.
             Will be waiting for the winner message now
         '''
-        if data is not None:
-            eid = data
+        #eid = data
+        eid = data['election_id']
         if self._eid == eid:
             self.cancel_election_callback()
 
@@ -517,14 +529,17 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
                 self._alClock = reactor
             self._alCallId = self._alClock.callLater(self.delay, alive_deferred.callback, True)
 
-    def _new_leader_callback(self, data=None, leader=None, eid=None, addr=None):
+    def _new_leader_callback(self, data=None, leader=None, addr=None):
         '''
             This is a callback once the peers receive their new leader
             If there is a cluster which gets the result of a wrong election id ,
             then the leader of the cluster must broadcast the ledger.
         '''
         if data is not None:
-            leader, eid, secret = data
+            #leader, eid, secret = data
+            leader = data['leader_id']
+            eid = data['election_id']
+            secret = data['secret_value']
             #print 'SECRET {0}'.format(secret)
 
         if eid == None:

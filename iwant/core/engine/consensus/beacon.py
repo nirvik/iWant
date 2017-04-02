@@ -238,6 +238,7 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
         '''
             Send secret value to addr only when a new peer enters
         '''
+        # TODO: UNUSED
         msg = bake(SECRET_VAL, secret_value=self.secret.value)
         self.send(msg, addr)
         #self.send(CommonroomMessage(SECRET_VAL, [self.secret.value]), addr)
@@ -259,7 +260,7 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
         '''
             Announce dead message
         '''
-        msg = bake(DEAD, identity=self.book.uuidObj, secret_value=self.secret_value)
+        msg = bake(DEAD, dead_uuid=self.book.uuidObj, secret_value=self.secret_value)
         self.send(msg, MCAST_ADDR)
         #self.send(CommonroomMessage(DEAD, [self.book.uuidObj, self.secret_value]), MCAST_ADDR)
 
@@ -424,9 +425,11 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             except KeyError:
                 raise CommonroomProtocolException(3, 'Leader not present in the peers list. Invalid KeyError')
 
-    def _remove_peer(self, data=None):
+    def _remove_peer(self, data):
         if data is not None:
-            dead_peerId, authorized = data
+            #dead_peerId, authorized = data
+            dead_peerId = data['dead_uuid']
+            authorized = data['secret_value']
             if dead_peerId in self.book.peers:
                 #if authorized == self.secret_value:
                 print '@election: Removing {0}'.format(dead_peerId)
@@ -620,12 +623,12 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
         #print 'bullying then relection'
         self._broadcast_re_election()
 
-    def _face_off(self, data=None):
+    def _face_off(self, data):
         '''
             Face off message is usually received by an unusual leader
         '''
         print 'FACE OFF: {0}'.format(data)
-        if data == WITH_LEADER:
+        if data['with_leader'] == WITH_LEADER:
             '''
                 Challenge from another leader
             '''

@@ -26,21 +26,22 @@ def bootstrap(folder, dbpool):
         unshare_msg = unshare(unshare_remaining_files, dbpool)
         indexing_done = yield index_folder(folder, dbpool)
 
-        combined_response = []
-        files_added_metainfo = ['ADD', folder]
-        files_removed_metainfo = ['DEL']
-        removed_files_temp = []
+        combined_response = {}
+        combined_response['ADD'] = []
+        combined_response['DEL'] = []
+        combined_response['shared_folder'] = folder
+        files_added_metainfo = []
+        files_removed_metainfo = []
 
         for filepath in unshare_remaining_files:
             file_entry = yield dbpool.runQuery('select filename, size, hash, roothash from indexer where filename=?', (filepath,))
-            #removed_files_temp.append(file_entry)
             files_removed_metainfo.append(file_entry[0])
 
         #files_removed_metainfo.extend(removed_files_temp)
         sharing_files = yield dbpool.runQuery('select filename, size, hash, roothash from indexer where share=1')
         files_added_metainfo.extend(sharing_files)
-        combined_response.append(files_added_metainfo)
-        combined_response.append(files_removed_metainfo)  # consists of a list containing two lists .. ADD and DEL
+        combined_response['ADD'] = files_added_metainfo
+        combined_response['DEL'] = files_removed_metainfo
         defer.returnValue(combined_response)
 
 
@@ -58,7 +59,11 @@ def share(files, dbpool):
 
 @defer.inlineCallbacks
 def folder_delete_handler(path, dbpool):
-    file_property_list = ['DEL']
+    response = {}
+    response['ADD'] = []
+    response['DEL'] = []
+    response['shared_folder'] = None
+    file_property_list = []
     all_shared_files_from_db = yield dbpool.runQuery('select filename from indexer where share=1')
     relevant_files = filter(lambda x: x[0].startswith(path), all_shared_files_from_db)
     for filename in relevant_files:
@@ -66,28 +71,43 @@ def folder_delete_handler(path, dbpool):
         file_property_list.extend(file_removed_property)
     for filename in relevant_files:
         yield dbpool.runQuery('delete from indexer where filename=?',(filename[0],))
-    defer.returnValue(file_property_list)
+    response['DEL'] = file_property_list
+    defer.returnValue(response)
 
 @defer.inlineCallbacks
 def file_delete_handler(path, dbpool):
-    file_property_list = ['DEL']
+    response = {}
+    response['DEL'] = []
+    response['ADD'] = []
+    response['shared_folder'] = None
+    file_property_list = []
     file_removed_response = yield dbpool.runQuery('select filename, size, hash, roothash from indexer where filename=?',(path,))
     file_property_list.extend(file_removed_response)
     remove_file = yield dbpool.runQuery('delete from indexer where filename=?',(path,))
-    defer.returnValue(file_property_list)
+    response['DEL'] = file_proper_list
+    defer.returnValue(response)
 
 @defer.inlineCallbacks
 def index_folder(folder, dbpool):
-    file_property_list = ['ADD']
+    response = {}
+    response['DEL'] = []
+    response['ADD'] = []
+    response['shared_folder'] = None
+    file_property_list = []
     for root, _, filenames in os.walk(folder):
         for filename in filenames:
             destination_path = os.path.join(root, filename)
             indexed_file_property = yield index_file(destination_path, dbpool)
-            file_property_list.extend(indexed_file_property[1:])
+            file_property_list.extend(indexed_file_property['ADD'])
+    response['ADD'] = file_property_list
     defer.returnValue(file_property_list)
 
 @defer.inlineCallbacks
 def index_file(path, dbpool):
+    response = {}
+    response['DEL'] = []
+    response['ADD'] = []
+    response['shared_folder'] = None
     filesize = get_file_size(path)
     filesize_from_db = yield dbpool.runQuery('select size from indexer where filename=?',(path,))
     try:
@@ -96,8 +116,9 @@ def index_file(path, dbpool):
             file_index_entry = (filesize, file_hash, piece_hashes, root_hash, path)
             print 'updating the hash'
             yield dbpool.runQuery('update indexer set size=?, hash=?, piecehashes=?, roothash=? where filename=?', (file_index_entry))
-            file_property_list = ['ADD', (path, filesize, file_hash, root_hash)]
-            defer.returnValue(file_property_list)
+            file_property_list = [(path, filesize, file_hash, root_hash)]
+            response['ADD'] = file_property_list
+            defer.returnValue(response)
     except IndexError:
         print '@index_file {0}'.format(filesize_from_db)
         if len(filesize_from_db)==0:
@@ -105,8 +126,9 @@ def index_file(path, dbpool):
             print 'this is a new entry {0}'.format(path)
             file_index_entry = (path, 1, filesize, file_hash, piece_hashes, root_hash)
             yield dbpool.runQuery('insert into indexer values (?,?,?,?,?,?)', (file_index_entry))
-            file_property_list = ['ADD', (path, filesize, file_hash, root_hash)]
-            defer.returnValue(file_property_list)
+            file_property_list = [(path, filesize, file_hash, root_hash)]
+            response['ADD'] = file_property_list
+            defer.returnValue(response)
     else:
         defer.returnValue([])
 

@@ -1,7 +1,7 @@
 from twisted.internet import reactor,defer,threads
 from twisted.internet.endpoints import TCP4ClientEndpoint,connectProtocol
 from twisted.internet.protocol import ClientFactory
-from ..messagebaker import Basemessage
+from ..messagebaker import Basemessage, bake, unbake
 from ..constants import HANDSHAKE, LIST_ALL_FILES, SEARCH_REQ,\
         SEARCH_RES, LEADER_NOT_READY, IWANT_PEER_FILE,\
         PEER_LOOKUP_RESPONSE, IWANT, INIT_FILE_REQ, \
@@ -56,18 +56,24 @@ class Frontend(BaseProtocol):
 
     def connectionMade(self):
         print 'Connection Established ... \n'
-        reqMessage = Basemessage(key=self.factory.query, data=self.factory.arguments)
+        #reqMessage = Basemessage(key=self.factory.query, data=self.factory.arguments)
+        if self.factory.query == SEARCH_REQ:
+            reqMessage = bake(SEARCH_REQ, search_query=self.factory.arguments)
+        elif self.factory.query == IWANT_PEER_FILE:
+            reqMessage = bake(IWANT_PEER_FILE, filehash=self.factory.arguments)
         self.sendLine(reqMessage)
 
     def serviceMessage(self, data):
         '''
             Incoming messages are processed and appropriate functions are called
         '''
-        req = Basemessage(message=data)
-        try:
-            self.events[req.key]()
-        except:
-            self.events[req.key](req.data)
+        #req = Basemessage(message=data)
+        #try:
+        #    self.events[req.key]()
+        #except:
+        #    self.events[req.key](req.data)
+        key, value = unbake(message=data)
+        self.events[key](value)
 
     def show_search_results(self, data):
         '''
@@ -75,19 +81,20 @@ class Frontend(BaseProtocol):
             triggered when server replies the file search response from the leader to the client
 
         '''
+        search_response = data['search_query_response']
         response = []
-        for i in data:
+        for i in search_response:
             response.append(i[:-1])
         print tabulate.tabulate(response, headers=["Filename", "Size", "Checksum", "RootHash"])
         reactor.stop()
 
-    def leader_not_ready(self):
+    def leader_not_ready(self, data):
         '''
             callback: displays leader/tracker not available
             triggered when leader not ready
         '''
         #print 'Tracker not available..'
-        print_warning('Tracker not available')
+        print_warning(data['reason'])
         reactor.stop()
 
     def download_file(self, data):
@@ -101,12 +108,12 @@ class Frontend(BaseProtocol):
             triggered when user downloads a file
         '''
         file_basename = os.path.basename(data[0])
-        file_type_split = data[0].rsplit('.')
+        file_type_split = data['filename'].rsplit('.')
         if len(file_type_split) == 2:
             file_type = file_type_split[-1]
         else:
             file_type = 'UNKNOWN'
-        print_metadata('Filename: {0}\nSize: {1}\nBasename: {2}\nFiletype: {3}\n'.format(data[0], data[1], file_basename, file_type))
+        print_metadata('Filename: {0}\nSize: {1}\nBasename: {2}\nFiletype: {3}\n'.format(data['filename'], data['filesize'], file_basename, file_type))
         reactor.stop()
 
 class FrontendFactory(ClientFactory):

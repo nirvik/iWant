@@ -68,12 +68,15 @@ class FilemonitorClientProtocol(Protocol):
     def connectionMade(self):
         print '@filemonitor protocol'
         print 'event {0}'.format(self.factory.event)
-        real_updates = self.factory.updates[1:]
-        if len(real_updates)!=0:
-            #updated_msg = Basemessage(key=self.factory.event, data=self.factory.updates)
-            updated_msg = bake(key=self.factory.event, data=self.factory.updates)
-            self.transport.write(str(updated_msg))
-            self.transport.loseConnection()
+        #real_updates = self.factory.updates[1:]
+        #if len(real_updates)!=0:
+        #    #updated_msg = Basemessage(key=self.factory.event, data=self.factory.updates)
+        #    updated_msg = bake(key=self.factory.event, data=self.factory.updates)
+        #    self.transport.write(str(updated_msg))
+        #    self.transport.loseConnection()
+        updated_msg = bake(self.factory.event, operation=self.factory.updates)
+        self.transport.write(updated_msg)
+        self.trasnport.loseConnection()
 
 class FilemonitorClientFactory(ClientFactory):
 
@@ -124,10 +127,10 @@ class ServerElectionProtocol(Protocol):
 
     def connectionMade(self):
         if self.factory.dead_peer is None:
-            update_msg = bake(key=LEADER, data=(self.factory.leader_host, self.factory.leader_port))
+            update_msg = bake(key=LEADER, leader=(self.factory.leader_host, self.factory.leader_port))
             #update_msg = Basemessage(key=LEADER, data=(self.factory.leader_host, self.factory.leader_port))
         else:
-            update_msg = bake(key=PEER_DEAD, data=self.factory.dead_peer)
+            update_msg = bake(PEER_DEAD, dead_uuid=self.factory.dead_peer)
             #update_msg = Basemessage(key=DEAD, data=self.factory.dead_peer)
         self.transport.write(str(update_msg))
         self.transport.loseConnection()
@@ -206,23 +209,23 @@ class RemotepeerProtocol(BaseProtocol):
                 self.factory._is_new_file = False
             self.factory.file_details['pieceHashes'] = data
             #load_file_msg = Basemessage(key=INIT_FILE_REQ, data=self.factory.file_details['checksum'])
-            load_file_msg = bake(key=INIT_FILE_REQ, data=self.factory.file_details['checksum'])
+            load_file_msg = bake(INIT_FILE_REQ, filehash=self.factory.file_details['checksum'])
             self.sendLine(load_file_msg)
 
     def start_transfer(self, data):
-
-        DOWNLOAD_FOLDER = self.factory.download_folder
-        filename = os.path.basename(self.factory.file_details['file_name'])
-        filesize = self.factory.file_details['file_size']
-        #msg_to_client = Basemessage(key=FILE_TO_BE_DOWNLOADED, data=(filename, filesize))
-        msg_to_client = bake(key=FILE_TO_BE_DOWNLOADED, data=(filename, filesize))
-        print '****** iWanto Download {0} **********'.format(filename)
-        print 'Downloading to: {0}'.format(self.factory.path_to_write)
-        self.factory.clientConn.sendLine(msg_to_client)
-        self.factory.clientConn.transport.loseConnection()
-        self.hookHandler(self.rawDataReceived)
-        self.request_for_pieces(bootstrap=True)
-        self.factory.start_time = time.time()
+        if data['unchoke']:
+            DOWNLOAD_FOLDER = self.factory.download_folder
+            filename = os.path.basename(self.factory.file_details['file_name'])
+            filesize = self.factory.file_details['file_size']
+            #msg_to_client = Basemessage(key=FILE_TO_BE_DOWNLOADED, data=(filename, filesize))
+            msg_to_client = bake(FILE_TO_BE_DOWNLOADED, filename=filename, filesize=filesize)
+            print '****** iWanto Download {0} **********'.format(filename)
+            print 'Downloading to: {0}'.format(self.factory.path_to_write)
+            self.factory.clientConn.sendLine(msg_to_client)
+            self.factory.clientConn.transport.loseConnection()
+            self.hookHandler(self.rawDataReceived)
+            self.request_for_pieces(bootstrap=True)
+            self.factory.start_time = time.time()
 
     def rawDataReceived(self, data):
         all_data = self._unprocessed + data
@@ -301,7 +304,7 @@ class RemotepeerProtocol(BaseProtocol):
         request_piece_numbers = self.generate_pieces(bootstrap, endgame)
         for i in request_piece_numbers:
             #request_chunk_msg = Basemessage(key=REQ_CHUNK, data=pack(self.send_format, i))
-            request_chunk_msg = bake(key=REQ_CHUNK, data=pack(self.send_format, i))
+            request_chunk_msg = bake(REQ_CHUNK, piece_data=pack(self.send_format, i))
             self.sendLine(request_chunk_msg)
 
     def generate_pieces(self, bootstrap=False, endgame=False):
@@ -322,7 +325,7 @@ class RemotepeerProtocol(BaseProtocol):
         return piece_list
 
     def stop_requesting_for_pieces(self):
-        stop_msg = bake(key=END_GAME, data=None)
+        stop_msg = bake(END_GAME, end_game=True)
         #stop_msg = Basemessage(key=END_GAME, data=None)
         self.sendLine(stop_msg)
 

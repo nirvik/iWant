@@ -200,7 +200,10 @@ def bake(key, **kwargs):
         return action_msg
 
     def _craft_dead_msg():
-        payload['identity'] = kwargs['identity'].hex
+        try:
+            payload['dead_uuid'] = kwargs['dead_uuid'].hex
+        except AttributeError:
+            payload['dead_uuid'] = None
         payload['secret_value'] = kwargs['secret_value']
         action_msg['payload'] = payload
         return action_msg
@@ -208,46 +211,43 @@ def bake(key, **kwargs):
     # SERVER MESSAGES
     def _craft_unchoke_msg():
         payload['unchoke'] = kwargs['unchoke']
-        action_msg[payload] = payload
+        action_msg['payload'] = payload
         return action_msg
 
     def _craft_error_list_all_files_msg():
         payload['reason'] = kwargs['reason']
-        action_msg[payload] = payload
+        action_msg['payload'] = payload
         return action_msg
 
     def _craft_leader_not_ready_msg():
         payload['reason'] = kwargs['reason']
-        action_msg[payload] = payload
+        action_msg['payload'] = payload
         return action_msg
 
     def _craft_search_response_msg():
         payload['search_query_response'] = kwargs['search_query_response']
-        action_msg[payload] = payload
+        action_msg['payload'] = payload
         return action_msg
 
     def _craft_peer_lookup_response_msg():
         payload['peer_lookup_response'] = kwargs['peer_lookup_response']
-        action_msg[payload] = payload
+        action_msg['payload'] = payload
         return action_msg
 
     def _craft_hash_dump_msg():
+        payload['identity'] = kwargs['identity'].hex
         payload['operation'] = kwargs['operation']
-        payload['file_meta_info_list'] = kwargs['file_meta_info_list']
-        action_msg[payload] = payload
+        action_msg['payload'] = payload
         return action_msg
 
     def _craft_init_file_req_msg():
         payload['filehash'] = kwargs['filehash']
-        action_msg[payload] = payload
+        action_msg['payload'] = payload
         return action_msg
 
     def _craft_leader_msg():
-        try:
-            payload['leader_id'] = kwargs['leader_id'].hex
-        except AttributeError:
-            payload['leader_id'] = None
-        action_msg[payload] = payload
+        payload['leader'] = kwargs['leader']
+        action_msg['payload'] = payload
         return action_msg
 
     def _craft_peer_dead_msg():
@@ -255,50 +255,59 @@ def bake(key, **kwargs):
             payload['dead_uuid'] = kwargs['dead_uuid'].hex
         except AttributeError:
             payload['dead_uuid'] = None
-        action_msg[payload] = payload
+        action_msg['payload'] = payload
         return action_msg
 
     def _craft_file_sys_event_msg():
         payload['operation'] = kwargs['operation']
-        payload['file_meta_info_list'] = kwargs['file_meta_info_list']
-        action_msg[payload] = payload
+        #payload['file_meta_info_list'] = kwargs['file_meta_info_list']
+        action_msg['payload'] = payload
         return action_msg
 
     def _craft_search_req_msg():
         payload['search_query'] = kwargs['search_query']
-        action_msg[payload] = payload
+        action_msg['payload'] = payload
         return action_msg
 
     def _craft_lookup_msg():
         payload['search_query'] = kwargs['search_query']
-        action_msg[payload] = payload
+        action_msg['payload'] = payload
         return action_msg
 
     def _craft_iwant_peer_file_msg():
         payload['filehash'] = kwargs['filehash']
-        action_msg[payload] = payload
+        action_msg['payload'] = payload
         return action_msg
 
     def _craft_send_peer_details_msg():
         payload['filehash'] = kwargs['filehash']
-        action_msg[payload] = payload
+        action_msg['payload'] = payload
         return action_msg
 
     def _craft_indexed_msg():
-        payload['ADD'] = kwargs['ADD']
-        payload['DEL'] = kwargs['DEL']
-        action_msg[payload] = payload
+        #payload['ADD'] = kwargs['ADD']
+        #payload['DEL'] = kwargs['DEL']
+        payload['operation'] = kwargs['operation']
+        action_msg['payload'] = payload
         return action_msg
 
     def _craft_req_chunk_msg():
         payload['piece_data'] = kwargs['piece_data']
-        action_msg[payload] = payload
+        action_msg['payload'] = payload
         return action_msg
 
     def _craft_end_game_msg():
         payload['end_game'] = kwargs['end_game']
-        action_msg[payload] = payload
+        action_msg['payload'] = payload
         return action_msg
+
+    def _craft_file_details_resp():
+        pass
+
+    def _craft_file_to_be_downloaded_msg():
+        payload['filesize'] = kwargs['filesize']
+        payload['filename'] = kwargs['filename']
+        action_msg['payload'] = payload
 
     dispatcher = {
         NEW_PEER: _craft_new_peer_msg,
@@ -317,7 +326,7 @@ def bake(key, **kwargs):
         UNCHOKE : _craft_unchoke_msg,
         ERROR_LISTING_ALL_FILES: _craft_error_list_all_files_msg,
         LEADER_NOT_READY: _craft_leader_not_ready_msg,
-        SEARCH_RESPONSE: _craft_search_response_msg,
+        SEARCH_RES: _craft_search_response_msg,
         HASH_DUMP: _craft_hash_dump_msg,
         INIT_FILE_REQ: _craft_init_file_req_msg,
         LEADER: _craft_leader_msg,
@@ -330,10 +339,11 @@ def bake(key, **kwargs):
         PEER_LOOKUP_RESPONSE: _craft_peer_lookup_response_msg,
         INDEXED: _craft_indexed_msg,
         REQ_CHUNK: _craft_req_chunk_msg,
-        END_GAME: _craft_end_game_msg
+        END_GAME: _craft_end_game_msg,
+
+        FILE_DETAILS_RESP : _craft_file_details_resp,
+        FILE_TO_BE_DOWNLOADED: _craft_file_to_be_downloaded_msg
     }
-
-
     return dispatcher[key]()
 
 def unbake(message=None):

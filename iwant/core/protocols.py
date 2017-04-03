@@ -74,9 +74,9 @@ class FilemonitorClientProtocol(Protocol):
         #    updated_msg = bake(key=self.factory.event, data=self.factory.updates)
         #    self.transport.write(str(updated_msg))
         #    self.transport.loseConnection()
-        updated_msg = bake(self.factory.event, operation=self.factory.updates)
+        updated_msg = bake(self.factory.event, shared_folder=self.factory.updates['shared_folder'], ADD=self.factory.updates['ADD'], DEL=self.factory.updates['DEL'])
         self.transport.write(updated_msg)
-        self.trasnport.loseConnection()
+        self.transport.loseConnection()
 
 class FilemonitorClientFactory(ClientFactory):
 

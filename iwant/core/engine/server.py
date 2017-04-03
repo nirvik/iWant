@@ -109,9 +109,10 @@ class backend(BaseProtocol):
     def _update_leader(self, data):
         self.factory.leader = data['leader']
         print 'Updating Leader {0}'.format(self.factory.book.leader)
-        if self.factory.state == READY and self.leaderThere():
+        if self.factory.state == READY and self.leaderThere() and self.factory.sharing_folder is not None:
             file_meta_data = yield fileHashUtils.bootstrap(self.factory.sharing_folder, self.factory.dbpool)
             #self.factory._notify_leader(HASH_DUMP, file_meta_data)
+            print 'this is what i got from file_meta_data {0}'.format(file_meta_data)
             self.fileindexing_complete(file_meta_data)
 
     def _filesystem_modified(self, data):
@@ -133,12 +134,13 @@ class backend(BaseProtocol):
         #uuid, dump = data
         #operation = dump[0]
         #file_properties = dump[1:]
+        print 'received from peer {0}'.format(data)
         uuid = data['identity']
         file_addition_updates = data['operation']['ADD']
         file_removal_updates = data['operation']['DEL']
 
-        print 'Operating for leader: {0}'.format(operation)
-        print 'File properties\n{0}'.format(file_properties)
+        print 'File addition: {0}'.format(file_addition_updates)
+        print 'File removal\n{0}'.format(file_removal_updates)
 
         if uuid not in self.factory.data_from_peers.keys():
             self.factory.data_from_peers[uuid] = {}
@@ -265,7 +267,7 @@ class backend(BaseProtocol):
         self.transport.loseConnection()
 
     def fileindexing_complete(self, indexing_response):
-        print 'server, indexing complete'
+        print 'server, indexing complete {0}'.format(indexing_response)
         self.factory.state = READY
         old_sharing_folder = None
         if self.factory.sharing_folder is not None:
@@ -274,7 +276,8 @@ class backend(BaseProtocol):
         new_folder = indexing_response['shared_folder']
         if new_folder != old_sharing_folder:
             print 'we now scan the new folder {0}'.format(new_folder)
-        del indexing_reponse['shared_folder']
+            self.factory.sharing_folder = new_folder
+        del indexing_response['shared_folder']
         self.factory._notify_leader(HASH_DUMP, indexing_response)
         #new_folder_indexed_response, old_folder_indexed_response = indexing_response
 
@@ -324,7 +327,7 @@ class backendFactory(Factory):
                 if self.factory.key==LOOKUP:
                     update_msg = bake(LOOKUP, search_query=self.factory.dump)
                 elif self.factory.key == HASH_DUMP:
-                    update_msg = bake(HASH_DUMP, identity=self.book_uuidObj,\
+                    update_msg = bake(HASH_DUMP, identity=self.factory.identity,\
                             operation=self.factory.dump)
                 elif self.factory.key == SEND_PEER_DETAILS:
                     update_msg = bake(SEND_PEER_DETAILS, filehash=self.factory.dump)
@@ -355,7 +358,7 @@ class backendFactory(Factory):
                     file_details = {
                         'file_name' : response['file_name'],  # data[-1],
                         'file_size' : response['file_size'],  # data[-2],
-                        'file_root_hash' : response['file_root_hash']  # data[-3],
+                        'file_root_hash' : response['file_root_hash'],  # data[-3],
                         'checksum' : self.factory.dump
                     }
                     download_folder = self.factory.dump_folder
@@ -373,24 +376,22 @@ class backendFactory(Factory):
                 clientConn.transport.loseConnection()
 
         class ServerLeaderFactory(ClientFactory):
-            def __init__(self, key, dump, dump_folder=None, dbpool=None):
+            def __init__(self, key, dump, **kwargs):
                 self.key = key
                 self.dump = dump
-                if dump_folder is not None:
-                    self.dump_folder = dump_folder
-                if dbpool is not None:
-                    self.dbpool = dbpool
+                self.dump_folder = kwargs['dump_folder']
+                self.dbpool = kwargs['dbpool']
+                self.identity = kwargs['identity']
 
             def buildProtocol(self, addr):
                 return ServerLeaderProtocol(self)
 
         if key == HASH_DUMP:
-            factory = ServerLeaderFactory(key=key, dump=data)
+            factory = ServerLeaderFactory(key=key, dump=data, identity=self.book.uuidObj, dbpool=None, dump_folder=None)
         elif key == LOOKUP:
-            factory = ServerLeaderFactory(key=key, dump=data)
+            factory = ServerLeaderFactory(key=key, dump=data, identity=None, dbpool=None, dump_folder=None)
         elif key == SEND_PEER_DETAILS:
-            factory = ServerLeaderFactory(key=key, dump=data, \
-                    dump_folder='', dbpool=self.dbpool)
+            factory = ServerLeaderFactory(key=key, dump=data, identity=None, dump_folder='', dbpool=self.dbpool)
             #factory = ServerLeaderFactory(key=key, dump=data, \
             #        dump_folder=self.download_folder, dbpool=self.dbpool)
 

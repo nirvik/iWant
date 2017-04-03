@@ -1,6 +1,7 @@
 import pickle
 import json
 from functools import wraps
+import time_uuid
 from constants import INDEXED, HANDSHAKE, LEADER_NOT_READY, FILE,\
         LIST_ALL_FILES, ERROR_LIST_ALL_FILES, LEADER,\
         HASH_DUMP, FILE_SYS_EVENT, SEARCH_REQ, SEARCH_RES, \
@@ -128,9 +129,15 @@ def bake(key, **kwargs):
     payload = {}
 
     def _craft_new_peer_msg():
-        print NEW_PEER
-        payload['identity'] = kwargs['identity'].hex
-        payload['leader_id'] = kwargs['leader_id'].hex
+        print NEW_PEER, kwargs
+        try:
+            payload['identity'] = kwargs['identity'].hex
+        except:
+            payload['identity'] = None
+        try:
+            payload['leader_id'] = kwargs['leader_id'].hex
+        except:
+            payload['leader_id'] = None
         action_msg['payload'] = payload
         return action_msg
 
@@ -259,8 +266,10 @@ def bake(key, **kwargs):
         return action_msg
 
     def _craft_file_sys_event_msg():
-        payload['operation'] = kwargs['operation']
-        #payload['file_meta_info_list'] = kwargs['file_meta_info_list']
+        #payload['operation'] = kwargs['operation']
+        payload['ADD'] = kwargs['ADD']
+        payload['DEL'] = kwargs['DEL']
+        payload['shared_folder'] = kwargs['shared_folder']
         action_msg['payload'] = payload
         return action_msg
 
@@ -285,9 +294,10 @@ def bake(key, **kwargs):
         return action_msg
 
     def _craft_indexed_msg():
-        #payload['ADD'] = kwargs['ADD']
-        #payload['DEL'] = kwargs['DEL']
-        payload['operation'] = kwargs['operation']
+        payload['ADD'] = kwargs['ADD']
+        payload['DEL'] = kwargs['DEL']
+        payload['shared_folder'] = kwargs['shared_folder']
+        #payload['operation'] = kwargs['operation']
         action_msg['payload'] = payload
         return action_msg
 
@@ -324,7 +334,7 @@ def bake(key, **kwargs):
         DEAD: _craft_dead_msg,
 
         UNCHOKE : _craft_unchoke_msg,
-        ERROR_LISTING_ALL_FILES: _craft_error_list_all_files_msg,
+        ERROR_LIST_ALL_FILES: _craft_error_list_all_files_msg,
         LEADER_NOT_READY: _craft_leader_not_ready_msg,
         SEARCH_RES: _craft_search_response_msg,
         HASH_DUMP: _craft_hash_dump_msg,
@@ -351,17 +361,17 @@ def unbake(message=None):
     if 'leader_id' in json_msg['payload']:
         leader_uuid = json_msg['payload']['leader_id']
         if leader_uuid is not None:
-            json_msg['payload']['leader_id'] = time_uuid.TIME_UUID(leader_uuid)
+            json_msg['payload']['leader_id'] = time_uuid.TimeUUID(leader_uuid)
 
     if 'identity' in json_msg['payload']:
         identity_uuid = json_msg['payload']['identity']
         if identity_uuid is not None:
-            json_msg['payload']['identity'] = time_uuid.TIME_UUID(identity_uuid)
+            json_msg['payload']['identity'] = time_uuid.TimeUUID(identity_uuid)
 
     if 'dead_uuid' in json_msg['payload']:
         dead_uuid = json_msg['payload']['dead_uuid']
         if dead_uuid is not None:
-            json_msg['payload']['dead_uuid'] = time_uuid.TIME_UUID(dead_uuid)
+            json_msg['payload']['dead_uuid'] = time_uuid.TimeUUID(dead_uuid)
 
     action_dispatcher, action_payload = json_msg['type'], json_msg['payload']
     return action_dispatcher, action_payload

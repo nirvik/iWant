@@ -93,7 +93,7 @@ def main():
     book = CommonlogBook(identity=timeuuid, state=0, ip=ips[ip-1])
 
     SHARING_FOLDER, DOWNLOAD_FOLDER, CONFIG_PATH = get_paths()
-    SHARING_FOLDER = '/run/media/nirvik/Data/Movies'
+    SHARING_FOLDER = '/home/nirvik/Pictures/Mrunmai_bday_pics'
     DOWNLOAD_FOLDER = '/run/media/nirvik/Data/iWantDownload'
     CONFIG_PATH = '/home/nirvik/.iwant/'
 

@@ -1,7 +1,7 @@
 from twisted.internet.protocol import Protocol, ClientFactory, DatagramProtocol, Factory
 from twisted.internet import defer
 from engine.fileindexer.piece import piece_size
-from messagebaker import Basemessage, bake, unbake
+from messagebaker import bake, unbake
 from constants import FILE_SYS_EVENT, FILE_DETAILS_RESP, \
         LEADER, PEER_DEAD, FILE_TO_BE_DOWNLOADED, START_TRANSFER, INDEXED,\
         REQ_CHUNK, END_GAME, FILE_CONFIRMATION_MESSAGE, INIT_FILE_REQ,\

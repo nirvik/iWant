@@ -13,7 +13,7 @@ from iwant.core.constants import NEW_PEER, RE_ELECTION, ALIVE, \
         BCAST_LEDGER, HANDLE_PING,HANDLE_ALIVE, NEW_LEADER,\
         HANDLE_PONG, REMOVE_LEADER,PING, PONG, FACE_OFF, \
         SECRET_VAL,WITH_LEADER, WITHOUT_LEADER, DEAD, LEADER
-from iwant.core.messagebaker import CommonroomMessage, bake, unbake
+from iwant.core.messagebaker import bake, unbake
 from iwant.core.protocols import ServerElectionProtocol, ServerElectionFactory, PeerdiscoveryProtocol
 import struct
 

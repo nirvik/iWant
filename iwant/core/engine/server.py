@@ -7,7 +7,7 @@ import os, sys
 from fileindexer.findexer import FileHashIndexer
 from fileindexer import fileHashUtils
 from fileindexer.piece import piece_size
-from ..messagebaker import Basemessage, bake, unbake
+from ..messagebaker import bake, unbake
 from ..constants import HANDSHAKE, LIST_ALL_FILES, INIT_FILE_REQ, START_TRANSFER, \
         LEADER, PEER_DEAD, FILE_SYS_EVENT, HASH_DUMP, SEARCH_REQ, LOOKUP, SEARCH_RES,\
         IWANT_PEER_FILE, SEND_PEER_DETAILS, IWANT, INDEXED, FILE_DETAILS_RESP, \

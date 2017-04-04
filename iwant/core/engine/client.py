@@ -1,7 +1,7 @@
 from twisted.internet import reactor,defer,threads
 from twisted.internet.endpoints import TCP4ClientEndpoint,connectProtocol
 from twisted.internet.protocol import ClientFactory
-from ..messagebaker import Basemessage, bake, unbake
+from ..messagebaker import bake, unbake
 from ..constants import HANDSHAKE, LIST_ALL_FILES, SEARCH_REQ,\
         SEARCH_RES, LEADER_NOT_READY, IWANT_PEER_FILE,\
         PEER_LOOKUP_RESPONSE, IWANT, INIT_FILE_REQ, \

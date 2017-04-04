@@ -180,7 +180,7 @@ class RemotepeerProtocol(BaseProtocol):
 
     def connectionMade(self):
         #update_msg = Basemessage(key=INTERESTED, data=self.factory.file_details['checksum'])
-        update_msg = bake(key=INTERESTED, data=self.factory.file_details['checksum'])
+        update_msg = bake(INTERESTED, filehash=self.factory.file_details['checksum'])
         self.sendLine(update_msg)
 
     def serviceMessage(self, data):
@@ -191,11 +191,12 @@ class RemotepeerProtocol(BaseProtocol):
 
     def verify_pieces(self, data):
         print '@initiate request {0}'.format(data)
+        piecehashes = data['piecehashes']
         hasher = hashlib.md5()
-        hasher.update(data)
+        hasher.update(piecehashes)
         if hasher.hexdigest() == self.factory.file_details['file_root_hash']:
             if self.factory._is_new_file:
-                self.factory.file_details['pieceHashes'] = data
+                self.factory.file_details['pieceHashes'] = piecehashes
                 print 'the filename entered to resume is {0}'.format(self.factory.path_to_write)
                 fileHashUtils.add_new_file_entry_resume((
                         self.factory.path_to_write,
@@ -207,7 +208,7 @@ class RemotepeerProtocol(BaseProtocol):
                     ), self.factory.dbpool
                 )
                 self.factory._is_new_file = False
-            self.factory.file_details['pieceHashes'] = data
+            self.factory.file_details['pieceHashes'] = piecehashes
             #load_file_msg = Basemessage(key=INIT_FILE_REQ, data=self.factory.file_details['checksum'])
             load_file_msg = bake(INIT_FILE_REQ, filehash=self.factory.file_details['checksum'])
             self.sendLine(load_file_msg)

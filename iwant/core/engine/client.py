@@ -107,13 +107,16 @@ class Frontend(BaseProtocol):
             callback: displays file to be downloaded
             triggered when user downloads a file
         '''
-        file_basename = os.path.basename(data[0])
-        file_type_split = data['filename'].rsplit('.')
+        filename_response = data['filename']
+        filesize_response = data['filesize']
+
+        file_basename = os.path.basename(filename_response)
+        file_type_split = filename_response.rsplit('.')
         if len(file_type_split) == 2:
             file_type = file_type_split[-1]
         else:
             file_type = 'UNKNOWN'
-        print_metadata('Filename: {0}\nSize: {1}\nBasename: {2}\nFiletype: {3}\n'.format(data['filename'], data['filesize'], file_basename, file_type))
+        print_metadata('Filename: {0}\nSize: {1}\nBasename: {2}\nFiletype: {3}\n'.format(filename_response, filesize_response, file_basename, file_type))
         reactor.stop()
 
 class FrontendFactory(ClientFactory):

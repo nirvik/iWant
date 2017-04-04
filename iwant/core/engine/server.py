@@ -70,9 +70,10 @@ class backend(BaseProtocol):
 
     @defer.inlineCallbacks
     def _handshake(self, data):
+        filehash = data['filehash']
         if self.factory.state == READY:
-            piece_hashes = yield fileHashUtils.get_piecehashes_of(data, self.factory.dbpool)
-            ack_msg = Basemessage(key=FILE_CONFIRMATION_MESSAGE, data=piece_hashes)
+            piece_hashes = yield fileHashUtils.get_piecehashes_of(filehash, self.factory.dbpool)
+            ack_msg = bake(FILE_CONFIRMATION_MESSAGE, piecehashes=piece_hashes)
             self.sendLine(ack_msg)
         else:
             print 'not ready yet'
@@ -245,7 +246,7 @@ class backend(BaseProtocol):
         for key, val in self.factory.data_from_peers.iteritems():
             value = val['hashes']
             if filehash in value:
-                file_name, file_size, file_hash, file_root_hash = value[data]
+                file_name, file_size, file_hash, file_root_hash = value[filehash]
                 uuids.append(key)
 
         for uuid in uuids:

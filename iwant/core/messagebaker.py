@@ -318,6 +318,17 @@ def bake(key, **kwargs):
         payload['filesize'] = kwargs['filesize']
         payload['filename'] = kwargs['filename']
         action_msg['payload'] = payload
+        return action_msg
+
+    def _craft_interested_msg():
+        payload['filehash'] = kwargs['filehash']
+        action_msg['payload'] = payload
+        return action_msg
+
+    def _craft_file_confirmation_message():
+        payload['piecehashes'] = kwargs['piecehashes']
+        action_msg['payload'] = payload
+        return action_msg
 
     dispatcher = {
         NEW_PEER: _craft_new_peer_msg,
@@ -350,8 +361,9 @@ def bake(key, **kwargs):
         INDEXED: _craft_indexed_msg,
         REQ_CHUNK: _craft_req_chunk_msg,
         END_GAME: _craft_end_game_msg,
-
+        INTERESTED: _craft_interested_msg,
         FILE_DETAILS_RESP : _craft_file_details_resp,
+        FILE_CONFIRMATION_MESSAGE : _craft_file_confirmation_message,
         FILE_TO_BE_DOWNLOADED: _craft_file_to_be_downloaded_msg
     }
     return dispatcher[key]()

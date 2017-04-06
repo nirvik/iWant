@@ -22,8 +22,8 @@ if not os.path.exists(iwant_config_path):
 
 config = ConfigParser.ConfigParser()
 config.add_section('Paths')
-config.set('Paths', 'Share', '')
-config.set('Paths', 'Download', '')
+config.set('Paths', 'Share', '/home/nirvik/Pictures/Mrunmai_bday_pics')
+config.set('Paths', 'Download', '/run/media/nirvik/Data/iWantDownload')
 
 with open(os.path.join(iwant_config_path, '.iwant.conf'), 'w') as configfile:
     config.write(configfile)

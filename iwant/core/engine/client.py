@@ -1,14 +1,12 @@
-from twisted.internet import reactor,defer,threads
-from twisted.internet.endpoints import TCP4ClientEndpoint,connectProtocol
+from twisted.internet import reactor
+#from twisted.internet.endpoints import TCP4ClientEndpoint,connectProtocol
 from twisted.internet.protocol import ClientFactory
 from ..messagebaker import bake, unbake
-from ..constants import HANDSHAKE, LIST_ALL_FILES, SEARCH_REQ,\
-        SEARCH_RES, LEADER_NOT_READY, IWANT_PEER_FILE,\
-        PEER_LOOKUP_RESPONSE, IWANT, INIT_FILE_REQ, \
-        FILE_DETAILS_RESP, FILE_TO_BE_DOWNLOADED
+from ..constants import SEARCH_REQ, SEARCH_RES, \
+        LEADER_NOT_READY, IWANT_PEER_FILE,\
+        FILE_TO_BE_DOWNLOADED, CHANGE, SHARE,\
+        NEW_SHARED_FOLDER_RES, NEW_DOWNLOAD_FOLDER_RES
 from ..protocols import BaseProtocol
-import pickle
-import json
 import tabulate
 import os
 
@@ -48,8 +46,9 @@ class Frontend(BaseProtocol):
         self.events = {
             SEARCH_RES : self.show_search_results,
             LEADER_NOT_READY : self.leader_not_ready,
-            FILE_DETAILS_RESP : self.download_file,
-            FILE_TO_BE_DOWNLOADED : self.show_file_to_be_downloaded
+            FILE_TO_BE_DOWNLOADED : self.show_file_to_be_downloaded,
+            NEW_SHARED_FOLDER_RES : self.confirm_new_shared_folder,
+            NEW_DOWNLOAD_FOLDER_RES: self.confirm_new_download_folder
         }
         self.buff = ''
         self.delimiter = '\r'
@@ -61,6 +60,10 @@ class Frontend(BaseProtocol):
             reqMessage = bake(SEARCH_REQ, search_query=self.factory.arguments)
         elif self.factory.query == IWANT_PEER_FILE:
             reqMessage = bake(IWANT_PEER_FILE, filehash=self.factory.arguments)
+        elif self.factory.query == SHARE:
+            reqMessage = bake(SHARE, shared_folder=self.factory.arguments)
+        elif self.factory.query == CHANGE:
+            reqMessage = bake(CHANGE, download_folder=self.factory.arguments)
         self.sendLine(reqMessage)
 
     def serviceMessage(self, data):
@@ -97,10 +100,6 @@ class Frontend(BaseProtocol):
         print_warning(data['reason'])
         reactor.stop()
 
-    def download_file(self, data):
-        # Unused
-        print data
-        reactor.stop()
 
     def show_file_to_be_downloaded(self, data):
         '''
@@ -118,6 +117,15 @@ class Frontend(BaseProtocol):
             file_type = 'UNKNOWN'
         print_metadata('Filename: {0}\nSize: {1}\nBasename: {2}\nFiletype: {3}\n'.format(filename_response, filesize_response, file_basename, file_type))
         reactor.stop()
+
+    def confirm_new_shared_folder(self, data):
+        print_metadata('SHARED FOLDER => {0}'.format(data['shared_folder_response']))
+        reactor.stop()
+
+    def confirm_new_download_folder(self, data):
+        print_metadata('DOWNLOAD FOLDER => {0}'.format(data['download_folder_response']))
+        reactor.stop()
+
 
 class FrontendFactory(ClientFactory):
     def __init__(self, query, data=None, downloadfolder=None):

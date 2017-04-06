@@ -1,21 +1,21 @@
-from twisted.internet import reactor, defer, threads, endpoints
+from twisted.internet import defer, reactor
 from twisted.internet.protocol import Factory
-from twisted.protocols.basic import FileSender
-from fuzzywuzzy import fuzz, process
-import pickle
+from fuzzywuzzy import fuzz
 import os, sys
-from fileindexer.findexer import FileHashIndexer
 from fileindexer import fileHashUtils
 from fileindexer.piece import piece_size
 from ..messagebaker import bake, unbake
-from ..constants import HANDSHAKE, LIST_ALL_FILES, INIT_FILE_REQ, START_TRANSFER, \
-        LEADER, PEER_DEAD, FILE_SYS_EVENT, HASH_DUMP, SEARCH_REQ, LOOKUP, SEARCH_RES,\
-        IWANT_PEER_FILE, SEND_PEER_DETAILS, IWANT, INDEXED, FILE_DETAILS_RESP, \
+from ..constants import INIT_FILE_REQ, LEADER, PEER_DEAD, \
+        FILE_SYS_EVENT, HASH_DUMP, SEARCH_REQ, LOOKUP, SEARCH_RES,\
+        IWANT_PEER_FILE, SEND_PEER_DETAILS, INDEXED,\
         ERROR_LIST_ALL_FILES, READY, NOT_READY, PEER_LOOKUP_RESPONSE, LEADER_NOT_READY,\
-        REQ_CHUNK, END_GAME, FILE_CONFIRMATION_MESSAGE, INTERESTED, UNCHOKE
+        REQ_CHUNK, END_GAME, FILE_CONFIRMATION_MESSAGE, INTERESTED, UNCHOKE, CHANGE, SHARE,\
+        NEW_DOWNLOAD_FOLDER_RES, NEW_SHARED_FOLDER_RES
 from ..protocols import BaseProtocol
-from ..config import CLIENT_DAEMON_HOST, CLIENT_DAEMON_PORT, SERVER_DAEMON_PORT
-from struct import pack, unpack, calcsize
+from ..config import SERVER_DAEMON_PORT
+from struct import pack, unpack
+from monitor.watching import ScanFolder
+from monitor.callbacks import filechangeCB
 
 class ServerException(Exception):
     def __init__(self, code, msg):
@@ -41,7 +41,9 @@ class backend(BaseProtocol):
             SEND_PEER_DETAILS: self._leader_looksup_peer,
             INDEXED : self.fileindexing_complete,
             REQ_CHUNK: self._send_chunk_response,
-            END_GAME: self._end_game
+            END_GAME: self._end_game,
+            CHANGE: self._change_download_folder,
+            SHARE: self._share_new_folder
         }
         self.buff = ''
         self.delimiter = '\r'
@@ -110,8 +112,8 @@ class backend(BaseProtocol):
     def _update_leader(self, data):
         self.factory.leader = data['leader']
         print 'Updating Leader {0}'.format(self.factory.book.leader)
-        if self.factory.state == READY and self.leaderThere() and self.factory.sharing_folder is not None:
-            file_meta_data = yield fileHashUtils.bootstrap(self.factory.sharing_folder, self.factory.dbpool)
+        if self.factory.state == READY and self.leaderThere() and self.factory.shared_folder is not None:
+            file_meta_data = yield fileHashUtils.bootstrap(self.factory.shared_folder, self.factory.dbpool)
             #self.factory._notify_leader(HASH_DUMP, file_meta_data)
             print 'this is what i got from file_meta_data {0}'.format(file_meta_data)
             self.fileindexing_complete(file_meta_data)
@@ -200,7 +202,6 @@ class backend(BaseProtocol):
         #uuid, text_search = data
         text_search = data['search_query']
         filtered_response = []
-        l = []
         for uuid in self.factory.data_from_peers.keys():
             for filename in self.factory.data_from_peers[uuid]['filenames']:
                 if fuzz.partial_ratio(text_search.lower(), filename.lower()) >= 55:
@@ -238,7 +239,6 @@ class backend(BaseProtocol):
              3.file name
         '''
         uuids = []
-        hash_string = ''
         sending_data = []
         peers_list = []
         filehash = data['filehash']
@@ -270,46 +270,55 @@ class backend(BaseProtocol):
     def fileindexing_complete(self, indexing_response):
         print 'server, indexing complete {0}'.format(indexing_response)
         self.factory.state = READY
-        old_sharing_folder = None
-        if self.factory.sharing_folder is not None:
-            old_sharing_folder = self.factory.sharing_folder
-
-        new_folder = indexing_response['shared_folder']
-        if new_folder != old_sharing_folder:
-            print 'we now scan the new folder {0}'.format(new_folder)
-            self.factory.sharing_folder = new_folder
         del indexing_response['shared_folder']
-        self.factory._notify_leader(HASH_DUMP, indexing_response)
-        #new_folder_indexed_response, old_folder_indexed_response = indexing_response
+        if self.leaderThere():
+            self.factory._notify_leader(HASH_DUMP, indexing_response)
 
-        #self.factory.sharing_folder = new_folder_indexed_response[1]
-        #print 'this is the new sharing folder {0}'.format(self.factory.sharing_folder)
+    def _change_download_folder(self, data):
+        new_download_folder = data['download_folder']
+        msg = bake(NEW_DOWNLOAD_FOLDER_RES, download_folder_response=new_download_folder)
+        if not os.path.isdir(new_download_folder):
+            msg = bake(NEW_DOWNLOAD_FOLDER_RES, download_folder_response='Invalid download path provided')
+        else:
+            print 'changed download folder to {0}'.format(new_download_folder)
+            self.factory.download_folder = new_download_folder
+        self.sendLine(msg)
+        self.transport.loseConnection()
 
-        #new_folder_request_payload = new_folder_indexed_response[0:1] + new_folder_indexed_response[2:]
-        #self.factory._notify_leader(HASH_DUMP, new_folder_request_payload)
-        #if old_sharing_folder != self.factory.sharing_folder and old_sharing_folder is not None:
-        #    self.factory._notify_leader(HASH_DUMP, old_folder_indexed_response)
-
+    @defer.inlineCallbacks
+    def _share_new_folder(self, data):
+        new_shared_folder = data['shared_folder']
+        msg = bake(NEW_SHARED_FOLDER_RES, shared_folder_response=new_shared_folder)
+        if not os.path.isdir(new_shared_folder):
+            msg = bake(NEW_SHARED_FOLDER_RES, shared_folder_response='Invalid shared folder path provided')
+        elif new_shared_folder != self.factory.shared_folder:
+            self.factory.shared_folder = new_shared_folder
+            file_meta_data = yield fileHashUtils.bootstrap(self.factory.shared_folder, self.factory.dbpool)
+            ScanFolder(self.factory.shared_folder, filechangeCB, self.factory.dbpool)
+            self.fileindexing_complete(file_meta_data)
+        self.sendLine(msg)
+        self.transport.loseConnection()
 
 class backendFactory(Factory):
 
     protocol = backend
 
-    def __init__(self, book, dbpool):
+    def __init__(self, book, **kwargs):
         self.state = NOT_READY  # file indexing state
-        self.sharing_folder = None
         self.book = book  # book contains all the peer addresses
         self.leader = None
         self.cached_data = None
         self.data_from_peers = {}
         self.indexer = None
-        self.dbpool = dbpool
+        self.dbpool = kwargs['dbpool']
+        self.download_foler = kwargs['download_folder']
+        self.shared_folder = kwargs['shared_folder']
 
     def clientConnectionLost(self, connector, reason):
         print 'Lost connection'
 
     def _notify_leader(self, key=None, data=None, persist=False, clientConn=None):
-        from twisted.internet.protocol import Protocol, ClientFactory
+        from twisted.internet.protocol import ClientFactory
         from twisted.internet import reactor
 
         class ServerLeaderProtocol(BaseProtocol):
@@ -346,7 +355,6 @@ class backendFactory(Factory):
                 self.events[key](value)
 
             def talk_to_peer(self, data):
-                from twisted.internet.protocol import Protocol, ClientFactory, Factory
                 from twisted.internet import reactor
                 self.transport.loseConnection()
                 #print 'Got peers {0}'.format(data)
@@ -354,7 +362,7 @@ class backendFactory(Factory):
                     print 'Tell the client that peer lookup response is 0. Have to handle this'
                     #update_msg = Basemessage(key=SEARCH_RES, data=data)
                 else:
-                    from ..protocols import RemotepeerFactory, RemotepeerProtocol
+                    from ..protocols import RemotepeerFactory
                     response = data['peer_lookup_response']
                     file_details = {
                         'file_name' : response['file_name'],  # data[-1],
@@ -362,11 +370,11 @@ class backendFactory(Factory):
                         'file_root_hash' : response['file_root_hash'],  # data[-3],
                         'checksum' : self.factory.dump
                     }
-                    download_folder = self.factory.dump_folder
                     #peers = data[:-3]
                     peers = response['peers']
                     print 'the following data is received from the leader \n{0}\n{1}'.format(file_details, peers)
-                    P2PFactory = RemotepeerFactory(INIT_FILE_REQ, clientConn, download_folder, file_details, self.factory.dbpool)
+                    P2PFactory = RemotepeerFactory(INIT_FILE_REQ, clientConn, \
+                            self.factory.download_folder, file_details, self.factory.dbpool)
                     map(lambda host: reactor.connectTCP(host,SERVER_DAEMON_PORT, P2PFactory),
                             map(lambda host: host[0], peers))
 
@@ -380,7 +388,7 @@ class backendFactory(Factory):
             def __init__(self, key, dump, **kwargs):
                 self.key = key
                 self.dump = dump
-                self.dump_folder = kwargs['dump_folder']
+                self.download_folder = kwargs['download_folder']
                 self.dbpool = kwargs['dbpool']
                 self.identity = kwargs['identity']
 
@@ -388,13 +396,11 @@ class backendFactory(Factory):
                 return ServerLeaderProtocol(self)
 
         if key == HASH_DUMP:
-            factory = ServerLeaderFactory(key=key, dump=data, identity=self.book.uuidObj, dbpool=None, dump_folder=None)
+            factory = ServerLeaderFactory(key=key, dump=data, identity=self.book.uuidObj, dbpool=None, download_folder=None)
         elif key == LOOKUP:
-            factory = ServerLeaderFactory(key=key, dump=data, identity=None, dbpool=None, dump_folder=None)
+            factory = ServerLeaderFactory(key=key, dump=data, identity=None, dbpool=None, download_folder=None)
         elif key == SEND_PEER_DETAILS:
-            factory = ServerLeaderFactory(key=key, dump=data, identity=None, dump_folder='', dbpool=self.dbpool)
-            #factory = ServerLeaderFactory(key=key, dump=data, \
-            #        dump_folder=self.download_folder, dbpool=self.dbpool)
+            factory = ServerLeaderFactory(key=key, dump=data, identity=None, download_folder=self.download_folder, dbpool=self.dbpool)
 
         if key == SEND_PEER_DETAILS or key == LOOKUP:
             if self.leader is not None:

@@ -1,23 +1,22 @@
-import pickle
 import json
 from functools import wraps
 import time_uuid
-from constants import INDEXED, HANDSHAKE, LEADER_NOT_READY, FILE,\
-        LIST_ALL_FILES, ERROR_LIST_ALL_FILES, LEADER,\
+from constants import INDEXED, LEADER_NOT_READY,\
+        ERROR_LIST_ALL_FILES, LEADER,\
         HASH_DUMP, FILE_SYS_EVENT, SEARCH_REQ, SEARCH_RES, \
         LOOKUP, IWANT_PEER_FILE, PEER_LOOKUP_RESPONSE,\
         SEND_PEER_DETAILS, FILE_DETAILS_RESP, INIT_FILE_REQ, \
-        IWANT, FILE_TO_BE_DOWNLOADED, START_TRANSFER, DEAD,\
+        FILE_TO_BE_DOWNLOADED, DEAD,\
         NEW_PEER, BCAST_LEDGER, NEW_LEADER, REMOVE_LEADER, \
         SECRET_VAL, HANDLE_PONG, FACE_OFF,\
-        RE_ELECTION, ALIVE, HANDLE_ALIVE, NEW_LEADER,\
+        RE_ELECTION, ALIVE, HANDLE_ALIVE,\
         HANDLE_PING, REQ_CHUNK, END_GAME, FILE_CONFIRMATION_MESSAGE,\
-        INTERESTED, UNCHOKE, PEER_DEAD
+        INTERESTED, UNCHOKE, PEER_DEAD, CHANGE, SHARE, NEW_DOWNLOAD_FOLDER_RES,\
+        NEW_SHARED_FOLDER_RES
 
-
-NO_PARAM = [HANDSHAKE, LEADER_NOT_READY, END_GAME, UNCHOKE, HANDLE_PING]
-DELIMITERS_PARAMS = [FILE, LIST_ALL_FILES, ERROR_LIST_ALL_FILES, LEADER, HASH_DUMP, FILE_SYS_EVENT, SEARCH_REQ, SEARCH_RES, LOOKUP, IWANT_PEER_FILE, PEER_LOOKUP_RESPONSE, SEND_PEER_DETAILS, FILE_DETAILS_RESP, INIT_FILE_REQ, IWANT, FILE_TO_BE_DOWNLOADED, START_TRANSFER, DEAD, REQ_CHUNK, INDEXED, FILE_CONFIRMATION_MESSAGE, INTERESTED, NEW_PEER, BCAST_LEDGER, NEW_LEADER, REMOVE_LEADER, SECRET_VAL, HANDLE_PONG, FACE_OFF, DEAD]
-FLOATS = [RE_ELECTION, ALIVE, HANDLE_ALIVE, NEW_LEADER]
+#NO_PARAM = [HANDSHAKE, LEADER_NOT_READY, END_GAME, UNCHOKE, HANDLE_PING]
+#DELIMITERS_PARAMS = [FILE, LIST_ALL_FILES, ERROR_LIST_ALL_FILES, LEADER, HASH_DUMP, FILE_SYS_EVENT, SEARCH_REQ, SEARCH_RES, LOOKUP, IWANT_PEER_FILE, PEER_LOOKUP_RESPONSE, SEND_PEER_DETAILS, FILE_DETAILS_RESP, INIT_FILE_REQ, IWANT, FILE_TO_BE_DOWNLOADED, START_TRANSFER, DEAD, REQ_CHUNK, INDEXED, FILE_CONFIRMATION_MESSAGE, INTERESTED, NEW_PEER, BCAST_LEDGER, NEW_LEADER, REMOVE_LEADER, SECRET_VAL, HANDLE_PONG, FACE_OFF, DEAD]
+#FLOATS = [RE_ELECTION, ALIVE, HANDLE_ALIVE, NEW_LEADER]
 
 def finishing(func):
     @wraps(func)
@@ -239,6 +238,26 @@ def bake(key, **kwargs):
         action_msg['payload'] = payload
         return action_msg
 
+    def _craft_change_download_path_msg():
+        payload['download_folder'] = kwargs['download_folder']
+        action_msg['payload'] = payload
+        return action_msg
+
+    def  _craft_share_new_folder_msg():
+        payload['shared_folder'] = kwargs['shared_folder']
+        action_msg['payload'] = payload
+        return action_msg
+
+    def  _craft_new_download_folder_response_msg():
+        payload['download_folder_response'] = kwargs['download_folder_response']
+        action_msg['payload'] = payload
+        return action_msg
+
+    def _craft_new_shared_folder_response_msg():
+        payload['shared_folder_response'] = kwargs['shared_folder_response']
+        action_msg['payload'] = payload
+        return action_msg
+
     dispatcher = {
         NEW_PEER: _craft_new_peer_msg,
         REMOVE_LEADER: _craft_remove_leader_msg,
@@ -273,7 +292,12 @@ def bake(key, **kwargs):
         INTERESTED: _craft_interested_msg,
         FILE_DETAILS_RESP : _craft_file_details_resp,
         FILE_CONFIRMATION_MESSAGE : _craft_file_confirmation_message,
-        FILE_TO_BE_DOWNLOADED: _craft_file_to_be_downloaded_msg
+        FILE_TO_BE_DOWNLOADED: _craft_file_to_be_downloaded_msg,
+
+        CHANGE: _craft_change_download_path_msg,
+        SHARE: _craft_share_new_folder_msg,
+        NEW_DOWNLOAD_FOLDER_RES: _craft_new_download_folder_response_msg,
+        NEW_SHARED_FOLDER_RES: _craft_new_shared_folder_response_msg
     }
     return dispatcher[key]()
 

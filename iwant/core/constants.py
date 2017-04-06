@@ -46,6 +46,10 @@ END_GAME = 'end-game'
 FILE_CONFIRMATION_MESSAGE = 'file-confirmation-message'
 INTERESTED = 'interested'
 UNCHOKE = 'unchoke'
+CHANGE = 'change'
+SHARE = 'share'
+NEW_SHARED_FOLDER_RES = 'new-shared-folder-response'
+NEW_DOWNLOAD_FOLDER_RES = 'new-download-folder-response'
 #Server States
 READY = 1
 NOT_READY = 0

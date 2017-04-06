@@ -19,7 +19,7 @@ WITH_LEADER = 'WL'
 WITHOUT_LEADER = 'WTL'
 PEER_DEAD = 'peer dead'
 
-#Server Daemon
+# Server Daemon
 HANDSHAKE = 'handshake'
 FILE_SYS_EVENT = 'filesys-modified'
 FILE = 'file'
@@ -50,6 +50,6 @@ CHANGE = 'change'
 SHARE = 'share'
 NEW_SHARED_FOLDER_RES = 'new-shared-folder-response'
 NEW_DOWNLOAD_FOLDER_RES = 'new-download-folder-response'
-#Server States
+# Server States
 READY = 1
 NOT_READY = 0

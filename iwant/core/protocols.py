@@ -3,13 +3,14 @@ from twisted.internet import defer
 from engine.fileindexer.piece import piece_size
 from messagebaker import bake, unbake
 from constants import FILE_SYS_EVENT, FILE_DETAILS_RESP, \
-        LEADER, PEER_DEAD, FILE_TO_BE_DOWNLOADED, START_TRANSFER, INDEXED,\
-        REQ_CHUNK, END_GAME, FILE_CONFIRMATION_MESSAGE, INIT_FILE_REQ,\
-        INTERESTED, UNCHOKE
+    LEADER, PEER_DEAD, FILE_TO_BE_DOWNLOADED, START_TRANSFER, INDEXED,\
+    REQ_CHUNK, END_GAME, FILE_CONFIRMATION_MESSAGE, INIT_FILE_REQ,\
+    INTERESTED, UNCHOKE
 from iwant.core.engine.fileindexer import fileHashUtils
 from engine.fileindexer.piece import piece_size
 import ConfigParser
-import os, sys
+import os
+import sys
 import progressbar
 import pickle
 import math
@@ -17,6 +18,7 @@ import hashlib
 import random
 import time
 from struct import pack, unpack, calcsize
+
 
 class BaseProtocol(Protocol):
 
@@ -33,7 +35,7 @@ class BaseProtocol(Protocol):
         self.transport.write(buffered)
 
     def escape_dollar_sign(self, data):
-        return data.replace(self.delimiter,'')
+        return data.replace(self.delimiter, '')
 
     def hookHandler(self, fn):
         self.special_handler = fn
@@ -46,7 +48,7 @@ class BaseProtocol(Protocol):
             self.special_handler(data)
         else:
             for char in data:
-                self.buff+=char
+                self.buff += char
                 if char == self.delimiter:
                     request_str = self.escape_dollar_sign(self.buff)
                     self.buff = ''
@@ -57,26 +59,27 @@ class BaseProtocol(Protocol):
 
 
 class FilemonitorClientProtocol(Protocol):
+
     '''
         This protocol updates the server about:
         1. If all the files in the shared folder are indexed or not
         2. Inform the server about the new updated indexed files(the entire dump)
     '''
+
     def __init__(self, factory):
         self.factory = factory
 
     def connectionMade(self):
         print '@filemonitor protocol'
         print 'event {0}'.format(self.factory.event)
-        #real_updates = self.factory.updates[1:]
-        #if len(real_updates)!=0:
-        #    #updated_msg = Basemessage(key=self.factory.event, data=self.factory.updates)
-        #    updated_msg = bake(key=self.factory.event, data=self.factory.updates)
-        #    self.transport.write(str(updated_msg))
-        #    self.transport.loseConnection()
-        updated_msg = bake(self.factory.event, shared_folder=self.factory.updates['shared_folder'], ADD=self.factory.updates['ADD'], DEL=self.factory.updates['DEL'])
+        updated_msg = bake(
+            self.factory.event,
+            shared_folder=self.factory.updates['shared_folder'],
+            ADD=self.factory.updates['ADD'],
+            DEL=self.factory.updates['DEL'])
         self.transport.write(updated_msg)
         self.transport.loseConnection()
+
 
 class FilemonitorClientFactory(ClientFactory):
 
@@ -85,7 +88,6 @@ class FilemonitorClientFactory(ClientFactory):
             :param config_path : string
             config_path contains the .iwant directory path
         '''
-        #self.config_path = config_path
         self.event = event
         self.updates = updates
 
@@ -94,9 +96,11 @@ class FilemonitorClientFactory(ClientFactory):
 
 
 class PeerdiscoveryProtocol(DatagramProtocol):
+
     '''
         Used by the election daemon
     '''
+
     def escape_hash_sign(self, string):
         return string.replace(self.delimiter, '')
 
@@ -117,26 +121,31 @@ class PeerdiscoveryProtocol(DatagramProtocol):
 
 
 class ServerElectionProtocol(Protocol):
+
     '''
         This protocol is used by the election daemon to communicate with the server about:
             1. New leader
             2. Node is dead (only the leader node passes information about the dead node to its local server. Rest done)
     '''
+
     def __init__(self, factory):
         self.factory = factory
 
     def connectionMade(self):
         if self.factory.dead_peer is None:
-            update_msg = bake(key=LEADER, leader=(self.factory.leader_host, self.factory.leader_port))
-            #update_msg = Basemessage(key=LEADER, data=(self.factory.leader_host, self.factory.leader_port))
+            update_msg = bake(
+                key=LEADER,
+                leader=(
+                    self.factory.leader_host,
+                    self.factory.leader_port))
         else:
             update_msg = bake(PEER_DEAD, dead_uuid=self.factory.dead_peer)
-            #update_msg = Basemessage(key=DEAD, data=self.factory.dead_peer)
         self.transport.write(str(update_msg))
         self.transport.loseConnection()
 
 
 class ServerElectionFactory(ClientFactory):
+
     def __init__(self, leader_host, leader_port, dead_peer=None):
         '''
             :param leader_host : string
@@ -152,9 +161,11 @@ class ServerElectionFactory(ClientFactory):
 
 
 class RemotepeerProtocol(BaseProtocol):
+
     '''
         Used for peer to peer download
     '''
+
     def __init__(self, factory):
         self.buff = ''
         self.delimiter = '\r'
@@ -172,22 +183,19 @@ class RemotepeerProtocol(BaseProtocol):
         self.length = None
         self._complete_chunk_received = True
         self.events = {
-            #FILE_DETAILS_RESP: self.start_transfer,
-            FILE_CONFIRMATION_MESSAGE : self.verify_pieces,
-            UNCHOKE : self.start_transfer
+            FILE_CONFIRMATION_MESSAGE: self.verify_pieces,
+            UNCHOKE: self.start_transfer
         }
 
-
     def connectionMade(self):
-        #update_msg = Basemessage(key=INTERESTED, data=self.factory.file_details['checksum'])
-        update_msg = bake(INTERESTED, filehash=self.factory.file_details['checksum'])
+        update_msg = bake(
+            INTERESTED,
+            filehash=self.factory.file_details['checksum'])
         self.sendLine(update_msg)
 
     def serviceMessage(self, data):
         key, value = unbake(message=data)
         self.events[key](value)
-        #req = Basemessage(message=data)
-        #self.events[req.key](req.data)
 
     def verify_pieces(self, data):
         print '@initiate request {0}'.format(data)
@@ -199,18 +207,19 @@ class RemotepeerProtocol(BaseProtocol):
                 self.factory.file_details['pieceHashes'] = piecehashes
                 print 'the filename entered to resume is {0}'.format(self.factory.path_to_write)
                 fileHashUtils.add_new_file_entry_resume((
-                        self.factory.path_to_write,
-                        0,
-                        self.factory.file_details['file_size'],
-                        self.factory.file_details['checksum'],
-                        self.factory.file_details['pieceHashes'],
-                        self.factory.file_details['file_root_hash']
-                    ), self.factory.dbpool
+                    self.factory.path_to_write,
+                    0,
+                    self.factory.file_details['file_size'],
+                    self.factory.file_details['checksum'],
+                    self.factory.file_details['pieceHashes'],
+                    self.factory.file_details['file_root_hash']
+                ), self.factory.dbpool
                 )
                 self.factory._is_new_file = False
             self.factory.file_details['pieceHashes'] = piecehashes
-            #load_file_msg = Basemessage(key=INIT_FILE_REQ, data=self.factory.file_details['checksum'])
-            load_file_msg = bake(INIT_FILE_REQ, filehash=self.factory.file_details['checksum'])
+            load_file_msg = bake(
+                INIT_FILE_REQ,
+                filehash=self.factory.file_details['checksum'])
             self.sendLine(load_file_msg)
 
     def start_transfer(self, data):
@@ -218,8 +227,10 @@ class RemotepeerProtocol(BaseProtocol):
             DOWNLOAD_FOLDER = self.factory.download_folder
             filename = os.path.basename(self.factory.file_details['file_name'])
             filesize = self.factory.file_details['file_size']
-            #msg_to_client = Basemessage(key=FILE_TO_BE_DOWNLOADED, data=(filename, filesize))
-            msg_to_client = bake(FILE_TO_BE_DOWNLOADED, filename=filename, filesize=filesize)
+            msg_to_client = bake(
+                FILE_TO_BE_DOWNLOADED,
+                filename=filename,
+                filesize=filesize)
             print '****** iWanto Download {0} **********'.format(filename)
             print 'Downloading to: {0}'.format(self.factory.path_to_write)
             self.factory.clientConn.sendLine(msg_to_client)
@@ -238,7 +249,9 @@ class RemotepeerProtocol(BaseProtocol):
         while len(all_data) >= (currentOffset + prefixLength):
             messageStart = currentOffset + prefixLength
             if self._complete_chunk_received:
-                self.length, self.chunk_number = unpack(receive_format, all_data[currentOffset: messageStart])
+                self.length, self.chunk_number = unpack(
+                    receive_format, all_data[
+                        currentOffset: messageStart])
                 messageEnd = messageStart + self.length
                 currentOffset = messageEnd
                 self._file_buffer = all_data[messageStart: messageEnd]
@@ -248,7 +261,8 @@ class RemotepeerProtocol(BaseProtocol):
                     self._complete_chunk_received = False
             else:
                 old_length = len(self._file_buffer)
-                self._file_buffer += all_data[currentOffset : (self.length - old_length)]
+                self._file_buffer += all_data[currentOffset:
+                                              (self.length - old_length)]
                 currentOffset = self.length - old_length
                 if len(self._file_buffer) == self.length:
                     self.verify_and_write(self._file_buffer, self.chunk_number)
@@ -260,12 +274,12 @@ class RemotepeerProtocol(BaseProtocol):
         if chunk_number not in self.factory.processed_queue:
             start = chunk_number * self.factory.hash_chunksize
             end = start + self.factory.hash_chunksize
-            #verified_hash = self.factory.file_details['pieceHashes'][start: end]
-            #hasher = hashlib.md5()
-            #hasher.update(stream)
-            #if hasher.hexdigest() == verified_hash:
+            # verified_hash = self.factory.file_details['pieceHashes'][start: end]
+            # hasher = hashlib.md5()
+            # hasher.update(stream)
+            # if hasher.hexdigest() == verified_hash:
             self.writeToFile(stream, chunk_number)
-            #else:
+            # else:
             #    print 'we are fucked while receiving pieces {0} and \
             #            size is {1} and chunk size should be {2}'.format(chunk_number, len(stream),\
             #            self.factory.chunk_size)
@@ -274,8 +288,9 @@ class RemotepeerProtocol(BaseProtocol):
                 self.request_for_pieces()
             else:
                 if self.factory.super_set - self.factory.processed_queue:
-                    remaining_pieces = self.factory.super_set - self.factory.processed_queue
-                    #self.factory.request_queue.update(remaining_pieces)
+                    remaining_pieces = self.factory.super_set - \
+                        self.factory.processed_queue
+                    # self.factory.request_queue.update(remaining_pieces)
                     self.factory.end_game_queue.update(remaining_pieces)
                     self.request_for_pieces(endgame=True)
                 else:
@@ -283,7 +298,9 @@ class RemotepeerProtocol(BaseProtocol):
                     self.factory.end_time = time.time()
                     self.stop_requesting_for_pieces()
                     print 'file written'
-                    fileHashUtils.remove_resume_entry(self.factory.file_details['checksum'], self.factory.dbpool)
+                    fileHashUtils.remove_resume_entry(
+                        self.factory.file_details['checksum'],
+                        self.factory.dbpool)
 
     def writeToFile(self, stream, chunk_number):
         seek_position = chunk_number * self.factory.chunk_size
@@ -294,18 +311,21 @@ class RemotepeerProtocol(BaseProtocol):
         self.factory.bar.update(self.factory.download_progress)
 
     def request_for_pieces(self, bootstrap=False, endgame=False):
-        #try:
+        # try:
         #    self.requestPieceNumber = self.factory.request_queue.pop()  # ask for 5 pieces in flight
         #    request_chunk_msg = Basemessage(key=REQ_CHUNK, data=(self.requestPieceNumber, self.factory.chunk_size))
         #    self.sendLine(request_chunk_msg)
-        #except Exception as e:
+        # except Exception as e:
         #    print 'file is already written'
         #    self.factory.file_container.close()
         #    self.transport.loseConnection()
         request_piece_numbers = self.generate_pieces(bootstrap, endgame)
         for i in request_piece_numbers:
-            #request_chunk_msg = Basemessage(key=REQ_CHUNK, data=pack(self.send_format, i))
-            request_chunk_msg = bake(REQ_CHUNK, piece_data=pack(self.send_format, i))
+            request_chunk_msg = bake(
+                REQ_CHUNK,
+                piece_data=pack(
+                    self.send_format,
+                    i))
             self.sendLine(request_chunk_msg)
 
     def generate_pieces(self, bootstrap=False, endgame=False):
@@ -327,7 +347,6 @@ class RemotepeerProtocol(BaseProtocol):
 
     def stop_requesting_for_pieces(self):
         stop_msg = bake(END_GAME, end_game=True)
-        #stop_msg = Basemessage(key=END_GAME, data=None)
         self.sendLine(stop_msg)
 
 
@@ -352,25 +371,45 @@ class RemotepeerFactory(Factory):
         self.file_details = file_details
         self.hash_chunksize = 32
         self.chunk_size = piece_size(self.file_details['file_size'])
-        self.number_of_pieces = int(math.ceil(self.file_details['file_size'] * 1000.0 * 1000.0 / self.chunk_size))
-        self.bar = progressbar.ProgressBar(maxval=self.number_of_pieces,\
-                        widgets=[progressbar.Bar('=', '[', ']'), ' ',progressbar.Percentage(), ' ', progressbar.Timer()]).start()
-        self.path_to_write = os.path.join(download_folder, os.path.basename(self.file_details['file_name']))
+        self.number_of_pieces = int(
+            math.ceil(
+                self.file_details['file_size'] *
+                1000.0 *
+                1000.0 /
+                self.chunk_size))
+        self.bar = progressbar.ProgressBar(
+            maxval=self.number_of_pieces,
+            widgets=[
+                progressbar.Bar(
+                    '=',
+                    '[',
+                    ']'),
+                ' ',
+                progressbar.Percentage(),
+                ' ',
+                progressbar.Timer()]).start()
+        self.path_to_write = os.path.join(
+            download_folder,
+            os.path.basename(
+                self.file_details['file_name']))
         self.request_queue = set(range(self.number_of_pieces))
         self.super_set = set(range(self.number_of_pieces))
         self.end_game_queue = set()
         self.processed_queue = set()
         self._is_new_file = False
-        x = fileHashUtils.check_hash_present(self.file_details['checksum'], self.dbpool)
+        x = fileHashUtils.check_hash_present(
+            self.file_details['checksum'],
+            self.dbpool)
         x.addCallback(self.initFile)
-        #self.initFile()
+        # self.initFile()
 
     @defer.inlineCallbacks
     def initFile(self, resume=False):
         print 'came to initFile and resume is set to {0}'.format(resume)
         if not resume:
             self.file_container = open(self.path_to_write, 'wb')
-            self.file_container.seek((self.file_details['file_size'] * 1000.0 * 1000.0) - 1)
+            self.file_container.seek(
+                (self.file_details['file_size'] * 1000.0 * 1000.0) - 1)
             self.file_container.write('\0')
             self.file_container.close()
             self.file_container = open(self.path_to_write, 'r+b')
@@ -378,13 +417,16 @@ class RemotepeerFactory(Factory):
         else:
             piece_hashes = yield fileHashUtils.get_piecehashes_of(self.file_details['checksum'], self.dbpool)
             with open(self.path_to_write, 'rb') as f:
-                for i, chunk in enumerate(iter(lambda : f.read(self.chunk_size), b"")):
+                for i, chunk in enumerate(
+                    iter(
+                        lambda: f.read(
+                            self.chunk_size), b"")):
                     acha = hashlib.md5()
                     acha.update(chunk)
-                    if acha.hexdigest() == piece_hashes[i*32: (i*32)+32]:
+                    if acha.hexdigest() == piece_hashes[i * 32: (i * 32) + 32]:
                         self.request_queue.remove(i)
                         self.processed_queue.add(i)
-                        self.download_progress+=1
+                        self.download_progress += 1
             self.file_container = open(self.path_to_write, 'r+b')
             self._is_new_file = False
 

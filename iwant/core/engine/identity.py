@@ -4,7 +4,13 @@ class CommonlogBook(object):
         for example, peers,leader,state,uuid
     '''
 
-    def __init__(self, identity=None, state=None, peers={}, leader=None, ip=None):
+    def __init__(
+            self,
+            identity=None,
+            state=None,
+            peers={},
+            leader=None,
+            ip=None):
         """
         :param identity: uuid representing the identity of the peer
         :param state: defines the state of the peer
@@ -14,8 +20,8 @@ class CommonlogBook(object):
         self.state = state
         self.peers = peers
         self.leader = None  # uuid
-        self.isLeader = False  # its better to use this than keep comparing uuid objects
+        # its better to use this than keep comparing uuid objects
+        self.isLeader = False
         self.uuid = identity.hex
         self.ip = ip
         self.uuidObj = identity
-

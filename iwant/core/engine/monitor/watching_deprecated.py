@@ -6,7 +6,9 @@ from ..fileindexer import findexer
 import sys
 import os
 
+
 class ScanFolder(object):
+
     def __init__(self, folder, config_folder, callback):
         self.path = folder
         self.callback = callback
@@ -33,9 +35,12 @@ class ScanFolder(object):
             '''If file/directory is moved or deleted If directory is removed , pass the parent directory'''
 
             if event.is_directory:
-                    path = os.path.split(os.path.abspath(event.src_path))[0]  # parent directory
+                path = os.path.split(
+                    os.path.abspath(
+                        event.src_path))[0]  # parent directory
             else:
-                    path = os.path.dirname(event.src_path)
+                path = os.path.dirname(event.src_path)
             idx = findexer.FileHashIndexer(path, self.config_folder)
             idx.index()
-        self.callback(self.config_folder) # informing the server daemon about changes
+        # informing the server daemon about changes
+        self.callback(self.config_folder)

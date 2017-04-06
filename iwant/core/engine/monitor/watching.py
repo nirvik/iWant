@@ -7,7 +7,9 @@ import sys
 import os
 from iwant.core.constants import FILE_SYS_EVENT
 
+
 class ScanFolder(object):
+
     def __init__(self, folder, callback, dbpool):
         print 'now scanning {0}'.format(folder)
         self.path = folder
@@ -32,19 +34,27 @@ class ScanFolder(object):
         print event.src_path, event.event_type
         if event.event_type in ["created", "modified"]:
             if event.is_directory:
-                add_event = fileHashUtils.index_folder(event.src_path, self.dbpool)
+                add_event = fileHashUtils.index_folder(
+                    event.src_path,
+                    self.dbpool)
             else:
-                add_event = fileHashUtils.index_file(event.src_path, self.dbpool)
+                add_event = fileHashUtils.index_file(
+                    event.src_path,
+                    self.dbpool)
             add_event.addCallback(self.fuckit)
         else:
             '''If file/directory is moved or deleted If directory is removed , pass the parent directory'''
 
             if event.is_directory:
-                remove_event = fileHashUtils.folder_delete_handler(event.src_path, self.dbpool)
+                remove_event = fileHashUtils.folder_delete_handler(
+                    event.src_path,
+                    self.dbpool)
             else:
-                remove_event = fileHashUtils.file_delete_handler(event.src_path, self.dbpool)
+                remove_event = fileHashUtils.file_delete_handler(
+                    event.src_path,
+                    self.dbpool)
             remove_event.addCallback(self.fuckit)
-        #self.callback() # informing the server daemon about changes
+        # self.callback() # informing the server daemon about changes
 
 if __name__ == '__main__':
     ScanFolder('/home/nirvik/Music/Maa', hey)

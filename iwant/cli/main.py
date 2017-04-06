@@ -12,15 +12,16 @@ from iwant.core.engine.consensus.beacon import CommonroomProtocol
 from iwant.core.engine.server import backendFactory
 from iwant.core.engine.monitor.watching import ScanFolder
 from iwant.core.config import SERVER_DAEMON_HOST,\
-        SERVER_DAEMON_PORT, MCAST_PORT
+    SERVER_DAEMON_PORT, MCAST_PORT
 from iwant.core.engine.monitor.callbacks import filechangeCB,\
-        fileindexedCB
+    fileindexedCB
 # from iwant.core.engine.identity.book import CommonlogBook
 from iwant.core.engine.identity import CommonlogBook
 from iwant.core.engine.fileindexer import fileHashUtils
 from twisted.internet import reactor, endpoints
 from iwant.core.engine.client import FrontendFactory
 from iwant.core.constants import SEARCH_REQ, IWANT_PEER_FILE, CHANGE, SHARE
+
 
 def get_ips():
     ip_list = []
@@ -32,9 +33,11 @@ def get_ips():
             pass
     return ip_list
 
+
 def generate_id():
     timeuuid = time_uuid.TimeUUID.with_utcnow()  # generate uuid
     return timeuuid
+
 
 def get_basepath():
     home_directory_path = os.path.expanduser('~')
@@ -45,6 +48,7 @@ def get_basepath():
         iwant_directory_path = os.path.join(os.getenv('APPDATA'), '.iwant')
 
     return iwant_directory_path
+
 
 def get_paths():
     Config = ConfigParser.ConfigParser()
@@ -59,6 +63,7 @@ def get_paths():
 
     return (SHARING_FOLDER, DOWNLOAD_FOLDER, CONFIG_PATH)
 
+
 def change_paths(sharing_folder=None, downloading_folder=None):
     Config = ConfigParser.ConfigParser()
     conf_path = get_basepath()
@@ -71,20 +76,23 @@ def change_paths(sharing_folder=None, downloading_folder=None):
     except:
         raise MainException(2)
 
+
 def fuckthisshit(data):
     print 'indexing done'
     fileindexedCB(data)
 
+
 def set_text_factory(conn):
     conn.text_factory = str
+
 
 def main():
     ips = get_ips()
     for count, ip in enumerate(ips):
-        print count+1, ip
+        print count + 1, ip
     ip = input('Enter index of ip addr:')
     timeuuid = generate_id()
-    book = CommonlogBook(identity=timeuuid, state=0, ip=ips[ip-1])
+    book = CommonlogBook(identity=timeuuid, state=0, ip=ips[ip - 1])
 
     SHARING_FOLDER, DOWNLOAD_FOLDER, CONFIG_PATH = get_paths()
 
@@ -98,16 +106,32 @@ def main():
     filename = os.path.join(CONFIG_PATH, 'iwant.db')
     if not os.path.isfile(filename):
         conn = sqlite3.connect(filename)
-        conn.execute('''CREATE TABLE indexer (filename text primary key, share integer, size real, hash text, piecehashes text, roothash text)''')
-        conn.execute('''CREATE TABLE resume (filename text primary key, hash text) ''')
+        conn.execute(
+            '''CREATE TABLE indexer (filename text primary key, share integer, size real, hash text, piecehashes text, roothash text)''')
+        conn.execute(
+            '''CREATE TABLE resume (filename text primary key, hash text) ''')
         conn.commit()
 
-    dbpool = adbapi.ConnectionPool('sqlite3', filename, check_same_thread=False, cp_openfun = set_text_factory)
+    dbpool = adbapi.ConnectionPool(
+        'sqlite3',
+        filename,
+        check_same_thread=False,
+        cp_openfun=set_text_factory)
     try:
-        reactor.listenMulticast(MCAST_PORT, CommonroomProtocol(book, log), listenMultiple=True)  # spawning election daemon
-        endpoints.serverFromString(reactor, 'tcp:{0}'.format(SERVER_DAEMON_PORT)).\
-                listen(backendFactory(book, dbpool=dbpool, \
-                download_folder=DOWNLOAD_FOLDER, shared_folder=SHARING_FOLDER))
+        reactor.listenMulticast(
+            MCAST_PORT,
+            CommonroomProtocol(
+                book,
+                log),
+            listenMultiple=True)  # spawning election daemon
+        endpoints.serverFromString(
+            reactor,
+            'tcp:{0}'.format(SERVER_DAEMON_PORT)). listen(
+            backendFactory(
+                book,
+                dbpool=dbpool,
+                download_folder=DOWNLOAD_FOLDER,
+                shared_folder=SHARING_FOLDER))
 
         indexer = fileHashUtils.bootstrap(SHARING_FOLDER, dbpool)
         indexer.addCallback(fileindexedCB)
@@ -125,39 +149,50 @@ def main():
 def ui():
     parser = argparse.ArgumentParser(description='iwant')
     parser.add_argument("--search", help="instant fuzzy search", type=str)
-    parser.add_argument("--download", help="download file by giving hash", type=str)
-    parser.add_argument("--share", help="change the share folder directory", type=str)
-    parser.add_argument("--change_download_path", help="change the download path directory", type=str)
+    parser.add_argument(
+        "--download",
+        help="download file by giving hash",
+        type=str)
+    parser.add_argument(
+        "--share",
+        help="change the share folder directory",
+        type=str)
+    parser.add_argument(
+        "--change_download_path",
+        help="change the download path directory",
+        type=str)
     args = parser.parse_args()
 
     if args.search:
-        reactor.connectTCP(SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, FrontendFactory(SEARCH_REQ, args.search))
+        reactor.connectTCP(
+            SERVER_DAEMON_HOST,
+            SERVER_DAEMON_PORT,
+            FrontendFactory(
+                SEARCH_REQ,
+                args.search))
 
     elif args.download:
-        reactor.connectTCP(SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, FrontendFactory(IWANT_PEER_FILE, args.download))
+        reactor.connectTCP(
+            SERVER_DAEMON_HOST,
+            SERVER_DAEMON_PORT,
+            FrontendFactory(
+                IWANT_PEER_FILE,
+                args.download))
 
     elif args.share:
-        reactor.connectTCP(SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, FrontendFactory(SHARE, args.share))
+        reactor.connectTCP(
+            SERVER_DAEMON_HOST,
+            SERVER_DAEMON_PORT,
+            FrontendFactory(
+                SHARE,
+                args.share))
 
     elif args.change_download_path:
-        reactor.connectTCP(SERVER_DAEMON_HOST, SERVER_DAEMON_PORT, FrontendFactory(CHANGE, args.change_download_path))
-
-        #NEW_SHARING_FOLDER = args.share
-        #_, _, CONFIG_PATH = get_paths()
-        #change_paths(sharing_folder=NEW_SHARING_FOLDER)
-        #filename = os.path.join(CONFIG_PATH, 'iwant.db')
-        #if not os.path.isfile(filename):
-        #    conn = sqlite3.connect(filename)
-        #    conn.execute('''CREATE TABLE indexer (filename text primary key, share integer, size real, hash text, piecehashes text, roothash text)''')
-        #    conn.execute('''CREATE TABLE resume (filename text primary key, hash text) ''')
-        #    conn.commit()
-
-        #dbpool = adbapi.ConnectionPool('sqlite3', filename, check_same_thread=False, cp_openfun = set_text_factory)
-        #indexer = fileHashUtils.bootstrap(NEW_SHARING_FOLDER, dbpool)
-        #indexer.addCallback(fileindexedCB)
-        #print 'planning on scanning this new folder {0}'.format(NEW_SHARING_FOLDER)
-        #x = ScanFolder(NEW_SHARING_FOLDER, filechangeCB, dbpool)
-        #print x
+        reactor.connectTCP(
+            SERVER_DAEMON_HOST,
+            SERVER_DAEMON_PORT,
+            FrontendFactory(
+                CHANGE,
+                args.change_download_path))
 
     reactor.run()
-

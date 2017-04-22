@@ -1,8 +1,5 @@
 import os
 import sys
-import time_uuid
-import ConfigParser
-from netifaces import interfaces, ifaddresses, AF_INET
 import argparse
 import sqlite3
 from twisted.python import log
@@ -15,66 +12,12 @@ from iwant.core.config import SERVER_DAEMON_HOST,\
     SERVER_DAEMON_PORT, MCAST_PORT
 from iwant.core.engine.monitor.callbacks import filechangeCB,\
     fileindexedCB
-# from iwant.core.engine.identity.book import CommonlogBook
 from iwant.core.engine.identity import CommonlogBook
 from iwant.core.engine.fileindexer import fileHashUtils
 from twisted.internet import reactor, endpoints
 from iwant.core.engine.client import FrontendFactory
 from iwant.core.constants import SEARCH_REQ, IWANT_PEER_FILE, CHANGE, SHARE
-
-
-def get_ips():
-    ip_list = []
-    for interface in interfaces():
-        try:
-            for link in ifaddresses(interface)[AF_INET]:
-                ip_list.append(link['addr'])
-        except:
-            pass
-    return ip_list
-
-
-def generate_id():
-    timeuuid = time_uuid.TimeUUID.with_utcnow()  # generate uuid
-    return timeuuid
-
-
-def get_basepath():
-    home_directory_path = os.path.expanduser('~')
-    if sys.platform == 'linux2' or sys.platform == 'linux'\
-            or sys.platform == 'darwin':
-        iwant_directory_path = os.path.join(home_directory_path, '.iwant')
-    elif sys.platform == 'win32':
-        iwant_directory_path = os.path.join(os.getenv('APPDATA'), '.iwant')
-
-    return iwant_directory_path
-
-
-def get_paths():
-    Config = ConfigParser.ConfigParser()
-    conf_path = get_basepath()
-    try:
-        Config.read(os.path.join(conf_path, '.iwant.conf'))
-        CONFIG_PATH = conf_path
-        SHARING_FOLDER = Config.get('Paths', 'share')
-        DOWNLOAD_FOLDER = Config.get('Paths', 'download')
-    except:
-        raise MainException(2)
-
-    return (SHARING_FOLDER, DOWNLOAD_FOLDER, CONFIG_PATH)
-
-
-def change_paths(sharing_folder=None, downloading_folder=None):
-    Config = ConfigParser.ConfigParser()
-    conf_path = get_basepath()
-    try:
-        Config.read(os.path.join(conf_path, '.iwant.conf'))
-        if sharing_folder is not None:
-            Config.set('Paths', 'share', sharing_folder)
-        if downloading_folder is not None:
-            Config.set('Paths', 'download', downloading_folder)
-    except:
-        raise MainException(2)
+from iwant.cli.utils import get_ips, generate_id, get_paths
 
 
 def fuckthisshit(data):
@@ -196,3 +139,6 @@ def ui():
                 args.change_download_path))
 
     reactor.run()
+
+if __name__ == '__main__':
+    main()

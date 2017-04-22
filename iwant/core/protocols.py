@@ -2,20 +2,14 @@ from twisted.internet.protocol import Protocol, ClientFactory, DatagramProtocol,
 from twisted.internet import defer
 from engine.fileindexer.piece import piece_size
 from messagebaker import bake, unbake
-from constants import FILE_SYS_EVENT, FILE_DETAILS_RESP, \
-    LEADER, PEER_DEAD, FILE_TO_BE_DOWNLOADED, START_TRANSFER, INDEXED,\
+from constants import LEADER, PEER_DEAD, FILE_TO_BE_DOWNLOADED,\
     REQ_CHUNK, END_GAME, FILE_CONFIRMATION_MESSAGE, INIT_FILE_REQ,\
     INTERESTED, UNCHOKE
 from iwant.core.engine.fileindexer import fileHashUtils
-from engine.fileindexer.piece import piece_size
-import ConfigParser
 import os
-import sys
 import progressbar
-import pickle
 import math
 import hashlib
-import random
 import time
 from struct import pack, unpack, calcsize
 

@@ -1,14 +1,20 @@
 from twisted.internet import reactor
-#from twisted.internet.endpoints import TCP4ClientEndpoint,connectProtocol
 from twisted.internet.protocol import ClientFactory
-from ..messagebaker import bake, unbake
-from ..constants import SEARCH_REQ, SEARCH_RES, \
+from iwant.core.messagebaker import bake, unbake
+from iwant.cli.utils import update_config
+from iwant.core.constants import SEARCH_REQ, SEARCH_RES, \
     LEADER_NOT_READY, IWANT_PEER_FILE,\
     FILE_TO_BE_DOWNLOADED, CHANGE, SHARE,\
     NEW_SHARED_FOLDER_RES, NEW_DOWNLOAD_FOLDER_RES
-from ..protocols import BaseProtocol
+from iwant.core.protocols import BaseProtocol
 import tabulate
 import os
+from functools import wraps
+
+SERVER_LOG_INFO = 'server log'
+CLIENT_LOG_INFO = 'client log'
+ERROR_LOG = 'error log'
+WARNING_LOG = 'warning log'
 
 
 class bcolors:
@@ -23,25 +29,29 @@ class bcolors:
 
 
 def color(func):
-    def wrapper(metadata):
-        print bcolors.OKBLUE + func(metadata) + bcolors.ENDC
-    return wrapper
+    is_windows = True if os.name == 'nt' else False
 
-
-def color_warning(func):
-    def wrapper(warning_msg):
-        print bcolors.WARNING + func(warning_msg) + bcolors.ENDC
+    @wraps(func)
+    def wrapper(message, message_type=None):
+        if not is_windows:
+            if message_type == WARNING_LOG:
+                print bcolors.WARNING + func(message) + bcolors.ENDC
+            elif message_type == ERROR_LOG:
+                print bcolors.FAIL + func(message) + bcolors.ENDC
+            elif message_type == SERVER_LOG_INFO:
+                print bcolors.OKGREEN + func(message) + bcolors.ENDC
+            elif message_type == CLIENT_LOG_INFO:
+                print bcolors.OKBLUE + func(message) + bcolors.ENDC
+            else:
+                print func(message)
+        else:
+            print func(message)
     return wrapper
 
 
 @color
-def print_metadata(data):
+def print_status(data, message_type=None):
     return data
-
-
-@color_warning
-def print_warning(msg):
-    return msg
 
 
 class Frontend(BaseProtocol):
@@ -66,8 +76,12 @@ class Frontend(BaseProtocol):
         elif self.factory.query == IWANT_PEER_FILE:
             reqMessage = bake(IWANT_PEER_FILE, filehash=self.factory.arguments)
         elif self.factory.query == SHARE:
-            reqMessage = bake(SHARE, shared_folder=self.factory.arguments)
+            shared_folder = self.factory.arguments
+            update_config(shared_folder=shared_folder)
+            reqMessage = bake(SHARE, shared_folder=shared_folder)
         elif self.factory.query == CHANGE:
+            download_folder = self.factory.arguments
+            update_config(download_folder=download_folder)
             reqMessage = bake(CHANGE, download_folder=self.factory.arguments)
         self.sendLine(reqMessage)
 
@@ -97,7 +111,7 @@ class Frontend(BaseProtocol):
             triggered when leader not ready
         '''
         # print 'Tracker not available..'
-        print_warning(data['reason'])
+        print_status(data['reason'], WARNING_LOG)
         reactor.stop()
 
     def show_file_to_be_downloaded(self, data):
@@ -114,24 +128,24 @@ class Frontend(BaseProtocol):
             file_type = file_type_split[-1]
         else:
             file_type = 'UNKNOWN'
-        print_metadata(
+        print_status(
             'Filename: {0}\nSize: {1}\nBasename: {2}\nFiletype: {3}\n'.format(
                 filename_response,
                 filesize_response,
                 file_basename,
-                file_type))
+                file_type), CLIENT_LOG_INFO)
         reactor.stop()
 
     def confirm_new_shared_folder(self, data):
-        print_metadata(
+        print_status(
             'SHARED FOLDER => {0}'.format(
-                data['shared_folder_response']))
+                data['shared_folder_response']), CLIENT_LOG_INFO)
         reactor.stop()
 
     def confirm_new_download_folder(self, data):
-        print_metadata(
+        print_status(
             'DOWNLOAD FOLDER => {0}'.format(
-                data['download_folder_response']))
+                data['download_folder_response']), CLIENT_LOG_INFO)
         reactor.stop()
 
 

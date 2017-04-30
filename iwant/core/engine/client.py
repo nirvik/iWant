@@ -1,7 +1,7 @@
 from twisted.internet import reactor
 from twisted.internet.protocol import ClientFactory
 from iwant.core.messagebaker import bake, unbake
-from iwant.cli.utils import update_config
+from iwant.cli.utils import update_config, print_log, CLIENT_LOG_INFO, ERROR_LOG, WARNING_LOG
 from iwant.core.constants import SEARCH_REQ, SEARCH_RES, \
     LEADER_NOT_READY, IWANT_PEER_FILE,\
     FILE_TO_BE_DOWNLOADED, CHANGE, SHARE,\
@@ -9,50 +9,6 @@ from iwant.core.constants import SEARCH_REQ, SEARCH_RES, \
 from iwant.core.protocols import BaseProtocol
 import tabulate
 import os
-from functools import wraps
-
-SERVER_LOG_INFO = 'server log'
-CLIENT_LOG_INFO = 'client log'
-ERROR_LOG = 'error log'
-WARNING_LOG = 'warning log'
-
-
-class bcolors:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
-
-
-def color(func):
-    is_windows = True if os.name == 'nt' else False
-
-    @wraps(func)
-    def wrapper(message, message_type=None):
-        if not is_windows:
-            if message_type == WARNING_LOG:
-                print bcolors.WARNING + func(message) + bcolors.ENDC
-            elif message_type == ERROR_LOG:
-                print bcolors.FAIL + func(message) + bcolors.ENDC
-            elif message_type == SERVER_LOG_INFO:
-                print bcolors.OKGREEN + func(message) + bcolors.ENDC
-            elif message_type == CLIENT_LOG_INFO:
-                print bcolors.OKBLUE + func(message) + bcolors.ENDC
-            else:
-                print func(message)
-        else:
-            print func(message)
-    return wrapper
-
-
-@color
-def print_status(data, message_type=None):
-    return data
-
 
 class Frontend(BaseProtocol):
 
@@ -102,7 +58,7 @@ class Frontend(BaseProtocol):
         response = []
         for i in search_response:
             response.append(i[:-1])
-        print tabulate.tabulate(response, headers=["Filename", "Size", "Checksum", "RootHash"])
+        print_log(tabulate.tabulate(response, headers=["Filename", "Size", "Checksum", "RootHash"]), CLIENT_LOG_INFO)
         reactor.stop()
 
     def leader_not_ready(self, data):
@@ -111,7 +67,7 @@ class Frontend(BaseProtocol):
             triggered when leader not ready
         '''
         # print 'Tracker not available..'
-        print_status(data['reason'], WARNING_LOG)
+        print_log(data['reason'], WARNING_LOG)
         reactor.stop()
 
     def show_file_to_be_downloaded(self, data):
@@ -128,7 +84,7 @@ class Frontend(BaseProtocol):
             file_type = file_type_split[-1]
         else:
             file_type = 'UNKNOWN'
-        print_status(
+        print_log(
             'Filename: {0}\nSize: {1}\nBasename: {2}\nFiletype: {3}\n'.format(
                 filename_response,
                 filesize_response,
@@ -137,13 +93,13 @@ class Frontend(BaseProtocol):
         reactor.stop()
 
     def confirm_new_shared_folder(self, data):
-        print_status(
+        print_log(
             'SHARED FOLDER => {0}'.format(
                 data['shared_folder_response']), CLIENT_LOG_INFO)
         reactor.stop()
 
     def confirm_new_download_folder(self, data):
-        print_status(
+        print_log(
             'DOWNLOAD FOLDER => {0}'.format(
                 data['download_folder_response']), CLIENT_LOG_INFO)
         reactor.stop()

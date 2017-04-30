@@ -3,6 +3,7 @@ import os
 import sys
 import ConfigParser
 import time_uuid
+from functools import wraps
 from iwant.core.exception import MainException
 
 
@@ -65,3 +66,45 @@ def update_config(shared_folder=None, download_folder=None):
 
     except:
         raise MainException(2)
+
+
+SERVER_LOG_INFO = 'server log'
+CLIENT_LOG_INFO = 'client log'
+ERROR_LOG = 'error log'
+WARNING_LOG = 'warning log'
+
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+
+def color(func):
+    is_windows = True if os.name == 'nt' else False
+
+    @wraps(func)
+    def wrapper(message, type=SERVER_LOG_INFO):
+        if not is_windows:
+            if type == WARNING_LOG:
+                print bcolors.WARNING + func(message) + bcolors.ENDC
+            elif type == ERROR_LOG:
+                print bcolors.FAIL + func(message) + bcolors.ENDC
+            elif type == SERVER_LOG_INFO:
+                print bcolors.OKGREEN + func(message) + bcolors.ENDC
+            elif type == CLIENT_LOG_INFO:
+                print bcolors.OKBLUE + func(message) + bcolors.ENDC
+            else:
+                print func(message)
+        else:
+            print func(message)
+    return wrapper
+
+
+@color
+def print_log(data, type=SERVER_LOG_INFO):
+    return data

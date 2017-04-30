@@ -119,7 +119,7 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
                 self._alCallId.cancel()
 
     @staticmethod
-    def generate_election_id():  # Make it static
+    def generate_election_id():
         return time.time()
 
     @staticmethod

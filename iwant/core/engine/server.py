@@ -2,7 +2,6 @@ from twisted.internet import defer, reactor
 from twisted.internet.protocol import Factory
 from fuzzywuzzy import fuzz
 import os
-import sys
 from fileindexer import fileHashUtils
 from fileindexer.piece import piece_size
 from ..messagebaker import bake, unbake
@@ -124,11 +123,11 @@ class backend(BaseProtocol):
         ) and self.factory.shared_folder is not None:
             file_meta_data = yield fileHashUtils.bootstrap(self.factory.shared_folder, self.factory.dbpool)
             # self.factory._notify_leader(HASH_DUMP, file_meta_data)
-            print 'this is what i got from file_meta_data {0}'.format(file_meta_data)
+            # print 'this is what i got from file_meta_data {0}'.format(file_meta_data)
             self.fileindexing_complete(file_meta_data)
 
     def _filesystem_modified(self, data):
-        print 'got updates from watchdog daemon {0}'.format(data)
+        # print 'got updates from watchdog daemon {0}'.format(data)
         if self.factory.state == READY and self.leaderThere():
             self.factory._notify_leader(HASH_DUMP, data)
         else:  # dont think this part is required at all
@@ -150,13 +149,15 @@ class backend(BaseProtocol):
         # uuid, dump = data
         # operation = dump[0]
         # file_properties = dump[1:]
-        print 'received from peer {0}'.format(data)
+        # print 'received from peer {0}'.format(data)
         uuid = data['identity']
         file_addition_updates = data['operation']['ADD']
         file_removal_updates = data['operation']['DEL']
 
-        print 'File addition: {0}'.format(file_addition_updates)
-        print 'File removal\n{0}'.format(file_removal_updates)
+        for file_properties in file_addition_updates:
+            print '[Adding] {0}'.format(file_properties[0])
+        for file_properties in file_removal_updates:
+            print '[Removing] {0}'.format(file_properties[0])
 
         if uuid not in self.factory.data_from_peers.keys():
             self.factory.data_from_peers[uuid] = {}
@@ -304,7 +305,13 @@ class backend(BaseProtocol):
         self.transport.loseConnection()
 
     def fileindexing_complete(self, indexing_response):
-        print 'server, indexing complete {0}'.format(indexing_response)
+        print 'Files completely indexed'
+        print 'SHARING {0}'.format(indexing_response['shared_folder'])
+        for file_name in indexing_response['ADD']:
+            print '[Adding] {0}'.format(file_name[0])
+        for file_name in indexing_response['DEL']:
+            print '[Removing] {0}'.format(file_name[0])
+
         self.factory.state = READY
         del indexing_response['shared_folder']
         if self.leaderThere():

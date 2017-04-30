@@ -6,20 +6,19 @@ import piece
 
 @defer.inlineCallbacks
 def bootstrap(folder, dbpool):
-    print 'this is where it gets fucked up {0}'.format(folder)
     if not os.path.exists(folder):
         raise NotImplementedError
     else:
         all_filenames_response = yield dbpool.runQuery('select filename from indexer')
         all_filenames = set(map(lambda x: x[0], all_filenames_response))
-        print 'all the filenames are {0}'.format(all_filenames)
+        # print 'all the filenames are {0}'.format(all_filenames)
         files_to_be_unshared = set(
             filter(
                 lambda x: not x.startswith(
                     os.path.abspath(folder)),
                 all_filenames))
         files_to_be_shared = all_filenames - files_to_be_unshared
-        print 'files to be shared {0}'.format(files_to_be_shared)
+        # print 'files to be shared {0}'.format(files_to_be_shared)
 
         all_unshared_files_response = yield dbpool.runQuery('select filename from indexer where share=0')
         all_unshared_files = set(
@@ -48,7 +47,7 @@ def bootstrap(folder, dbpool):
 
         # files_removed_metainfo.extend(removed_files_temp)
         sharing_files = yield dbpool.runQuery('select filename, size, hash, roothash from indexer where share=1')
-        print 'idiot ! we are obviously sharing {0}'.format(sharing_files)
+        # print 'idiot ! we are obviously sharing {0}'.format(sharing_files)
         files_added_metainfo.extend(sharing_files)
         combined_response['ADD'] = files_added_metainfo
         combined_response['DEL'] = files_removed_metainfo

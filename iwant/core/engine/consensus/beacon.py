@@ -233,6 +233,7 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
         if add_secret:
             # We add secret when we are sending the ledger to a new peer, so
             # that the peer can ping the leader and expect the secret value
+            print 'THE AWESOME SECRET VALUE {0}'.format(self.secret_value)
             msg = bake(
                 BCAST_LEDGER,
                 leader_id=self.book.leader,
@@ -395,19 +396,10 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             send them an updated copy of the ledger containing all the peers in the network
         '''
         just_sharing = False
-        # if data is not None:
-        #    try:
-        #        leader, ledger = data
-        #    except ValueError:
-        #        try:
-        #            leader, ledger, secret = data  # for the new peer
-        #        except ValueError:
-        #            ledger = data[0]  # its just for sharing
-        #            just_sharing = True
-
         leader = data['leader_id']
         ledger = data['ledger']
         secret = data['secret_value']
+        print 'got leader {0} and ledger {1}'.format(leader, ledger)
 
         if leader is None and secret is None:
             just_sharing = True
@@ -432,6 +424,7 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             '''
                 Informing NEW PEER about leader and secret value
             '''
+            print 'accepting the leader with secret {0}'.format(secret)
             self.secret_value = secret
             self._new_leader_callback(leader=leader)
 
@@ -588,6 +581,8 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             If there is a cluster which gets the result of a wrong election id ,
             then the leader of the cluster must broadcast the ledger.
         '''
+        eid = None
+        secret = None
         if data is not None:
             # eader, eid, secret = data
             leader = data['leader_id']

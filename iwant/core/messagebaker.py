@@ -99,7 +99,10 @@ def bake(key, **kwargs):
             payload['leader_id'] = kwargs['leader_id'].hex
         except AttributeError:
             payload['leader_id'] = None
-        payload['ledger'] = kwargs['ledger']
+        ledger = {}
+        for uuid, value in kwargs['ledger'].iteritems():
+            ledger[uuid.hex] = value
+        payload['ledger'] = ledger
         payload['secret_value'] = kwargs['secret_value']
         action_msg['payload'] = payload
         return action_msg
@@ -319,6 +322,14 @@ def unbake(message=None):
         dead_uuid = json_msg['payload']['dead_uuid']
         if dead_uuid is not None:
             json_msg['payload']['dead_uuid'] = time_uuid.TimeUUID(dead_uuid)
+
+    if 'ledger' in json_msg['payload']:
+        ledger = {}
+        ledger_response = json_msg['payload']['ledger']
+        if ledger_response:
+            for uuid, values in ledger_response.iteritems():
+                ledger[time_uuid.TimeUUID(uuid)] = values
+        json_msg['payload']['ledger'] = ledger
 
     action_dispatcher, action_payload = json_msg['type'], json_msg['payload']
     return action_dispatcher, action_payload

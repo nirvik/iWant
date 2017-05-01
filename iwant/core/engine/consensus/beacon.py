@@ -338,7 +338,7 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
                 self._pollClock.callLater(
                     2,
                     ping_callback)  # wait for 2 seconds to check if the leader replied
-            except e:
+            except Exception as e:
                 print e
                 print '@poll'
                 self._broadcast_leader_dead()

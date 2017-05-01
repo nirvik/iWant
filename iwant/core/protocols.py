@@ -102,7 +102,7 @@ class PeerdiscoveryProtocol(DatagramProtocol):
         pass
 
     def send(self, msgObj, addr):
-        self.transport.write(str(msgObj), addr)
+        self.transport.write(str(msgObj), tuple(addr))
 
     def datagramReceived(self, datagram, addr):
         for dat in datagram:

@@ -254,7 +254,8 @@ class backend(BaseProtocol):
     def _ask_leader_for_peers(self, data):
         if self.leaderThere():
             print_log( 'asking leaders for peers')
-            print_log( data)
+            print data
+            #print_log( data)
             filehash = data['filehash']
             self.factory._notify_leader(
                 key=SEND_PEER_DETAILS,
@@ -367,7 +368,7 @@ class backendFactory(Factory):
         self.data_from_peers = {}
         self.indexer = None
         self.dbpool = kwargs['dbpool']
-        self.download_foler = kwargs['download_folder']
+        self.download_folder = kwargs['download_folder']
         self.shared_folder = kwargs['shared_folder']
 
     def clientConnectionLost(self, connector, reason):

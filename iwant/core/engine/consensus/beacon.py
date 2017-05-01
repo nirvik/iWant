@@ -331,12 +331,15 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             # when leader is removed and we are present in this block, since
             # the polling process occuring concurrently
             try:
+                print 'book of peers {0}'.format(self.book.peers)
+                print 'leader {0}'.format(self.book.leader)
                 leader_addr = self.book.peers[self.book.leader]
                 self._ping(leader_addr)
                 self._pollClock.callLater(
                     2,
                     ping_callback)  # wait for 2 seconds to check if the leader replied
-            except:
+            except e:
+                print e
                 print '@poll'
                 self._broadcast_leader_dead()
 
@@ -658,9 +661,6 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             This method is to assign you the leadership and broadcast everyone
         '''
         if self._eid == eid:
-            # print 'fuck it i m the winner'
-            # if leader wins due to no available peers, then cancel the wait
-            # for peers callback
             self.cancel_wait_for_peers_callback()
             self.book.leader = leader
             size_value = random.randint(6, 10)
@@ -703,6 +703,7 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             leader_host = self.book.peers[self.book.leader][0]
             leader_port = SERVER_DAEMON_PORT
             if leader_change:
+                print 'norifying the server daemon about the leader {0}'.format(self.book.leader)
                 factory = ServerElectionFactory(leader_host, leader_port)
             elif peer_dead:
                 print '@election : telling server {0} is dead'.format(dead_peerId)

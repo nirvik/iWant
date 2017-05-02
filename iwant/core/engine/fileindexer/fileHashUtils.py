@@ -116,7 +116,7 @@ def index_folder(folder, dbpool):
         for filename in filenames:
             destination_path = os.path.join(root, filename)
             indexed_file_property = yield index_file(destination_path, dbpool)
-            print 'indexed_file_property {0}'.format(indexed_file_property)
+            # print 'indexed_file_property {0}'.format(indexed_file_property)
             file_property_list.extend(indexed_file_property['ADD'])
     response['ADD'] = file_property_list
     defer.returnValue(response)
@@ -172,7 +172,7 @@ def get_file_size(path):
 
 
 @defer.inlineCallbacks
-def check_hash_present(hash_value, dbpool):
+def check_hash_present_in_resume(hash_value, dbpool):
     response = yield dbpool.runQuery('select hash from resume where hash = ?', (hash_value,))
     if len(response) == 0:
         defer.returnValue(False)
@@ -191,8 +191,8 @@ def remove_resume_entry(hash_value, dbpool):
 @defer.inlineCallbacks
 def add_new_file_entry_resume(file_entry, dbpool):
     filename, checksum = file_entry[0], file_entry[3]
-    print 'going to get fucked for {0}'.format(filename)
-    yield dbpool.runQuery('insert into indexer values (?,?,?,?,?,?)', (file_entry))
+    print 'adding to resume table {0}'.format(filename)
+    yield dbpool.runQuery('insert into indexer values (?,?,?,?,?,?)', (file_entry))  # why is this necessary
     yield dbpool.runQuery('insert into resume values (?,?)', (filename, checksum))
 
 

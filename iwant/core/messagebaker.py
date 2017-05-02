@@ -215,6 +215,7 @@ def bake(key, **kwargs):
     def _craft_req_chunk_msg():
         payload['piece_data'] = kwargs['piece_data']
         action_msg['payload'] = payload
+        print action_msg
         return action_msg
 
     def _craft_end_game_msg():

@@ -1,5 +1,6 @@
 from twisted.internet import defer, reactor
 from twisted.internet.protocol import Factory
+from twisted.protocols.basic import FileSender
 from fuzzywuzzy import fuzz
 import os
 from fileindexer import fileHashUtils
@@ -14,7 +15,6 @@ from ..constants import INIT_FILE_REQ, LEADER, PEER_DEAD, \
 from iwant.cli.utils import WARNING_LOG, ERROR_LOG, print_log
 from ..protocols import BaseProtocol
 from ..config import SERVER_DAEMON_PORT
-from struct import pack, unpack
 from monitor.watching import ScanFolder
 from monitor.callbacks import filechangeCB
 
@@ -96,20 +96,21 @@ class backend(BaseProtocol):
             print_log( 'need to handle this part where files are  not indexed yet', ERROR_LOG)
 
     def _send_chunk_response(self, data):
-        # piece_number, chunk_size = piece_data
-        receive_format = "!I"
-        piece_number, = unpack(receive_format, data['piece_data'])
-        self.fileObj.seek(
-            int(piece_number) *
-            self.chunk_size)  # need a global variable for piece size
-        # buffered = self.fileObj.read(chunk_size)
-        file_buffer = self.fileObj.read(self.chunk_size)
-        len_of_file = len(file_buffer)
-        file_chunk_response = pack(
-            "!II",
-            len_of_file,
-            piece_number) + file_buffer
-        self.sendRaw(file_chunk_response)
+        print 'sending chunk response '
+        sender = FileSender()
+        d = sender.beginFileTransfer(self.fileObj, self.transport, None)
+        d.addCallback(self.transfer_completed)
+        #  piece_number = data['piece_data']
+        #  self.fileObj.seek(
+        #      int(piece_number) *
+        #      self.chunk_size)  # need a global variable for piece size
+        #  file_buffer = self.fileObj.read(self.chunk_size)
+        #  len_of_file = len(file_buffer)
+        #  file_chunk_response = len_of_file+','+piece_number+','+ file_buffer
+        #  self.sendRaw(file_chunk_response)
+
+    def transfer_completed(self, data):
+        print 'no more'
 
     def _end_game(self, data):
         if data['end_game']:
@@ -434,13 +435,14 @@ class backendFactory(Factory):
                     file_details = {
                         'file_name': response['file_name'],  # data[-1],
                         'file_size': response['file_size'],  # data[-2],
-                        #  data[-3],
                         'file_root_hash': response['file_root_hash'],
                         'checksum': self.factory.dump
                     }
                     # peers = data[:-3]
                     peers = response['peers']
-                    print_log( 'the following data is received from the leader \n{0}\n{1}'.format(file_details, peers))
+                    # print_log( 'the following data is received from the leader')
+                    # print_log(file_details)
+                    # print_log(peers)
                     P2PFactory = RemotepeerFactory(
                         INIT_FILE_REQ,
                         clientConn,

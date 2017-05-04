@@ -11,3 +11,4 @@ progressbar
 pypiwin32 ; sys_platform == 'win32'
 pyasn1 ; sys_platform == 'win32'
 service_identity ; sys_platform == 'win32'
+docopt

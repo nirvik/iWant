@@ -26,7 +26,7 @@ class Frontend(BaseProtocol):
         self.delimiter = '\r'
 
     def connectionMade(self):
-        print 'Connection Established ... \n'
+        # print 'Connection Established ... \n'
         if self.factory.query == SEARCH_REQ:
             reqMessage = bake(SEARCH_REQ, search_query=self.factory.arguments)
         elif self.factory.query == IWANT_PEER_FILE:
@@ -94,13 +94,13 @@ class Frontend(BaseProtocol):
 
     def confirm_new_shared_folder(self, data):
         print_log(
-            'SHARED FOLDER => {0}'.format(
+                'Shared Folder: {0}'.format(
                 data['shared_folder_response']), CLIENT_LOG_INFO)
         reactor.stop()
 
     def confirm_new_download_folder(self, data):
         print_log(
-            'DOWNLOAD FOLDER => {0}'.format(
+                'Download Folder: {0}'.format(
                 data['download_folder_response']), CLIENT_LOG_INFO)
         reactor.stop()
 
@@ -115,7 +115,8 @@ class FrontendFactory(ClientFactory):
         self.download_folder = downloadfolder
 
     def startedConnecting(self, connector):
-        print 'started connecting'
+        # print 'started connecting'
+        pass
 
     def clientConnectionFailed(self, connector, reason):
         print reason

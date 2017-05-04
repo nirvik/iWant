@@ -49,16 +49,15 @@ def get_paths():
 
 
 def update_config(shared_folder=None, download_folder=None):
-    print 'trying to update the config'
     config = ConfigParser.ConfigParser()
     conf_path = get_basepath()
     try:
         config.read(os.path.join(conf_path, '.iwant.conf'))
         if shared_folder is not None:
-            print 'setting shared folder'
+            # print 'setting shared folder'
             config.set('Paths', 'share', shared_folder)
         if download_folder is not None:
-            print 'setting download folder'
+            # print 'setting download folder'
             config.set('Paths', 'download', download_folder)
         print os.path.join(conf_path, '.iwant.conf')
         with open(os.path.join(conf_path, '.iwant.conf'), 'w') as configfile:

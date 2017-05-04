@@ -1,7 +1,26 @@
+"""iWant.
+
+Usage:
+    iwanto search <name>
+    iwanto download <hash> [(to <destination>)]
+    iwanto share <path>
+    iwanto change download path to <destination>
+    iwanto --version
+
+Options:
+    -h --help                                   Show this screen.
+    --version                                   Show version.
+    search <name>                               Discovering files in the network. Example: iwanto search batman
+    download <hash>                             Downloads the file from the network
+    share <path>                                Change your shared folder
+    change download path to <destination>       Change download folder
+
+
+"""
 import os
 import sys
-import argparse
 import sqlite3
+from  docopt import docopt
 from twisted.python import log
 from twisted.enterprise import adbapi
 from iwant.core.exception import MainException
@@ -88,55 +107,40 @@ def main():
         except SystemExit:
             os._exit(0)
 
-
 def ui():
-    parser = argparse.ArgumentParser(description='iwant')
-    parser.add_argument("--search", help="instant fuzzy search", type=str)
-    parser.add_argument(
-        "--download",
-        help="download file by giving hash",
-        type=str)
-    parser.add_argument(
-        "--share",
-        help="change the share folder directory",
-        type=str)
-    parser.add_argument(
-        "--change_download_path",
-        help="change the download path directory",
-        type=str)
-    args = parser.parse_args()
-
-    if args.search:
-        reactor.connectTCP(
-            SERVER_DAEMON_HOST,
-            SERVER_DAEMON_PORT,
-            FrontendFactory(
-                SEARCH_REQ,
-                args.search))
-
-    elif args.download:
-        reactor.connectTCP(
-            SERVER_DAEMON_HOST,
-            SERVER_DAEMON_PORT,
-            FrontendFactory(
-                IWANT_PEER_FILE,
-                args.download))
-
-    elif args.share:
+    arguments = docopt(__doc__, version='iWant 1.0')
+    if arguments['share'] and arguments['<path>']:
+        path = arguments['<path>']
         reactor.connectTCP(
             SERVER_DAEMON_HOST,
             SERVER_DAEMON_PORT,
             FrontendFactory(
                 SHARE,
-                args.share))
-
-    elif args.change_download_path:
+                path))
+    elif arguments['search'] and arguments['<name>']:
+        search_string = arguments['<name>']
+        reactor.connectTCP(
+            SERVER_DAEMON_HOST,
+            SERVER_DAEMON_PORT,
+            FrontendFactory(
+                SEARCH_REQ,
+                search_string))
+    elif arguments['download'] and arguments['<hash>']:
+        hash_string = arguments['<hash>']
+        reactor.connectTCP(
+            SERVER_DAEMON_HOST,
+            SERVER_DAEMON_PORT,
+            FrontendFactory(
+                IWANT_PEER_FILE,
+                hash_string))
+    elif arguments['change'] and arguments['download'] and arguments['path'] and arguments['to']:
+        download_folder = arguments['<destination>']
         reactor.connectTCP(
             SERVER_DAEMON_HOST,
             SERVER_DAEMON_PORT,
             FrontendFactory(
                 CHANGE,
-                args.change_download_path))
+                download_folder))
 
     reactor.run()
 

@@ -113,11 +113,46 @@ def index_folder(folder, dbpool):
     response['shared_folder'] = None
     file_property_list = []
     for root, _, filenames in os.walk(folder):
+        total_size = 0
+        file_hash = ''
+        folder_hash = hashlib.md5()
         for filename in filenames:
             destination_path = os.path.join(root, filename)
             indexed_file_property = yield index_file(destination_path, dbpool)
-            # print 'indexed_file_property {0}'.format(indexed_file_property)
+            try:
+                total_size += indexed_file_property['ADD'][0][1]
+                file_hash += indexed_file_property['ADD'][0][2]
+            except:
+                pass
             file_property_list.extend(indexed_file_property['ADD'])
+        filesize_from_db = yield dbpool.runQuery('select size from indexer where filename=?', (root,))
+        try:
+            if filesize_from_db[0][0] != total_size:
+                folder_hash.update(file_hash)
+                folder_index_entry = (
+                        total_size,
+                        folder_hash.hexdigest(),
+                        folder_hash.hexdigest(),
+                        folder_hash.hexdigest(),
+                        True,
+                        root
+                        )
+                yield dbpool.runQuery('update indexer set size=?, hash=?, piecehashes=?, roothash=?, isdirectory=? where filename=?', (folder_index_entry))
+        except:
+            folder_hash.update(file_hash)
+            folder_index_entry = (
+                    root,
+                    1,
+                    total_size,
+                    folder_hash.hexdigest(),
+                    folder_hash.hexdigest(),
+                    folder_hash.hexdigest(),
+                    True
+                )
+            print 'A new folder entry {0}'.format(folder_index_entry)
+            yield dbpool.runQuery('insert into indexer values (?,?,?,?,?,?,?)', (folder_index_entry))
+
+        file_property_list.extend([root, total_size, folder_hash, folder_hash, True])
     response['ADD'] = file_property_list
     defer.returnValue(response)
 
@@ -138,10 +173,12 @@ def index_file(path, dbpool):
                 file_hash,
                 piece_hashes,
                 root_hash,
-                path)
+                False,
+                path,
+                )
             print 'updating the hash'
-            yield dbpool.runQuery('update indexer set size=?, hash=?, piecehashes=?, roothash=? where filename=?', (file_index_entry))
-            file_property_list = [(path, filesize, file_hash, root_hash)]
+            yield dbpool.runQuery('update indexer set size=?, hash=?, piecehashes=?, roothash=?, isdirectory=? where filename=?', (file_index_entry))
+            file_property_list = [(path, filesize, file_hash, root_hash, False)]
             response['ADD'] = file_property_list
             defer.returnValue(response)
     except IndexError:
@@ -155,9 +192,10 @@ def index_file(path, dbpool):
                 filesize,
                 file_hash,
                 piece_hashes,
-                root_hash)
-            yield dbpool.runQuery('insert into indexer values (?,?,?,?,?,?)', (file_index_entry))
-            file_property_list = [(path, filesize, file_hash, root_hash)]
+                root_hash,
+                False)
+            yield dbpool.runQuery('insert into indexer values (?,?,?,?,?,?,?)', (file_index_entry))
+            file_property_list = [(path, filesize, file_hash, root_hash, False)]
             response['ADD'] = file_property_list
             defer.returnValue(response)
     else:

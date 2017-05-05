@@ -100,14 +100,6 @@ class backend(BaseProtocol):
         sender = FileSender()
         d = sender.beginFileTransfer(self.fileObj, self.transport, None)
         d.addCallback(self.transfer_completed)
-        #  piece_number = data['piece_data']
-        #  self.fileObj.seek(
-        #      int(piece_number) *
-        #      self.chunk_size)  # need a global variable for piece size
-        #  file_buffer = self.fileObj.read(self.chunk_size)
-        #  len_of_file = len(file_buffer)
-        #  file_chunk_response = len_of_file+','+piece_number+','+ file_buffer
-        #  self.sendRaw(file_chunk_response)
 
     def transfer_completed(self, data):
         print 'no more'

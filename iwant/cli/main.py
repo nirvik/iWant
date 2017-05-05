@@ -67,9 +67,10 @@ def main():
     log.startLogging(open(logfile, 'w'), setStdout=False)
     filename = os.path.join(CONFIG_PATH, 'iwant.db')
     if not os.path.isfile(filename):
+        print 'should come here'
         conn = sqlite3.connect(filename)
         conn.execute(
-            '''CREATE TABLE indexer (filename text primary key, share integer, size real, hash text, piecehashes text, roothash text)''')
+            '''CREATE TABLE indexer (filename text primary key, share integer, size real, hash text, piecehashes text, roothash text, isdirectory boolean)''')
         conn.execute(
             '''CREATE TABLE resume (filename text primary key, hash text) ''')
         conn.commit()

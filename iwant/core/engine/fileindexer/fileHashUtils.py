@@ -1,6 +1,7 @@
 import os
 import hashlib
 from twisted.internet import defer, reactor
+from twisted.enterprise import adbapi
 import piece
 
 
@@ -106,53 +107,144 @@ def file_delete_handler(path, dbpool):
 
 
 @defer.inlineCallbacks
-def index_folder(folder, dbpool):
+def index_folder(folder, dbpool, modified_folder=None):
     response = {}
     response['DEL'] = []
     response['ADD'] = []
     response['shared_folder'] = None
     file_property_list = []
-    for root, _, filenames in os.walk(folder):
-        total_size = 0
-        file_hash = ''
-        folder_hash = hashlib.md5()
+
+    # for aggregating folder data
+    parent = {}
+    folder_properties = {}
+    folder_path = os.path.realpath(folder)
+    parent[folder_path] = -1
+    folder_properties[folder_path] = {}
+    folder_properties[folder_path]['size'] = 0
+    folder_properties[folder_path]['hash'] = ''
+    folder_properties[folder_path]['updated'] = False
+
+    for root, _, filenames in os.walk(folder_path):
+        if root not in parent:
+            parent_of_root = os.path.dirname(root)
+            parent[root] = parent_of_root
+            folder_properties[root] = {}
+            folder_properties[root]['size'] = 0
+            folder_properties[root]['hash'] = ''
+            folder_properties[root]['updated'] = False
+        folder_size = 0  # for folder size
+        file_hash = ''  # for folder hash
         for filename in filenames:
             destination_path = os.path.join(root, filename)
             indexed_file_property = yield index_file(destination_path, dbpool)
-            try:
-                total_size += indexed_file_property['ADD'][0][1]
+            if len(indexed_file_property['ADD']) == 0:
+                # its already been indexed in the db
+                file_hash_db = yield dbpool.runQuery('select hash from indexer where filename=?',(destination_path,))
+                file_hash += file_hash_db[0][0]
+            else:
                 file_hash += indexed_file_property['ADD'][0][2]
-            except:
-                pass
-            file_property_list.extend(indexed_file_property['ADD'])
-        filesize_from_db = yield dbpool.runQuery('select size from indexer where filename=?', (root,))
+            folder_size += get_file_size(destination_path)
+            # Adding only relevant files to the list.. If there is any modification, we should only be concerned with the modified files
+            if modified_folder:
+                if filename.find(modified_folder) != -1:
+                    print '{0} is the one that is modified'.format(filename)
+                    file_property_list.extend(indexed_file_property['ADD'])
+            else:
+                file_property_list.extend(indexed_file_property['ADD'])
+
+
+        #  Recursively updating the parent hash and size
+        folder_properties[root]['size'] = folder_size
+        hasher = hashlib.md5()
+        hasher.update(file_hash)
+        folder_properties[root]['hash'] = hasher.hexdigest()
+        recursive_folder_path = root
+        # update_folder_hash_db = True
+        # folder_hash = yield dbpool.runQuery('select hash from indexer where filename=?',(root,))
+        # try:
+        #     if folder_hash[0][0] == folder_properties[root]['hash']:
+        #         update_folder_hash_db = False  # no need to update the parent folder's properties
+        #         print 'no need to update the file properties in the db for {0}'.format(root)
+        #     else:
+        #         # update the db
+        #         folder_properties[root]['updated'] = True
+        #         folder_index_entry = (
+        #                 folder_size,
+        #                 folder_properties[root]['hash'],
+        #                 folder_properties[root]['hash'],
+        #                 folder_properties[root]['hash'],
+        #                 True,
+        #                 root
+        #                 )
+        #         print 'must update db for the parent of {0}'.format(root)
+        #         yield dbpool.runQuery('update indexer set size=?, hash=?, piecehashes=?, roothash=?, isdirectory=? where filename=?', (folder_index_entry))
+
+        # except:
+        #     # insert a new folder entry to the db
+        #     folder_properties[root]['updated'] = True
+        #     folder_index_entry = (
+        #             root,
+        #             1,
+        #             folder_size,
+        #             folder_properties[root]['hash'],
+        #             folder_properties[root]['hash'],
+        #             folder_properties[root]['hash'],
+        #             True
+        #         )
+        #     print 'creating a new entry for {0}'.format(root)
+        #     yield dbpool.runQuery('insert into indexer values (?,?,?,?,?,?,?)', (folder_index_entry))
+
+        while parent[recursive_folder_path] != -1:
+            folder_properties[parent[recursive_folder_path]]['size'] += folder_size
+            folder_hash = folder_properties[parent[recursive_folder_path]]['hash']
+            folder_hash += file_hash
+            hasher = hashlib.md5()
+            hasher.update(folder_hash)
+            folder_properties[parent[recursive_folder_path]]['hash'] = hasher.hexdigest()
+            # if update_folder_hash_db:
+            #     # update the rest of the folders
+            #     folder_properties[parent[recursive_folder_path]]['updated'] = True
+            #     print 'the updation is being reflected to {0}'.format(parent[recursive_folder_path])
+            #     folder_index_entry = (
+            #             folder_properties[parent[recursive_folder_path]]['size'],
+            #             hasher.hexdigest(),
+            #             hasher.hexdigest(),
+            #             hasher.hexdigest(),
+            #             True,
+            #             parent[recursive_folder_path]
+            #             )
+            #     yield dbpool.runQuery('update indexer set size=?, hash=?, piecehashes=?, roothash=?, isdirectory=? where filename=?', (folder_index_entry))
+            recursive_folder_path = parent[recursive_folder_path]
+
+    for keys, values in folder_properties.iteritems():
+        folder = keys
+        size = values['size']
+        folder_hash = values['hash']
+        print 'folder=> {0} \n size=>{1} \t hash=>{2}'.format(keys, size, folder_hash)
+        folder_hash_db = yield dbpool.runQuery('select hash from indexer where filename=?',(folder,))
         try:
-            if filesize_from_db[0][0] != total_size:
-                folder_hash.update(file_hash)
-                folder_index_entry = (
-                        total_size,
-                        folder_hash.hexdigest(),
-                        folder_hash.hexdigest(),
-                        folder_hash.hexdigest(),
-                        True,
-                        root
-                        )
-                yield dbpool.runQuery('update indexer set size=?, hash=?, piecehashes=?, roothash=?, isdirectory=? where filename=?', (folder_index_entry))
+            if folder_hash_db[0][0] != folder_hash:
+               folder_index_entry = (
+                       size,
+                       folder_hash,
+                       folder_hash,
+                       folder_hash,
+                       True,
+                       folder
+                       )
+               yield dbpool.runQuery('update indexer set size=?, hash=?, piecehashes=?, roothash=?, isdirectory=? where filename=?', (folder_index_entry))
         except:
-            folder_hash.update(file_hash)
             folder_index_entry = (
-                    root,
+                    folder,
                     1,
-                    total_size,
-                    folder_hash.hexdigest(),
-                    folder_hash.hexdigest(),
-                    folder_hash.hexdigest(),
+                    size,
+                    folder_hash,
+                    folder_hash,
+                    folder_hash,
                     True
                 )
-            print 'A new folder entry {0}'.format(folder_index_entry)
             yield dbpool.runQuery('insert into indexer values (?,?,?,?,?,?,?)', (folder_index_entry))
-
-        file_property_list.extend([root, total_size, folder_hash, folder_hash, True])
+        file_property_list.extend([(folder, size, folder_hash, folder_hash, True)])
     response['ADD'] = file_property_list
     defer.returnValue(response)
 
@@ -265,7 +357,16 @@ def get_piecehashes_of(file_hash, dbpool):
     defer.returnValue(file_pieces_response[0][0])
 
 if __name__ == '__main__':
-    bootstrap('/home/nirvik/Music/Maa')
+    def set_text_factory(conn):
+        conn.text_factory = str
+
+    dbpool = adbapi.ConnectionPool(
+        'sqlite3',
+        '/home/nirvik/.iwant/iwant.db',
+        check_same_thread=False,
+        cp_openfun=set_text_factory)
+
+    bootstrap('/home/nirvik/Pictures', dbpool)
     # bootstrap('/home/nirvik/Documents')
     # bootstrap('/home/nirvik/colleges')
     # readit = get_file('56ae4cf859179e0d32e9733d45d7f714')

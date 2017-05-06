@@ -72,6 +72,7 @@ CLIENT_LOG_INFO = 'client log'
 ERROR_LOG = 'error log'
 WARNING_LOG = 'warning log'
 
+
 class bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'

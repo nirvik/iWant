@@ -10,6 +10,7 @@ from iwant.core.protocols import BaseProtocol
 import tabulate
 import os
 
+
 class Frontend(BaseProtocol):
 
     def __init__(self, factory):
@@ -58,7 +59,15 @@ class Frontend(BaseProtocol):
         response = []
         for i in search_response:
             response.append(i[:-1])
-        print_log(tabulate.tabulate(response, headers=["Filename", "Size", "Checksum", "RootHash"]), CLIENT_LOG_INFO)
+        print_log(
+            tabulate.tabulate(
+                response,
+                headers=[
+                    "Filename",
+                    "Size",
+                    "Checksum",
+                    "RootHash"]),
+            CLIENT_LOG_INFO)
         reactor.stop()
 
     def leader_not_ready(self, data):
@@ -94,13 +103,13 @@ class Frontend(BaseProtocol):
 
     def confirm_new_shared_folder(self, data):
         print_log(
-                'Shared Folder: {0}'.format(
+            'Shared Folder: {0}'.format(
                 data['shared_folder_response']), CLIENT_LOG_INFO)
         reactor.stop()
 
     def confirm_new_download_folder(self, data):
         print_log(
-                'Download Folder: {0}'.format(
+            'Download Folder: {0}'.format(
                 data['download_folder_response']), CLIENT_LOG_INFO)
         reactor.stop()
 

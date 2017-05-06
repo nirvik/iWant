@@ -20,7 +20,7 @@ Options:
 import os
 import sys
 import sqlite3
-from  docopt import docopt
+from docopt import docopt
 from twisted.python import log
 from twisted.enterprise import adbapi
 from iwant.core.exception import MainException
@@ -106,6 +106,7 @@ def main():
             sys.exit(0)
         except SystemExit:
             os._exit(0)
+
 
 def ui():
     arguments = docopt(__doc__, version='iWant 1.0')

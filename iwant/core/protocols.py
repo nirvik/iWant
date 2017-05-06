@@ -66,8 +66,6 @@ class FilemonitorClientProtocol(Protocol):
     def connectionMade(self):
         print '@filemonitor protocol'
         print 'event {0}'.format(self.factory.event)
-        print self.factory.updates['ADD']
-        print self.factory.updates['DEL']
         updated_msg = bake(
             self.factory.event,
             shared_folder=self.factory.updates['shared_folder'],
@@ -234,15 +232,16 @@ class RemotepeerProtocol(BaseProtocol):
         self.factory.download_progress += 1
         self.factory.bar.update(self.factory.download_progress)
         print 'file size is {0} \n size received is {1}'.format(self.factory.file_details['file_size'] * 1000000, self.size_received)
-        if self.size_received >= self.factory.file_details['file_size'] * 1000.0 * 1000.0:
+        if self.size_received >= self.factory.file_details[
+                'file_size'] * 1000.0 * 1000.0:
             print 'shit is done bro'
             self.factory.file_container.close()
-
 
     def request_for_pieces(self, bootstrap=False, endgame=False):
         print 'requesting for pieces'
         request_chunk_msg = bake(REQ_CHUNK, piece_data=1)
         self.sendLine(request_chunk_msg)
+
 
 class RemotepeerFactory(Factory):
 

@@ -93,7 +93,9 @@ class backend(BaseProtocol):
             unchoke_msg = bake(key=UNCHOKE, unchoke=True)
             self.sendLine(unchoke_msg)
         else:
-            print_log( 'need to handle this part where files are  not indexed yet', ERROR_LOG)
+            print_log(
+                'need to handle this part where files are  not indexed yet',
+                ERROR_LOG)
 
     def _send_chunk_response(self, data):
         print 'sending chunk response '
@@ -112,7 +114,7 @@ class backend(BaseProtocol):
     @defer.inlineCallbacks
     def _update_leader(self, data):
         self.factory.leader = data['leader']
-        print_log( 'Updating Leader {0}'.format(self.factory.book.leader))
+        print_log('Updating Leader {0}'.format(self.factory.book.leader))
         if self.factory.state == READY and self.leaderThere(
         ) and self.factory.shared_folder is not None:
             file_meta_data = yield fileHashUtils.bootstrap(self.factory.shared_folder, self.factory.dbpool)
@@ -147,9 +149,12 @@ class backend(BaseProtocol):
         file_removal_updates = data['operation']['DEL']
 
         for file_properties in file_addition_updates:
-            print_log( '[Leader Adding] {0} \t {1}'.format(file_properties[0], file_properties[1]))
+            print_log(
+                '[Leader Adding] {0} \t {1}'.format(
+                    file_properties[0],
+                    file_properties[1]))
         for file_properties in file_removal_updates:
-            print_log( '[Leader Removing] {0}'.format(file_properties[0]))
+            print_log('[Leader Removing] {0}'.format(file_properties[0]))
 
         if uuid not in self.factory.data_from_peers.keys():
             self.factory.data_from_peers[uuid] = {}
@@ -166,7 +171,9 @@ class backend(BaseProtocol):
                     del self.factory.data_from_peers[
                         uuid]['hashes'][old_hash_key]
                 except:
-                    print_log( 'STUFF GETS FUCKED RIGHT HERE : {0}'.format(file_name), WARNING_LOG)
+                    print_log(
+                        'STUFF GETS FUCKED RIGHT HERE : {0}'.format(file_name),
+                        WARNING_LOG)
             if file_hash not in self.factory.data_from_peers[uuid]:
                 self.factory.data_from_peers[uuid][
                     'hashes'][file_hash] = fproperty
@@ -179,21 +186,27 @@ class backend(BaseProtocol):
             if file_hash in self.factory.data_from_peers[uuid]['hashes']:
                 del self.factory.data_from_peers[uuid]['hashes'][file_hash]
                 del self.factory.data_from_peers[uuid]['filenames'][file_name]
-                print_log( 'deleting hash : {0} filename {1}'.format(file_hash, file_name))
+                print_log(
+                    'deleting hash : {0} filename {1}'.format(
+                        file_hash,
+                        file_name))
             else:
                 if file_name in self.factory.data_from_peers[
                         uuid]['filenames']:
                     #  very very stupid hack [ just because of empty files ]
                     del self.factory.data_from_peers[
                         uuid]['filenames'][file_name]
-                    print_log('deleting HACK : {0} filename {1}'.format(file_hash, file_name))
+                    print_log(
+                        'deleting HACK : {0} filename {1}'.format(
+                            file_hash,
+                            file_name))
 
         #  print 'got hash dump from
         #  {0}'.format(self.factory.data_from_peers[uuid]['filenames'])
 
     def _remove_dead_entry(self, data):
         uuid = data['dead_uuid']
-        print_log( 'removing entry {0}'.format(uuid))
+        print_log('removing entry {0}'.format(uuid))
         try:
             del self.factory.data_from_peers[uuid]
         except:
@@ -203,7 +216,7 @@ class backend(BaseProtocol):
 
     def _leader_send_list(self, data):
         if self.leaderThere():
-            print_log( 'lookup request sent to leader')
+            print_log('lookup request sent to leader')
             search_query = data['search_query']
             self.factory._notify_leader(
                 key=LOOKUP,
@@ -232,7 +245,9 @@ class backend(BaseProtocol):
                         filtered_response.append(
                             self.factory.data_from_peers[uuid]['hashes'][file_hash])
                     except:
-                        print_log( 'BIGGEST MESS UP {0}'.format(filename), WARNING_LOG)
+                        print_log(
+                            'BIGGEST MESS UP {0}'.format(filename),
+                            WARNING_LOG)
         if len(self.factory.data_from_peers.keys()) == 0:
             filtered_response = []
 
@@ -244,7 +259,7 @@ class backend(BaseProtocol):
 
     def _ask_leader_for_peers(self, data):
         if self.leaderThere():
-            print_log( 'asking leaders for peers')
+            print_log('asking leaders for peers')
             print data
             #print_log( data)
             filehash = data['filehash']
@@ -298,8 +313,8 @@ class backend(BaseProtocol):
         self.transport.loseConnection()
 
     def fileindexing_complete(self, indexing_response):
-        print_log( 'Files completely indexed')
-        print_log( 'SHARING {0}'.format(indexing_response['shared_folder']))
+        print_log('Files completely indexed')
+        print_log('SHARING {0}'.format(indexing_response['shared_folder']))
         for file_name in indexing_response['ADD']:
             print_log('[Adding] {0} \t {1}'.format(file_name[0], file_name[1]))
         for file_name in indexing_response['DEL']:
@@ -320,7 +335,8 @@ class backend(BaseProtocol):
                 NEW_DOWNLOAD_FOLDER_RES,
                 download_folder_response='Invalid download path provided')
         else:
-            print_log('changed download folder to {0}'.format(new_download_folder))
+            print_log(
+                'changed download folder to {0}'.format(new_download_folder))
             self.factory.download_folder = new_download_folder
         self.sendLine(msg)
         self.transport.loseConnection()
@@ -417,7 +433,9 @@ class backendFactory(Factory):
                 self.transport.loseConnection()
                 #  print 'Got peers {0}'.format(data)
                 if len(data) == 0:
-                    print_log( 'Tell the client that peer lookup response is 0. Have to handle this', WARNING_LOG)
+                    print_log(
+                        'Tell the client that peer lookup response is 0. Have to handle this',
+                        WARNING_LOG)
                     # update_msg = Basemessage(key=SEARCH_RES, data=data)
                 else:
                     from ..protocols import RemotepeerFactory
@@ -487,12 +505,20 @@ class backendFactory(Factory):
         if key == SEND_PEER_DETAILS or key == LOOKUP:
             if self.leader is not None:
                 host, port = self.leader[0], self.leader[1]
-                print_log( 'connecting to {0}:{1} for {2}'.format(host, port, key))
+                print_log(
+                    'connecting to {0}:{1} for {2}'.format(
+                        host,
+                        port,
+                        key))
                 reactor.connectTCP(host, port, factory)
         elif key == HASH_DUMP:
             if self.leader is not None and self.state == READY:
                 host, port = self.leader[0], self.leader[1]
-                print_log( 'connecting to {0}:{1} for {2}'.format(host, port, key))
+                print_log(
+                    'connecting to {0}:{1} for {2}'.format(
+                        host,
+                        port,
+                        key))
                 reactor.connectTCP(host, port, factory)
 
     def buildProtocol(self, addr):

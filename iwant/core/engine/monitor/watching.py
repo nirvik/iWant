@@ -1,9 +1,7 @@
-import time
 from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
 from twisted.internet import reactor
 from iwant.core.engine.fileindexer import fileHashUtils
-import sys
 import os
 from iwant.core.constants import FILE_SYS_EVENT
 
@@ -26,7 +24,7 @@ class ScanFolder(object):
         self.process(event)
 
     def fuckit(self, data):
-        print 'scanfolder successcallback'
+        print 'scanfolder successcallback and this is what we are giving'
         print data
         self.callback(data)
 
@@ -35,27 +33,38 @@ class ScanFolder(object):
         if event.event_type in ["created", "modified"]:
             if event.is_directory:
                 add_event = fileHashUtils.index_folder(
-                    event.src_path,
-                    self.dbpool)
+                    self.path,
+                    self.dbpool,
+                    modified_folder=event.src_path)
             else:
-                add_event = fileHashUtils.index_file(
-                    event.src_path,
-                    self.dbpool)
-            add_event.addCallback(self.fuckit)
+                modified_folder = os.path.dirname(event.src_path)
+                add_event = fileHashUtils.index_folder(
+                    self.path,
+                    self.dbpool,
+                    modified_folder=modified_folder)
+
+            add_event.addCallback(self.callback)
         else:
             '''If file/directory is moved or deleted If directory is removed , pass the parent directory'''
 
             if event.is_directory:
                 remove_event = fileHashUtils.folder_delete_handler(
-                    event.src_path,
-                    self.dbpool)
+                    self.path,
+                    self.dbpool,
+                    modified_folder=event.src_path,
+                )
             else:
-                remove_event = fileHashUtils.file_delete_handler(
-                    event.src_path,
-                    self.dbpool)
-            remove_event.addCallback(self.fuckit)
-        # self.callback() # informing the server daemon about changes
+                modified_folder = os.path.dirname(event.src_path)
+                remove_event = fileHashUtils.folder_delete_handler(
+                    self.path,
+                    self.dbpool,
+                    modified_folder=event.src_path
+                )
+                # remove_event = fileHashUtils.file_delete_handler(
+                #     event.src_path,
+                #     self.dbpool)
+            remove_event.addCallback(self.callback)
 
 if __name__ == '__main__':
-    ScanFolder('/home/nirvik/Music/Maa', hey)
+    # ScanFolder('/home/nirvik/Music/Maa', hey)
     reactor.run()

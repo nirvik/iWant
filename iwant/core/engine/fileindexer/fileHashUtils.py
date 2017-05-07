@@ -28,13 +28,9 @@ def bootstrap(folder, dbpool):
 
         share_remaining_files = files_to_be_shared - all_shared_files
         unshare_remaining_files = files_to_be_unshared - all_unshared_files
-        # print 'finally we share remaining {0}'.format(share_remaining_files)
-        # print 'finall we unshare remaining
-        # {0}'.format(unshare_remaining_files)
         share_msg = yield share(share_remaining_files, dbpool)
         unshare_msg = yield unshare(unshare_remaining_files, dbpool)
         indexing_done = yield index_folder(folder, dbpool)
-        # print 'please reach here {0}'.format(indexing_done)
         combined_response = {}
         combined_response['ADD'] = []
         combined_response['DEL'] = []
@@ -48,7 +44,6 @@ def bootstrap(folder, dbpool):
 
         # files_removed_metainfo.extend(removed_files_temp)
         sharing_files = yield dbpool.runQuery('select filename, size, hash, roothash from indexer where share=1')
-        # print 'idiot ! we are obviously sharing {0}'.format(sharing_files)
         files_added_metainfo.extend(sharing_files)
         combined_response['ADD'] = files_added_metainfo
         combined_response['DEL'] = files_removed_metainfo
@@ -70,24 +65,83 @@ def share(files, dbpool):
 
 
 @defer.inlineCallbacks
-def folder_delete_handler(path, dbpool):
+def folder_delete_handler(path, dbpool, modified_folder):
     response = {}
     response['ADD'] = []
     response['DEL'] = []
     response['shared_folder'] = None
+    path = os.path.realpath(path)
     file_property_list = []
     all_shared_files_from_db = yield dbpool.runQuery('select filename from indexer where share=1')
     relevant_files = filter(
-        lambda x: x[0].startswith(path),
+        lambda x: x[0].startswith(modified_folder),
         all_shared_files_from_db)
+
     for filename in relevant_files:
         file_removed_response = yield dbpool.runQuery('select filename, size, hash, roothash from indexer where filename=?', (filename[0],))
-        # file_property_list.extend(file_removed_property[0])
-        print 'removing a folder {0}'.format(file_removed_response)
+        # print 'removing a folder {0}'.format(file_removed_response)
         file_property_list.append(file_removed_response[0])
-    for filename in relevant_files:
         yield dbpool.runQuery('delete from indexer where filename=?', (filename[0],))
+
+    parent = {}
+    folder_properties = {}
+    parent[path] = -1
+    folder_properties[path] = {}
+    folder_properties[path]['size'] = 0.0
+    folder_properties[path]['hash'] = ''
+
+    for root, _, filenames in os.walk(path):
+        if root not in parent:
+            immediate_parent = os.path.dirname(root)
+            parent[root] = immediate_parent
+            folder_properties[root] = {}
+            folder_properties[root]['size'] = 0.0
+            folder_properties[root]['hash'] = ''
+        total_size = 0.0
+        folder_hash = ''
+        for filename in filenames:
+            destination_path = os.path.join(root, filename)
+            total_size += get_file_size(destination_path)
+            file_hash_db = yield dbpool.runQuery('select hash from indexer where filename=?', (destination_path,))
+            folder_hash += file_hash_db[0][0]
+
+        hasher = hashlib.md5()
+        hasher.update(folder_hash)
+        folder_properties[root]['size'] = total_size
+        folder_properties[root]['hash'] = hasher.hexdigest()
+
+        temp_path = root
+        while parent[temp_path] != -1:
+            folder_properties[parent[temp_path]]['size'] += total_size
+            parent_folder_hash = folder_properties[
+                parent[temp_path]]['hash']
+            parent_folder_hash += folder_hash
+            hasher = hashlib.md5()
+            hasher.update(parent_folder_hash)
+            folder_properties[parent[temp_path]]['hash'] = hasher.hexdigest()
+            temp_path = parent[temp_path]
+
+    folders_updated_list = []
+    for keys, values in folder_properties.iteritems():
+        folder_path = keys
+        size = values['size']
+        folder_hash = values['hash']
+        folder_hash_db = yield dbpool.runQuery('select hash from indexer where filename=?', (folder_path,))
+        if folder_hash_db[0][0] != folder_hash:
+            folder_index_entry = (
+                size,
+                folder_hash,
+                folder_hash,
+                folder_hash,
+                True,
+                folder_path
+            )
+            yield dbpool.runQuery('update indexer set size=?, hash=?, piecehashes=?, roothash=?, isdirectory=? where filename=?', (folder_index_entry))
+            folders_updated_list.extend(
+                [(folder_path, size, folder_hash, folder_hash, True)])
+
     response['DEL'] = file_property_list
+    response['ADD'] = folders_updated_list
     defer.returnValue(response)
 
 
@@ -147,8 +201,7 @@ def index_folder(folder, dbpool, modified_folder=None):
             # Adding only relevant files to the list.. If there is any
             # modification, we should only be concerned with the modified files
             if modified_folder:
-                if filename.find(modified_folder) != -1:
-                    print '{0} is the one that is modified'.format(filename)
+                if destination_path.find(modified_folder) != -1:
                     file_property_list.extend(indexed_file_property['ADD'])
             else:
                 file_property_list.extend(indexed_file_property['ADD'])
@@ -176,7 +229,8 @@ def index_folder(folder, dbpool, modified_folder=None):
         folder = keys
         size = values['size']
         folder_hash = values['hash']
-        print 'folder=> {0} \n size=>{1} \t hash=>{2}'.format(keys, size, folder_hash)
+        # print 'folder=> {0} \n size=>{1} \t hash=>{2}'.format(keys, size,
+        # folder_hash)
         folder_hash_db = yield dbpool.runQuery('select hash from indexer where filename=?', (folder,))
         try:
             if folder_hash_db[0][0] != folder_hash:
@@ -189,6 +243,8 @@ def index_folder(folder, dbpool, modified_folder=None):
                     folder
                 )
                 yield dbpool.runQuery('update indexer set size=?, hash=?, piecehashes=?, roothash=?, isdirectory=? where filename=?', (folder_index_entry))
+                file_property_list.extend(
+                    [(folder, size, folder_hash, folder_hash, True)])
         except:
             folder_index_entry = (
                 folder,
@@ -200,8 +256,8 @@ def index_folder(folder, dbpool, modified_folder=None):
                 True
             )
             yield dbpool.runQuery('insert into indexer values (?,?,?,?,?,?,?)', (folder_index_entry))
-        file_property_list.extend(
-            [(folder, size, folder_hash, folder_hash, True)])
+            file_property_list.extend(
+                [(folder, size, folder_hash, folder_hash, True)])
     response['ADD'] = file_property_list
     defer.returnValue(response)
 

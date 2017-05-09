@@ -26,21 +26,15 @@ iwanto-start
 ## Client 
 To look for files in the network, just type the name of file ;)  (P.S No need of accurate names, thanks to fuzzywuzzy)
 ```sh
-iwanto --search Siliconvalley
+iwanto search Siliconvalley
 ```
 ![Alt text](/images/client_search.png?raw=true "Searching for silicon valley episodes")
 To download the file , just enter the hash of the file. 
 ```sh
-iwanto --download <siliconvalley_episode_hash>
+iwanto download <siliconvalley_episode_hash>
 ```
 ![Alt text](/images/client_download.png?raw=true "Requesting to download season 1 episode 6")
 
 ## Security
-
-
-## Database 
-
-### __why SQLite ?__ 
-self-contained, serverless, zero-configuration that means like other database you do not need to configure it in your system.
 
 ## FAQ

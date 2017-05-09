@@ -50,6 +50,8 @@ CHANGE = 'change'
 SHARE = 'share'
 NEW_SHARED_FOLDER_RES = 'new-shared-folder-response'
 NEW_DOWNLOAD_FOLDER_RES = 'new-download-folder-response'
+GET_HASH_IDENTITY = 'get-hash-identity'
+HASH_IDENTITY_RESPONSE = 'hash-identity-response'
 # Server States
 READY = 1
 NOT_READY = 0

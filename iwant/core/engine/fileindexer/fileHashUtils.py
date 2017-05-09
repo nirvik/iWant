@@ -146,21 +146,6 @@ def folder_delete_handler(path, dbpool, modified_folder):
 
 
 @defer.inlineCallbacks
-def file_delete_handler(path, dbpool):
-    response = {}
-    response['DEL'] = []
-    response['ADD'] = []
-    response['shared_folder'] = None
-    file_property_list = []
-    file_removed_response = yield dbpool.runQuery('select filename, size, hash, roothash from indexer where filename=?', (path,))
-    print 'Removing a single file from {0}'.format(file_removed_response)
-    file_property_list.extend(file_removed_response)
-    remove_file = yield dbpool.runQuery('delete from indexer where filename=?', (path,))
-    response['DEL'] = file_property_list
-    defer.returnValue(response)
-
-
-@defer.inlineCallbacks
 def index_folder(folder, dbpool, modified_folder=None):
     response = {}
     response['DEL'] = []
@@ -314,6 +299,36 @@ def get_file_size(path):
     return file size in mb
     '''
     return os.stat(path).st_size / (1000.0 * 1000.0)
+
+
+@defer.inlineCallbacks
+def get_structure(hash_value, dbpool):
+    craft_response = {}
+    if os.name != 'nt':
+        craft_response['isWindows'] = False
+    else:
+        craft_response['isWindows'] = True
+    response_db = yield dbpool.runQuery('select filename, roothash, size from indexer where hash=?',(hash_value,))
+    filename, roothash, size = response_db[0]
+    if os.isdir(filename):
+        foldername = filename
+        craft_response['isFile'] = False
+        craft_response['rootDirectory'] = foldername
+        files_list = []
+        for root, dirpath, filenames in os.walk(foldername):
+            for filename in filenames:
+                basename = os.path.basename(filename)
+                _, _, root_hash = get_file_hashes(filename)
+                size = get_file_size(filename)
+                files_list.append((root, basename, size, root_hash))
+        craft_response['files'] = files_list
+    else:
+        craft_response['isFile'] = True
+        craft_response['roothash'] = roothash
+        craft_response['filename'] = filename
+        craft_response['size'] = size
+
+    defer.returnValue(craft_response)
 
 
 @defer.inlineCallbacks

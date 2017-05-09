@@ -12,7 +12,7 @@ from constants import INDEXED, LEADER_NOT_READY,\
     RE_ELECTION, ALIVE, HANDLE_ALIVE,\
     HANDLE_PING, REQ_CHUNK, END_GAME, FILE_CONFIRMATION_MESSAGE,\
     INTERESTED, UNCHOKE, PEER_DEAD, CHANGE, SHARE, NEW_DOWNLOAD_FOLDER_RES,\
-    NEW_SHARED_FOLDER_RES
+    NEW_SHARED_FOLDER_RES, HASH_IDENTITY_RESPONSE, GET_HASH_IDENTITY
 
 # NO_PARAM = [HANDSHAKE, LEADER_NOT_READY, END_GAME, UNCHOKE, HANDLE_PING]
 # DELIMITERS_PARAMS = [FILE, LIST_ALL_FILES, ERROR_LIST_ALL_FILES, LEADER, HASH_DUMP, FILE_SYS_EVENT, SEARCH_REQ, SEARCH_RES, LOOKUP, IWANT_PEER_FILE, PEER_LOOKUP_RESPONSE, SEND_PEER_DETAILS, FILE_DETAILS_RESP, INIT_FILE_REQ, IWANT, FILE_TO_BE_DOWNLOADED, START_TRANSFER, DEAD, REQ_CHUNK, INDEXED, FILE_CONFIRMATION_MESSAGE, INTERESTED, NEW_PEER, BCAST_LEDGER, NEW_LEADER, REMOVE_LEADER, SECRET_VAL, HANDLE_PONG, FACE_OFF, DEAD]
@@ -263,6 +263,14 @@ def bake(key, **kwargs):
         action_msg['payload'] = payload
         return action_msg
 
+    def _craft_get_hash_identity_msg():
+        payload['checksum'] = kwargs['checksum']
+        action_msg['payload'] = payload
+
+    def _craft_hash_identity_response_msg():
+        payload['file_structure_response'] = kwargs['file_structure_response']
+        action_msg['payload'] = payload
+
     dispatcher = {
         NEW_PEER: _craft_new_peer_msg,
         REMOVE_LEADER: _craft_remove_leader_msg,
@@ -302,7 +310,10 @@ def bake(key, **kwargs):
         CHANGE: _craft_change_download_path_msg,
         SHARE: _craft_share_new_folder_msg,
         NEW_DOWNLOAD_FOLDER_RES: _craft_new_download_folder_response_msg,
-        NEW_SHARED_FOLDER_RES: _craft_new_shared_folder_response_msg
+        NEW_SHARED_FOLDER_RES: _craft_new_shared_folder_response_msg,
+
+        GET_HASH_IDENTITY: _craft_get_hash_identity_msg,
+        HASH_IDENTITY_RESPONSE: _craft_hash_identity_response_msg
     }
     return dispatcher[key]()
 

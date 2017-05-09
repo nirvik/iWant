@@ -11,7 +11,7 @@ from ..constants import INIT_FILE_REQ, LEADER, PEER_DEAD, \
     IWANT_PEER_FILE, SEND_PEER_DETAILS, INDEXED,\
     ERROR_LIST_ALL_FILES, READY, NOT_READY, PEER_LOOKUP_RESPONSE, LEADER_NOT_READY,\
     REQ_CHUNK, END_GAME, FILE_CONFIRMATION_MESSAGE, INTERESTED, UNCHOKE, CHANGE, SHARE,\
-    NEW_DOWNLOAD_FOLDER_RES, NEW_SHARED_FOLDER_RES
+    NEW_DOWNLOAD_FOLDER_RES, NEW_SHARED_FOLDER_RES, GET_HASH_IDENTITY, HASH_IDENTITY_RESPONSE
 from iwant.cli.utils import WARNING_LOG, ERROR_LOG, print_log
 from ..protocols import BaseProtocol
 from ..config import SERVER_DAEMON_PORT
@@ -48,7 +48,8 @@ class backend(BaseProtocol):
             REQ_CHUNK: self._send_chunk_response,
             END_GAME: self._end_game,
             CHANGE: self._change_download_folder,
-            SHARE: self._share_new_folder
+            SHARE: self._share_new_folder,
+            GET_HASH_IDENTITY: self._send_folder_structure
         }
         self.buff = ''
         self.delimiter = '\r'
@@ -110,6 +111,12 @@ class backend(BaseProtocol):
         if data['end_game']:
             print_log('received end game')
             self.fileObj.close()
+
+    @defer.inlineCallbacks
+    def _send_folder_structure(self, data):
+        file_structure_response = yield fileHashUtils.get_structure(data)
+        hash_identity_response_msg = bake(key=HASH_IDENTITY_RESPONSE, file_stucture_response=file_structure_response)
+        self.sendLine(hash_identity_response_msg)
 
     @defer.inlineCallbacks
     def _update_leader(self, data):
@@ -403,7 +410,6 @@ class backendFactory(Factory):
                 }
 
             def connectionMade(self):
-                # update_msg = Basemessage(key=self.factory.key, data=self.factory.dump)
                 if self.factory.key == LOOKUP:
                     update_msg = bake(LOOKUP, search_query=self.factory.dump)
                 elif self.factory.key == HASH_DUMP:
@@ -420,48 +426,39 @@ class backendFactory(Factory):
                     self.transport.loseConnection()
 
             def serviceMessage(self, data):
-                # req = Basemessage(message=data)
                 key, value = unbake(message=data)
-                #  try:
-                #     self.events[req.key]()
-                #  except:
-                #     self.events[req.key](req.data)
                 self.events[key](value)
 
             def talk_to_peer(self, data):
                 from twisted.internet import reactor
                 self.transport.loseConnection()
-                #  print 'Got peers {0}'.format(data)
                 if len(data) == 0:
                     print_log(
                         'Tell the client that peer lookup response is 0. Have to handle this',
                         WARNING_LOG)
                     # update_msg = Basemessage(key=SEARCH_RES, data=data)
                 else:
-                    from ..protocols import RemotepeerFactory
+                    # from iwant.core.protocols import RemotepeerFactory
+                    from iwant.core.protocols import DownloadManagerFactory
                     response = data['peer_lookup_response']
                     file_details = {
                         'file_name': response['file_name'],  # data[-1],
                         'file_size': response['file_size'],  # data[-2],
                         'file_root_hash': response['file_root_hash'],
                         'checksum': self.factory.dump
-                    }
-                    # peers = data[:-3]
-                    peers = response['peers']
-                    # print_log( 'the following data is received from the leader')
-                    # print_log(file_details)
-                    # print_log(peers)
-                    P2PFactory = RemotepeerFactory(
-                        INIT_FILE_REQ,
-                        clientConn,
-                        self.factory.download_folder,
-                        file_details,
-                        self.factory.dbpool)
-                    map(lambda host: reactor.connectTCP(
-                        host, SERVER_DAEMON_PORT, P2PFactory), map(lambda host: host[0], peers))
+                    }  # this crap is not even necessary
+                    peers = map(lambda host: host[0], response['peers'])
+                    reactor.connectTCP(peers[0], SERVER_DAEMON_PORT, DownloadManagerFactory(clientConn, self.factory.download_folder, self.factory.dump, peers, self.factory.dbpool))
+                    # P2PFactory = RemotepeerFactory(
+                    #     INIT_FILE_REQ,
+                    #     clientConn,
+                    #     self.factory.download_folder,
+                    #     file_details,
+                    #     self.factory.dbpool)
+                    # map(lambda host: reactor.connectTCP(host, SERVER_DAEMON_PORT, P2PFactory), map(lambda host: host[0], peers))
+
 
             def send_file_search_response(self, data):
-                # update_msg = Basemessage(key=SEARCH_RES, data=data)
                 update_msg = bake(
                     SEARCH_RES,
                     search_query_response=data['search_query_response'])

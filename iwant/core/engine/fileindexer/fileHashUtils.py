@@ -310,16 +310,16 @@ def get_structure(hash_value, dbpool):
         craft_response['isWindows'] = True
     response_db = yield dbpool.runQuery('select filename, roothash, size from indexer where hash=?',(hash_value,))
     filename, roothash, size = response_db[0]
-    if os.isdir(filename):
+    if os.path.isdir(filename):
         foldername = filename
         craft_response['isFile'] = False
         craft_response['rootDirectory'] = foldername
         files_list = []
         for root, dirpath, filenames in os.walk(foldername):
-            for filename in filenames:
-                basename = os.path.basename(filename)
-                _, _, root_hash = get_file_hashes(filename)
-                size = get_file_size(filename)
+            for basename in filenames:
+                absolute_filepath = os.path.join(root, basename)
+                _, _, root_hash = get_file_hashes(absolute_filepath)
+                size = get_file_size(absolute_filepath)
                 files_list.append((root, basename, size, root_hash))
         craft_response['files'] = files_list
     else:

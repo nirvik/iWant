@@ -114,8 +114,9 @@ class backend(BaseProtocol):
 
     @defer.inlineCallbacks
     def _send_folder_structure(self, data):
-        file_structure_response = yield fileHashUtils.get_structure(data)
-        hash_identity_response_msg = bake(key=HASH_IDENTITY_RESPONSE, file_stucture_response=file_structure_response)
+        requested_hash = data['checksum']
+        file_structure_response = yield fileHashUtils.get_structure(requested_hash, self.factory.dbpool)
+        hash_identity_response_msg = bake(key=HASH_IDENTITY_RESPONSE, file_structure_response=file_structure_response)
         self.sendLine(hash_identity_response_msg)
 
     @defer.inlineCallbacks
@@ -421,7 +422,8 @@ class backendFactory(Factory):
                     update_msg = bake(
                         SEND_PEER_DETAILS,
                         filehash=self.factory.dump)
-                self.transport.write(str(update_msg))
+                # self.transport.write(str(update_msg))
+                self.sendLine(update_msg)
                 if not persist:
                     self.transport.loseConnection()
 
@@ -441,14 +443,18 @@ class backendFactory(Factory):
                     # from iwant.core.protocols import RemotepeerFactory
                     from iwant.core.protocols import DownloadManagerFactory
                     response = data['peer_lookup_response']
-                    file_details = {
-                        'file_name': response['file_name'],  # data[-1],
-                        'file_size': response['file_size'],  # data[-2],
-                        'file_root_hash': response['file_root_hash'],
-                        'checksum': self.factory.dump
-                    }  # this crap is not even necessary
+                    file_root_hash = response['file_root_hash']
                     peers = map(lambda host: host[0], response['peers'])
-                    reactor.connectTCP(peers[0], SERVER_DAEMON_PORT, DownloadManagerFactory(clientConn, self.factory.download_folder, self.factory.dump, peers, self.factory.dbpool))
+                    reactor.connectTCP(peers[0], SERVER_DAEMON_PORT, DownloadManagerFactory(clientConn, self.factory.download_folder, file_root_hash, peers, self.factory.dbpool))
+                    # file_details = {
+                    #     'file_name': response['file_name'],  # data[-1],
+                    #     'file_size': response['file_size'],  # data[-2],
+                    #     'file_root_hash': response['file_root_hash'],
+                    #     'checksum': self.factory.dump
+                    # }  # this crap is not even necessary
+                    # peers = map(lambda host: host[0], response['peers'])
+
+
                     # P2PFactory = RemotepeerFactory(
                     #     INIT_FILE_REQ,
                     #     clientConn,

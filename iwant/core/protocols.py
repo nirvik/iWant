@@ -156,7 +156,9 @@ class DownloadManagerProtocol(BaseProtocol):
     def __init__(self, factory):
         self.factory = factory
         self.delimiter = '\r'
-        self.handlers = {
+        self.special_handler = None
+        self.buff = ''
+        self.event_handlers = {
             HASH_IDENTITY_RESPONSE: self._build_new_files_folders
         }
 
@@ -166,9 +168,10 @@ class DownloadManagerProtocol(BaseProtocol):
 
     def serviceMessage(self, data):
          key, value = unbake(message=data)
-         self.events[key](value)
+         self.event_handlers[key](value)
 
-    def _build_new_files_folders(self, meta_info):
+    def _build_new_files_folders(self, response):
+        meta_info = response['file_structure_response']
         if meta_info['isFile']:
             filesize = meta_info['size']
             roothash = meta_info['roothash']
@@ -178,7 +181,7 @@ class DownloadManagerProtocol(BaseProtocol):
                 filename = os.path.basename(meta_info['filename'])
             self.init_file(filename, filesize)
         else:
-            seeder_directory_root = meta_info['directory_root']
+            seeder_directory_root = meta_info['rootDirectory']
             is_windows = meta_info['isWindows']
             if not is_windows:
                 client_directory_root = os.path.join(self.factory.download_folder, os.path.basename(seeder_directory_root))
@@ -203,20 +206,20 @@ class DownloadManagerProtocol(BaseProtocol):
                     subdirectories = relative_subdirectory.split('\\')  # add windows support
                 for subdirectory in subdirectories:
                     client_directory_path = os.path.join(client_subdirectories_path, subdirectory)
-                    if not os.isdir(client_directory_path):
+                    if not os.path.isdir(client_directory_path):
                         os.mkdir(client_directory_path)
                     client_subdirectories_path = client_directory_path
                 client_files_to_create.append((os.path.join(client_subdirectories_path, filename), size, file_hash))
 
             for file_to_create in client_files_to_create:
                 filename, size, file_root_hash = file_to_create
-                self.initFile(filename, size)
+                self.init_file(filename, size)
 
     def init_file(self, filename, filesize):
         print 'must create this-> {0}'.format(filename)
-        pass
 
-class DownloadManagerFactory(Factory):
+class DownloadManagerFactory(ClientFactory):
+    protocol = DownloadManagerProtocol
     def __init__(self, clientConn, download_folder, checksum, peers_list, dbpool):
         self.clientConn = clientConn
         self.peers_list = peers_list

@@ -3,7 +3,6 @@ from watchdog.events import PatternMatchingEventHandler
 from twisted.internet import reactor
 from iwant.core.engine.fileindexer import fileHashUtils
 import os
-from iwant.core.constants import FILE_SYS_EVENT
 
 
 class ScanFolder(object):
@@ -22,11 +21,6 @@ class ScanFolder(object):
 
     def on_any_event(self, event):
         self.process(event)
-
-    def fuckit(self, data):
-        print 'scanfolder successcallback and this is what we are giving'
-        print data
-        self.callback(data)
 
     def process(self, event):
         print event.src_path, event.event_type
@@ -60,9 +54,6 @@ class ScanFolder(object):
                     self.dbpool,
                     modified_folder=event.src_path
                 )
-                # remove_event = fileHashUtils.file_delete_handler(
-                #     event.src_path,
-                #     self.dbpool)
             remove_event.addCallback(self.callback)
 
 if __name__ == '__main__':

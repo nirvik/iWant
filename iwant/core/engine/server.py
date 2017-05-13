@@ -5,16 +5,16 @@ from fuzzywuzzy import fuzz
 import os
 from fileindexer import fileHashUtils
 from fileindexer.piece import piece_size
-from ..messagebaker import bake, unbake
-from ..constants import INIT_FILE_REQ, LEADER, PEER_DEAD, \
+from iwant.core.messagebaker import bake, unbake
+from iwant.core.constants import INIT_FILE_REQ, LEADER, PEER_DEAD, \
     FILE_SYS_EVENT, HASH_DUMP, SEARCH_REQ, LOOKUP, SEARCH_RES,\
     IWANT_PEER_FILE, SEND_PEER_DETAILS, INDEXED,\
     ERROR_LIST_ALL_FILES, READY, NOT_READY, PEER_LOOKUP_RESPONSE, LEADER_NOT_READY,\
     REQ_CHUNK, END_GAME, FILE_CONFIRMATION_MESSAGE, INTERESTED, UNCHOKE, CHANGE, SHARE,\
     NEW_DOWNLOAD_FOLDER_RES, NEW_SHARED_FOLDER_RES, GET_HASH_IDENTITY, HASH_IDENTITY_RESPONSE
 from iwant.cli.utils import WARNING_LOG, ERROR_LOG, print_log
-from ..protocols import BaseProtocol
-from ..config import SERVER_DAEMON_PORT
+from iwant.core.protocols import BaseProtocol
+from iwant.core.config import SERVER_DAEMON_PORT
 from monitor.watching import ScanFolder
 from monitor.callbacks import filechangeCB
 
@@ -99,7 +99,6 @@ class backend(BaseProtocol):
                 ERROR_LOG)
 
     def _send_chunk_response(self, data):
-        print 'sending chunk response '
         sender = FileSender()
         d = sender.beginFileTransfer(self.fileObj, self.transport, None)
         d.addCallback(self.transfer_completed)
@@ -116,7 +115,9 @@ class backend(BaseProtocol):
     def _send_folder_structure(self, data):
         requested_hash = data['checksum']
         file_structure_response = yield fileHashUtils.get_structure(requested_hash, self.factory.dbpool)
-        hash_identity_response_msg = bake(key=HASH_IDENTITY_RESPONSE, file_structure_response=file_structure_response)
+        hash_identity_response_msg = bake(
+            key=HASH_IDENTITY_RESPONSE,
+            file_structure_response=file_structure_response)
         self.sendLine(hash_identity_response_msg)
 
     @defer.inlineCallbacks
@@ -148,10 +149,6 @@ class backend(BaseProtocol):
             self.transport.loseConnection()
 
     def _dump_data_from_peers(self, data):
-        # uuid, dump = data
-        # operation = dump[0]
-        # file_properties = dump[1:]
-        # print 'received from peer {0}'.format(data)
         uuid = data['identity']
         file_addition_updates = data['operation']['ADD']
         file_removal_updates = data['operation']['DEL']
@@ -178,9 +175,11 @@ class backend(BaseProtocol):
                 try:
                     del self.factory.data_from_peers[
                         uuid]['hashes'][old_hash_key]
-                except:
+                except Exception as e:
                     print_log(
-                        'STUFF GETS FUCKED RIGHT HERE : {0}'.format(file_name),
+                        'STUFF GETS FUCKED RIGHT HERE : {0}, for reason {1}'.format(
+                            file_name,
+                            e),
                         WARNING_LOG)
             if file_hash not in self.factory.data_from_peers[uuid]:
                 self.factory.data_from_peers[uuid][
@@ -268,7 +267,6 @@ class backend(BaseProtocol):
     def _ask_leader_for_peers(self, data):
         if self.leaderThere():
             print_log('asking leaders for peers')
-            print data
             #print_log( data)
             filehash = data['filehash']
             self.factory._notify_leader(
@@ -316,6 +314,7 @@ class backend(BaseProtocol):
         response['file_root_hash'] = file_root_hash
         response['file_size'] = file_size
         response['file_name'] = file_name
+        # response['file_hash'] = filehash
         msg = bake(PEER_LOOKUP_RESPONSE, peer_lookup_response=response)
         self.sendLine(msg)
         self.transport.loseConnection()
@@ -387,7 +386,7 @@ class backendFactory(Factory):
         self.shared_folder = kwargs['shared_folder']
 
     def clientConnectionLost(self, connector, reason):
-        print 'Lost connection'
+        pass
 
     def _notify_leader(
             self,
@@ -440,29 +439,21 @@ class backendFactory(Factory):
                         WARNING_LOG)
                     # update_msg = Basemessage(key=SEARCH_RES, data=data)
                 else:
-                    # from iwant.core.protocols import RemotepeerFactory
                     from iwant.core.protocols import DownloadManagerFactory
                     response = data['peer_lookup_response']
                     file_root_hash = response['file_root_hash']
                     peers = map(lambda host: host[0], response['peers'])
-                    reactor.connectTCP(peers[0], SERVER_DAEMON_PORT, DownloadManagerFactory(clientConn, self.factory.download_folder, file_root_hash, peers, self.factory.dbpool))
-                    # file_details = {
-                    #     'file_name': response['file_name'],  # data[-1],
-                    #     'file_size': response['file_size'],  # data[-2],
-                    #     'file_root_hash': response['file_root_hash'],
-                    #     'checksum': self.factory.dump
-                    # }  # this crap is not even necessary
-                    # peers = map(lambda host: host[0], response['peers'])
-
-
-                    # P2PFactory = RemotepeerFactory(
-                    #     INIT_FILE_REQ,
-                    #     clientConn,
-                    #     self.factory.download_folder,
-                    #     file_details,
-                    #     self.factory.dbpool)
-                    # map(lambda host: reactor.connectTCP(host, SERVER_DAEMON_PORT, P2PFactory), map(lambda host: host[0], peers))
-
+                    checksum = self.factory.dump
+                    reactor.connectTCP(
+                        peers[0],
+                        SERVER_DAEMON_PORT,
+                        DownloadManagerFactory(
+                            clientConn,
+                            self.factory.download_folder,
+                            checksum,
+                            file_root_hash,
+                            peers,
+                            self.factory.dbpool))
 
             def send_file_search_response(self, data):
                 update_msg = bake(
@@ -479,6 +470,14 @@ class backendFactory(Factory):
                 self.download_folder = kwargs['download_folder']
                 self.dbpool = kwargs['dbpool']
                 self.identity = kwargs['identity']
+
+            def clientConnectionLost(self, connector, reason):
+                # print 'connection with leader dropped'
+                pass
+
+            def clientConnectionFailed(self, connector, reason):
+                # print 'connection with leader dropped'
+                pass
 
             def buildProtocol(self, addr):
                 return ServerLeaderProtocol(self)
@@ -528,4 +527,4 @@ class backendFactory(Factory):
         return backend(self)
 
     def connectionMade(self):
-        print 'connection established'
+        pass

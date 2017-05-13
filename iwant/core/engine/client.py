@@ -1,14 +1,13 @@
 from twisted.internet import reactor
 from twisted.internet.protocol import ClientFactory
 from iwant.core.messagebaker import bake, unbake
-from iwant.cli.utils import update_config, print_log, CLIENT_LOG_INFO, ERROR_LOG, WARNING_LOG
+from iwant.cli.utils import update_config, print_log, CLIENT_LOG_INFO, WARNING_LOG
 from iwant.core.constants import SEARCH_REQ, SEARCH_RES, \
     LEADER_NOT_READY, IWANT_PEER_FILE,\
     FILE_TO_BE_DOWNLOADED, CHANGE, SHARE,\
     NEW_SHARED_FOLDER_RES, NEW_DOWNLOAD_FOLDER_RES
 from iwant.core.protocols import BaseProtocol
 import tabulate
-import os
 
 
 class Frontend(BaseProtocol):
@@ -84,21 +83,35 @@ class Frontend(BaseProtocol):
             callback: displays file to be downloaded
             triggered when user downloads a file
         '''
-        filename_response = data['filename']
-        filesize_response = data['filesize']
-
-        file_basename = os.path.basename(filename_response)
-        file_type_split = filename_response.rsplit('.')
-        if len(file_type_split) == 2:
-            file_type = file_type_split[-1]
+        file_structure_response = data['message']
+        if file_structure_response['isFile']:
+            file_name = file_structure_response['filename']
+            file_size = file_structure_response['filesize']
+            checksum = file_structure_response['checksum']
+            print_log(
+                'Filename: {0}\nSize: {1} MB\nChecksum: {2}'.format(
+                    file_name,
+                    file_size,
+                    checksum),
+                CLIENT_LOG_INFO)
         else:
-            file_type = 'UNKNOWN'
-        print_log(
-            'Filename: {0}\nSize: {1}\nBasename: {2}\nFiletype: {3}\n'.format(
-                filename_response,
-                filesize_response,
-                file_basename,
-                file_type), CLIENT_LOG_INFO)
+            root_directory = file_structure_response['rootDirectory']
+            root_directory_checksum = file_structure_response[
+                'rootDirectoryChecksum']
+            print_log(
+                'Directory: {0}\nDirectory Checksum: {1}'.format(
+                    root_directory,
+                    root_directory_checksum),
+                CLIENT_LOG_INFO)
+            files = file_structure_response['files']
+            for file_property in files:
+                filename, size, checksum = file_property
+                print_log(
+                    'Filename: {0}\tSize: {1} MB\tChecksum: {2}'.format(
+                        filename,
+                        size,
+                        checksum),
+                    CLIENT_LOG_INFO)
         reactor.stop()
 
     def confirm_new_shared_folder(self, data):

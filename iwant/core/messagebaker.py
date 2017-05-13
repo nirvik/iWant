@@ -35,7 +35,7 @@ def bake(key, **kwargs):
     payload = {}
 
     def _craft_new_peer_msg():
-        print NEW_PEER, kwargs
+        # print NEW_PEER, kwargs
         try:
             payload['identity'] = kwargs['identity'].hex
         except:
@@ -48,25 +48,25 @@ def bake(key, **kwargs):
         return action_msg
 
     def _craft_remove_leader_msg():
-        print REMOVE_LEADER
+        # print REMOVE_LEADER
         payload['leader_id'] = kwargs['leader_id'].hex
         action_msg['payload'] = payload
         return action_msg
 
     def _craft_re_election_msg():
-        print RE_ELECTION
+        # print RE_ELECTION
         payload['election_id'] = kwargs['election_id']
         action_msg['payload'] = payload
         return action_msg
 
     def _craft_handle_pong_msg():
-        print HANDLE_PONG
+        # print HANDLE_PONG
         payload['secret_value'] = kwargs['secret_value']
         action_msg['payload'] = payload
         return action_msg
 
     def _craft_new_leader_msg():
-        print NEW_LEADER
+        # print NEW_LEADER
         payload['leader_id'] = kwargs['leader_id'].hex
         payload['election_id'] = kwargs['election_id']
         payload['secret_value'] = kwargs['secret_value']
@@ -74,13 +74,13 @@ def bake(key, **kwargs):
         return action_msg
 
     def _craft_alive_msg():
-        print ALIVE
+        # print ALIVE
         payload['election_id'] = kwargs['election_id']
         action_msg['payload'] = payload
         return action_msg
 
     def _craft_handle_alive_msg():
-        print HANDLE_ALIVE
+        # print HANDLE_ALIVE
         payload['election_id'] = kwargs['election_id']
         action_msg['payload'] = payload
         return action_msg
@@ -104,13 +104,13 @@ def bake(key, **kwargs):
         return action_msg
 
     def _craft_secret_val_msg():
-        print SECRET_VAL
+        # print SECRET_VAL
         payload['secret_value'] = kwargs['secret_value']
         action_msg['payload'] = payload
         return action_msg
 
     def _craft_face_off_msg():
-        print FACE_OFF
+        # print FACE_OFF
         payload['with_leader'] = kwargs['with_leader']
         action_msg['payload'] = payload
         return action_msg
@@ -211,7 +211,7 @@ def bake(key, **kwargs):
     def _craft_req_chunk_msg():
         payload['piece_data'] = kwargs['piece_data']
         action_msg['payload'] = payload
-        print action_msg
+        # print action_msg
         return action_msg
 
     def _craft_end_game_msg():
@@ -223,8 +223,9 @@ def bake(key, **kwargs):
         pass
 
     def _craft_file_to_be_downloaded_msg():
-        payload['filesize'] = kwargs['filesize']
-        payload['filename'] = kwargs['filename']
+        # payload['filesize'] = kwargs['filesize']
+        # payload['filename'] = kwargs['filename']
+        payload['message'] = kwargs['message']
         action_msg['payload'] = payload
         return action_msg
 

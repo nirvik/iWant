@@ -138,7 +138,7 @@ def folder_delete_handler(path, dbpool, modified_folder):
             )
             yield dbpool.runQuery('update indexer set size=?, hash=?, piecehashes=?, roothash=?, isdirectory=? where filename=?', (folder_index_entry))
             folders_updated_list.extend(
-                [(folder_path, size, folder_hash, folder_hash, True)])
+                [(folder_path, size, folder_hash, folder_hash)])  # , True)])
 
     response['DEL'] = file_property_list
     response['ADD'] = folders_updated_list
@@ -229,7 +229,7 @@ def index_folder(folder, dbpool, modified_folder=None):
                 )
                 yield dbpool.runQuery('update indexer set size=?, hash=?, piecehashes=?, roothash=?, isdirectory=? where filename=?', (folder_index_entry))
                 file_property_list.extend(
-                    [(folder, size, folder_hash, folder_hash, True)])
+                    [(folder, size, folder_hash, folder_hash)])  # , True)])
         except:
             folder_index_entry = (
                 folder,
@@ -242,7 +242,7 @@ def index_folder(folder, dbpool, modified_folder=None):
             )
             yield dbpool.runQuery('insert into indexer values (?,?,?,?,?,?,?)', (folder_index_entry))
             file_property_list.extend(
-                [(folder, size, folder_hash, folder_hash, True)])
+                [(folder, size, folder_hash, folder_hash)])  # , True)])
     response['ADD'] = file_property_list
     defer.returnValue(response)
 
@@ -269,7 +269,7 @@ def index_file(path, dbpool):
             print 'updating the hash'
             yield dbpool.runQuery('update indexer set size=?, hash=?, piecehashes=?, roothash=?, isdirectory=? where filename=?', (file_index_entry))
             file_property_list = [
-                (path, filesize, file_hash, root_hash, False)]
+                (path, filesize, file_hash, root_hash)]  # , False)]
             response['ADD'] = file_property_list
             defer.returnValue(response)
     except IndexError:
@@ -287,7 +287,7 @@ def index_file(path, dbpool):
                 False)
             yield dbpool.runQuery('insert into indexer values (?,?,?,?,?,?,?)', (file_index_entry))
             file_property_list = [
-                (path, filesize, file_hash, root_hash, False)]
+                (path, filesize, file_hash, root_hash)]  # , False)]
             response['ADD'] = file_property_list
             defer.returnValue(response)
     else:
@@ -308,7 +308,7 @@ def get_structure(hash_value, dbpool):
         craft_response['isWindows'] = False
     else:
         craft_response['isWindows'] = True
-    response_db = yield dbpool.runQuery('select filename, roothash, size from indexer where hash=?',(hash_value,))
+    response_db = yield dbpool.runQuery('select filename, roothash, size from indexer where hash=?', (hash_value,))
     filename, roothash, size = response_db[0]
     if os.path.isdir(filename):
         foldername = filename
@@ -318,9 +318,11 @@ def get_structure(hash_value, dbpool):
         for root, dirpath, filenames in os.walk(foldername):
             for basename in filenames:
                 absolute_filepath = os.path.join(root, basename)
-                _, _, root_hash = get_file_hashes(absolute_filepath)
+                #file_hash, _, root_hash = get_file_hashes(absolute_filepath)
+                hashes_response_db = yield dbpool.runQuery('select hash, roothash from indexer where filename=?', (absolute_filepath,))
                 size = get_file_size(absolute_filepath)
-                files_list.append((root, basename, size, root_hash))
+                file_hash, root_hash = hashes_response_db[0]
+                files_list.append((root, basename, size, file_hash, root_hash))
         craft_response['files'] = files_list
     else:
         craft_response['isFile'] = True
@@ -351,7 +353,6 @@ def remove_resume_entry(hash_value, dbpool):
 @defer.inlineCallbacks
 def add_new_file_entry_resume(file_entry, dbpool):
     filename, checksum = file_entry[0], file_entry[3]
-    print 'adding to resume table {0}'.format(filename)
     # why is this necessary
     yield dbpool.runQuery('insert into indexer values (?,?,?,?,?,?)', (file_entry))
     yield dbpool.runQuery('insert into resume values (?,?)', (filename, checksum))
@@ -397,7 +398,8 @@ if __name__ == '__main__':
         check_same_thread=False,
         cp_openfun=set_text_factory)
 
-    bootstrap('/home/nirvik/Pictures', dbpool)
+    # bootstrap('/home/nirvik/Pictures', dbpool)
+    get_structure('b550c3580bfd0dffa7dbecaefc7816da', dbpool)
     # bootstrap('/home/nirvik/Documents')
     # bootstrap('/home/nirvik/colleges')
     # readit = get_file('56ae4cf859179e0d32e9733d45d7f714')

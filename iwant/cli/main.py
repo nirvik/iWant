@@ -1,6 +1,7 @@
 """iWant.
 
 Usage:
+    iwanto start
     iwanto search <name>
     iwanto download <hash> [(to <destination>)]
     iwanto share <path>
@@ -10,6 +11,7 @@ Usage:
 Options:
     -h --help                                   Show this screen.
     --version                                   Show version.
+    start                                       This starts the iwant server in your system
     search <name>                               Discovering files in the network. Example: iwanto search batman
     download <hash>                             Downloads the file from the network
     share <path>                                Change your shared folder
@@ -39,78 +41,70 @@ from iwant.core.constants import SEARCH_REQ, IWANT_PEER_FILE, CHANGE, SHARE
 from iwant.cli.utils import get_ips, generate_id, get_paths
 
 
-def fuckthisshit(data):
-    print 'indexing done'
-    fileindexedCB(data)
-
-
 def set_text_factory(conn):
     conn.text_factory = str
 
 
 def main():
-    ips = get_ips()
-    for count, ip in enumerate(ips):
-        print count + 1, ip
-    ip = input('Enter index of ip addr:')
-    timeuuid = generate_id()
-    book = CommonlogBook(identity=timeuuid, state=0, ip=ips[ip - 1])
-
-    SHARING_FOLDER, DOWNLOAD_FOLDER, CONFIG_PATH = get_paths()
-
-    if not os.path.exists(SHARING_FOLDER) or \
-        not os.path.exists(DOWNLOAD_FOLDER) or \
-            not os.path.exists(CONFIG_PATH):
-        raise MainException(1)
-
-    logfile = os.path.join(CONFIG_PATH, 'iwant.log')
-    log.startLogging(open(logfile, 'w'), setStdout=False)
-    filename = os.path.join(CONFIG_PATH, 'iwant.db')
-    if not os.path.isfile(filename):
-        conn = sqlite3.connect(filename)
-        conn.execute(
-            '''CREATE TABLE indexer (filename text primary key, share integer, size real, hash text, piecehashes text, roothash text, isdirectory boolean)''')
-        conn.execute(
-            '''CREATE TABLE resume (filename text primary key, hash text) ''')
-        conn.commit()
-
-    dbpool = adbapi.ConnectionPool(
-        'sqlite3',
-        filename,
-        check_same_thread=False,
-        cp_openfun=set_text_factory)
-    try:
-        reactor.listenMulticast(
-            MCAST_PORT,
-            CommonroomProtocol(
-                book,
-                log),
-            listenMultiple=True)  # spawning election daemon
-        endpoints.serverFromString(
-            reactor,
-            'tcp:{0}'.format(SERVER_DAEMON_PORT)). listen(
-            backendFactory(
-                book,
-                dbpool=dbpool,
-                download_folder=DOWNLOAD_FOLDER,
-                shared_folder=SHARING_FOLDER))
-
-        indexer = fileHashUtils.bootstrap(SHARING_FOLDER, dbpool)
-        indexer.addCallback(fileindexedCB)
-        ScanFolder(SHARING_FOLDER, filechangeCB, dbpool)
-        reactor.run()
-
-    except KeyboardInterrupt:
-        reactor.stop()
-        try:
-            sys.exit(0)
-        except SystemExit:
-            os._exit(0)
-
-
-def ui():
     arguments = docopt(__doc__, version='iWant 1.0')
-    if arguments['share'] and arguments['<path>']:
+
+    if arguments['start']:
+        ips = get_ips()
+        for count, ip in enumerate(ips):
+            print count + 1, ip
+        ip = input('Enter index of ip addr:')
+        timeuuid = generate_id()
+        book = CommonlogBook(identity=timeuuid, state=0, ip=ips[ip - 1])
+        SHARING_FOLDER, DOWNLOAD_FOLDER, CONFIG_PATH = get_paths()
+        if not os.path.exists(SHARING_FOLDER) or \
+            not os.path.exists(DOWNLOAD_FOLDER) or \
+                not os.path.exists(CONFIG_PATH):
+            raise MainException(1)
+        logfile = os.path.join(CONFIG_PATH, 'iwant.log')
+        log.startLogging(open(logfile, 'w'), setStdout=False)
+        filename = os.path.join(CONFIG_PATH, 'iwant.db')
+        if not os.path.isfile(filename):
+            conn = sqlite3.connect(filename)
+            conn.execute(
+                '''CREATE TABLE indexer (filename text primary key, share integer, size real, hash text, piecehashes text, roothash text, isdirectory boolean)''')
+            conn.execute(
+                '''CREATE TABLE resume (filename text primary key, hash text) ''')
+            conn.commit()
+        dbpool = adbapi.ConnectionPool(
+            'sqlite3',
+            filename,
+            check_same_thread=False,
+            cp_openfun=set_text_factory)
+
+        try:
+            reactor.listenMulticast(
+                MCAST_PORT,
+                CommonroomProtocol(
+                    book,
+                    log),
+                listenMultiple=True)  # spawning election daemon
+            endpoints.serverFromString(
+                reactor,
+                'tcp:{0}'.format(SERVER_DAEMON_PORT)). listen(
+                backendFactory(
+                    book,
+                    dbpool=dbpool,
+                    download_folder=DOWNLOAD_FOLDER,
+                    shared_folder=SHARING_FOLDER))
+
+            indexer = fileHashUtils.bootstrap(SHARING_FOLDER, dbpool)
+            indexer.addCallback(fileindexedCB)
+            ScanFolder(SHARING_FOLDER, filechangeCB, dbpool)
+            # reactor.run()
+
+        except KeyboardInterrupt:
+            reactor.stop()
+            try:
+                sys.exit(0)
+            except SystemExit:
+                os._exit(0)
+
+    elif arguments['share'] and arguments['<path>']:
         path = arguments['<path>']
         reactor.connectTCP(
             SERVER_DAEMON_HOST,

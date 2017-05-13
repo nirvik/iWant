@@ -39,8 +39,7 @@ setup(
         include_package_data = True,
         entry_points = {
             'console_scripts':[
-                'iwanto=iwant.cli.main:ui',
-                'iwanto-start=iwant.cli.main:main'
+                'iwanto=iwant.cli.main:main'
                 ],
         },
         url="https://github.com/nirvik/iWant",

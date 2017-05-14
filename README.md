@@ -4,6 +4,15 @@
 ### __What is this?__  
 A commandline tool for searching and downloading files in LAN network, without any central server. 
 
+### Features
+1. __Decentralized__ : No central server is hosting files. Therefore, no central point of failure 
+2. __Easy discovery of files__: As easy as searching for something in google. 
+3. __File download from multiple peers__: If the seeder fails/leaves the group, leecher will continue to download from another seeder in the network 
+4. __Directory download__: Supports downloading directories   
+5. __Resume download__:  Resume download from where you left off. 
+6. __Consistent data__: Any changes made to files inside the shared folder will be instantly reflected in the network 
+7. __Cross Platform__: Works in Linux/Windows/Mac 
+
 ### Installation
 ```sh
 python setup.py install --user
@@ -11,8 +20,8 @@ python setup.py install --user
 
 ### How to run 
 
-1. Open ~/.iwant/.iwant.conf and update your shared/download folder.  
-2. Run the iwant service.   
+1. Open `~/.iwant/.iwant.conf` and update your shared/download folder.  
+2. Run the `iwanto` service.   
 
 
 ## Server

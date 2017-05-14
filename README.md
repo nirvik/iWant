@@ -26,20 +26,32 @@ python setup.py install --user
 
 ## Server
 
-To run the server
+__Running server__
 ```sh
 iwanto start
 ```
 
 ## Client 
-To look for files in the network, just type the name of file ;)  (P.S No need of accurate names, thanks to fuzzywuzzy)
+__Search files__: Type the name of file ;)  (P.S No need of accurate names)
 ```sh
-iwanto search Siliconvalley
+iwanto search <filename>
 ```
-![Alt text](/images/client_search.png?raw=true "Searching for silicon valley episodes")
-To download the file , just enter the hash of the file. 
+Or
 ```sh
-iwanto download <siliconvalley_episode_hash>
+iwanto search "silicon valey"
+```
+
+__Download files__: To download the file , just enter the hash of the file you get after searching. 
+```sh
+iwanto download <hash_of_the_file>
+```
+__Change shared folder__: Changing shared folder, while the iwant service is still running
+```sh
+iwanto share <path>
+```
+__Change downloads folder__: Changing downloads folder, while the iwant service is still running 
+```sh
+iwanto change download path to <path>
 ```
 
 ## Security

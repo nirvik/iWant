@@ -5,7 +5,7 @@
 A commandline tool for searching and downloading files in LAN network, without any central server. 
 
 ### Features
-* __Decentralized__ : No central server is hosting files. Therefore, no central point of failure 
+* __Decentralized__ : There is no central server hosting files. Therefore, no central point of failure 
 * __Easy discovery of files__: As easy as searching for something in google. 
 * __File download from multiple peers__: If the seeder fails/leaves the group, leecher will continue to download from another seeder in the network 
 * __Directory download__: Supports downloading directories   

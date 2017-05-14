@@ -36,7 +36,7 @@ __Search files__: Type the name of file ;)  (P.S No need of accurate names)
 ```sh
 iwanto search <filename>
 ```
-Or
+Example: 
 ```sh
 iwanto search "silicon valey"
 ```
@@ -45,13 +45,25 @@ __Download files__: To download the file , just enter the hash of the file you g
 ```sh
 iwanto download <hash_of_the_file>
 ```
+Example: 
+```sh
+iwanto download b8f67e90097c7501cc0a9f1bb59e6443
+```
 __Change shared folder__: Changing shared folder, while the iwant service is still running
 ```sh
 iwanto share <path>
 ```
+Example: 
+```sh
+iwanto share /home/User/Movies/
+```
 __Change downloads folder__: Changing downloads folder, while the iwant service is still running 
 ```sh
 iwanto change download path to <path>
+```
+Example: 
+```sh
+iwanto change download path to /home/User/Downloads
 ```
 
 ## Security

@@ -55,3 +55,5 @@ HASH_IDENTITY_RESPONSE = 'hash-identity-response'
 # Server States
 READY = 1
 NOT_READY = 0
+# File chunk size
+CHUNK_SIZE = 2**16

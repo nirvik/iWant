@@ -13,6 +13,7 @@ import hashlib
 import time
 from struct import calcsize
 from iwant.core.config import SERVER_DAEMON_PORT
+from iwant.core.constants import CHUNK_SIZE
 
 
 class BaseProtocol(Protocol):
@@ -195,8 +196,10 @@ class FileDownloadProtocol(BaseProtocol):
             self.factory.start_time = time.time()
 
     def rawDataReceived(self, data):
-        self.factory.download_status += len(data)
-        self.factory.file_handler.write(data)
+        piece_number, block_number, file_data = data.split(';', 2)
+        self.factory.download_status += len(file_data)
+        self.factory.file_handler.seek(piece_number * self.factory.piece_size + block_number * CHUNK_SIZE)
+        self.factory.file_handler.write(file_data)
         print 'Completed {0}'.format(self.factory.download_status * 100.0 / (self.factory.file_size * 1000.0 * 1000.0))
         if self.factory.download_status >= self.factory.file_size * \
                 1000.0 * 1000.0:
@@ -205,7 +208,8 @@ class FileDownloadProtocol(BaseProtocol):
             self.transport.loseConnection()
 
     def request_for_pieces(self, bootstrap=None):
-        request_chunk_msg = bake(REQ_CHUNK, piece_data=1)
+        piece_range_data = [self.factory.start_piece, self.factory.blocks_per_piece, self.last_piece, self.factory.blocks_per_last_piece]
+        request_chunk_msg = bake(REQ_CHUNK, piece_data=piece_range_data)  # have to request for a chunk range
         self.sendLine(request_chunk_msg)
 
 
@@ -218,7 +222,14 @@ class FileDownloadFactory(ClientFactory):
         self.file_size = kwargs['file_size']
         self.file_checksum = kwargs['file_checksum']
         self.file_root_hash = kwargs['file_root_hash']
-        self.client_connection = kwargs['client_connection']
+
+        self.piece_size = piece_size(self.file_size)
+        self.total_pieces = int(math.ceil(self.file_size * 1000.0 * 1000.0 / self.piece_size))
+        self.start_piece = 0
+        self.last_piece = self.total_pieces - 1
+        self.last_piece_size = int(self.file_size * 1000.0 * 1000.0 - ((self.total_pieces - 1) * self.piece_size))
+        self.blocks_per_piece = int(self.piece_size / CHUNK_SIZE)
+        self.blocks_per_last_piece = int(math.ceil(self.last_piece_size / CHUNK_SIZE))
         self.download_status = 0.0
 
     def reconnect(self, connector, reason):
@@ -373,8 +384,7 @@ class DownloadManagerProtocol(BaseProtocol):
                 file_size=filesize,
                 file_checksum=file_checksum,
                 file_root_hash=file_root_hash,
-                peers_list=self.factory.peers_list,
-                client_connection=self.factory.client_connection))
+                peers_list=self.factory.peers_list))
 
 
 class DownloadManagerFactory(ClientFactory):

@@ -1,6 +1,7 @@
-from twisted.internet import defer, reactor
+from twisted.internet import defer, reactor, interfaces
 from twisted.internet.protocol import Factory
 from twisted.protocols.basic import FileSender
+from zope.interface import implements
 from fuzzywuzzy import fuzz
 import os
 from fileindexer import fileHashUtils
@@ -11,12 +12,13 @@ from iwant.core.constants import INIT_FILE_REQ, LEADER, PEER_DEAD, \
     IWANT_PEER_FILE, SEND_PEER_DETAILS, INDEXED,\
     ERROR_LIST_ALL_FILES, READY, NOT_READY, PEER_LOOKUP_RESPONSE, LEADER_NOT_READY,\
     REQ_CHUNK, END_GAME, FILE_CONFIRMATION_MESSAGE, INTERESTED, UNCHOKE, CHANGE, SHARE,\
-    NEW_DOWNLOAD_FOLDER_RES, NEW_SHARED_FOLDER_RES, GET_HASH_IDENTITY, HASH_IDENTITY_RESPONSE
+    NEW_DOWNLOAD_FOLDER_RES, NEW_SHARED_FOLDER_RES, GET_HASH_IDENTITY, HASH_IDENTITY_RESPONSE,\
+    CHUNK_SIZE
 from iwant.cli.utils import WARNING_LOG, ERROR_LOG, print_log
 from iwant.core.protocols import BaseProtocol
 from iwant.core.config import SERVER_DAEMON_PORT
-from monitor.watching import ScanFolder
-from monitor.callbacks import filechangeCB
+from iwant.core.engine.monitor.watching import ScanFolder
+from iwant.core.engine.monitor.callbacks import filechangeCB
 
 
 class ServerException(Exception):
@@ -27,6 +29,72 @@ class ServerException(Exception):
 
     def __str__(self):
         return 'Error [{0}] => {1}'.format(self.code, self.msg)
+
+class FilePumper(object):
+    implements(interfaces.IProducer)
+    last_sent = ''
+    deferred = None
+
+    def beginFileTransfer(self, file, consumer, piece_range):
+        self.file = file
+        self.consumer = consumer
+        first_piece, first_blocks, last_piece, last_blocks = piece_range  # (0,0,1780,16)
+        self.file.seek(first_blocks * first_piece * CHUNK_SIZE)
+        # last_piece = (last_piece - first_piece) + 1
+        self.total_file_to_read = (last_piece - 1)*(first_blocks)*(CHUNK_SIZE) + (last_blocks * CHUNK_SIZE)
+        self.total_read = 0
+        self.block_number = 0  # keeps updating with every read of the file
+        self.piece_number = 0  # keeps updating every time chunk_number completes a cycle
+
+        self.last_piece_number = last_piece
+        self.blocks_per_piece = first_blocks
+        self.blocks_per_last_piece = last_blocks
+        self.deferred = deferred = defer.Deferred()
+
+        self.consumer.registerProducter(self, False)
+        return deferred
+
+    def transform(self, chunk):
+        # Sending in format: piece number ; block number ; file data
+        return str(self.piece_number)+';'+str(self.block_number)+';'+chunk
+
+    def resumeProducing(self):
+        chunk = ''
+        if self.file:
+            chunk = self.file.read(CHUNK_SIZE)
+            if self.piece_number < self.last_piece_number:
+                if self.block_number < self.blocks_per_piece:
+                    self.block_number += 1
+                else:
+                    self.block_number = 0
+                    self.piece_number += 1
+            elif self.piece_number == self.last_piece_number:
+                if self.block_number < self.blocks_per_last_piece:
+                    self.block_number += 1
+                else:
+                    self.block_number = 0
+                    self.piece_number += 1
+
+        if not chunk or self.total_read >= self.total_file_to_read:
+            self.file = None
+            self.consumer.unregisterProducer(self.last_sent)
+            if self.deferred:
+                self.deferred.callback(self.last_sent)
+                self.deferred = None
+            return
+        self.total_read += len(chunk)
+        chunk = self.transform(chunk)
+        self.consumer.write(chunk)
+        self.total_read += len(chunk)
+        self.last_sent = chunk[-1:]
+
+    def pauseProducing(self):
+        pass
+
+    def stopProducing(self):
+        if self.deferred:
+            self.deferred.errback(Exception('Consumer asked us to stop'))
+            self.deferred = None
 
 
 class backend(BaseProtocol):

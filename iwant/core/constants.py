@@ -57,5 +57,5 @@ HASH_NOT_PRESENT = 'hash-not-present'
 READY = 1
 NOT_READY = 0
 # File chunk size
-CHUNK_SIZE = 2**14
+CHUNK_SIZE = 2 ** 14
 FILE_RESP_FMT = '!III'

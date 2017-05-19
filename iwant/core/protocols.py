@@ -16,6 +16,7 @@ from constants import LEADER, PEER_DEAD, FILE_TO_BE_DOWNLOADED,\
 from iwant.core.config import SERVER_DAEMON_PORT
 from iwant.core.constants import CHUNK_SIZE
 
+
 class BaseProtocol(Protocol):
 
     def __init__(self):
@@ -204,7 +205,9 @@ class FileDownloadProtocol(BaseProtocol):
         self._unprocessed = all_data
         while len(all_data) >= currentOffset + prefixLength:
             messageStart = currentOffset + prefixLength
-            piece_number, block_number, length = unpack(FILE_RESP_FMT, all_data[currentOffset: messageStart])
+            piece_number, block_number, length = unpack(
+                FILE_RESP_FMT, all_data[
+                    currentOffset: messageStart])
             messageEnd = messageStart + length
             if messageEnd > len(all_data):
                 break
@@ -215,10 +218,17 @@ class FileDownloadProtocol(BaseProtocol):
 
     def write_to_file(self, file_data, piece_num, block_num):
         self.factory.download_status += len(file_data)
-        # print 'piece number: {0} and block number: {1} and seek {2}'.format(piece_num, block_num, piece_num * self.factory.piece_size + block_num * CHUNK_SIZE)
-        self.factory.file_handler.seek(piece_num * self.factory.piece_size + block_num * CHUNK_SIZE)
+        # print 'piece number: {0} and block number: {1} and seek
+        # {2}'.format(piece_num, block_num, piece_num * self.factory.piece_size
+        # + block_num * CHUNK_SIZE)
+        self.factory.file_handler.seek(
+            piece_num *
+            self.factory.piece_size +
+            block_num *
+            CHUNK_SIZE)
         self.factory.file_handler.write(file_data)
-        # print 'Completed {0}'.format(self.factory.download_status * 100.0 / (self.factory.file_size * 1000.0 * 1000.0))
+        # print 'Completed {0}'.format(self.factory.download_status * 100.0 /
+        # (self.factory.file_size * 1000.0 * 1000.0))
         if self.factory.download_status >= self.factory.file_size * \
                 1000.0 * 1000.0:
             print 'closing connection'
@@ -228,8 +238,14 @@ class FileDownloadProtocol(BaseProtocol):
     def request_for_pieces(self, bootstrap=None):
         print self.factory.last_piece_size
         print CHUNK_SIZE
-        piece_range_data = [self.factory.start_piece, self.factory.blocks_per_piece, self.factory.last_piece, self.factory.blocks_per_last_piece]
-        request_chunk_msg = bake(REQ_CHUNK, piece_data=piece_range_data)  # have to request for a chunk range
+        piece_range_data = [
+            self.factory.start_piece,
+            self.factory.blocks_per_piece,
+            self.factory.last_piece,
+            self.factory.blocks_per_last_piece]
+        request_chunk_msg = bake(
+            REQ_CHUNK,
+            piece_data=piece_range_data)  # have to request for a chunk range
         self.sendLine(request_chunk_msg)
 
 
@@ -244,12 +260,21 @@ class FileDownloadFactory(ClientFactory):
         self.file_root_hash = kwargs['file_root_hash']
 
         self.piece_size = piece_size(self.file_size)
-        self.total_pieces = int(math.ceil(self.file_size * 1000.0 * 1000.0 / self.piece_size))
+        self.total_pieces = int(
+            math.ceil(
+                self.file_size *
+                1000.0 *
+                1000.0 /
+                self.piece_size))
         self.start_piece = 0
         self.last_piece = self.total_pieces
-        self.last_piece_size = self.file_size * 1000.0 * 1000.0 - ((self.total_pieces - 1) * self.piece_size)
+        self.last_piece_size = self.file_size * 1000.0 * \
+            1000.0 - ((self.total_pieces - 1) * self.piece_size)
         self.blocks_per_piece = int(self.piece_size / CHUNK_SIZE)
-        self.blocks_per_last_piece = int(math.ceil(self.last_piece_size / CHUNK_SIZE))
+        self.blocks_per_last_piece = int(
+            math.ceil(
+                self.last_piece_size /
+                CHUNK_SIZE))
         self.download_status = 0.0
 
     def reconnect(self, connector, reason):

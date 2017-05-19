@@ -5,7 +5,8 @@ from iwant.cli.utils import update_config, print_log, CLIENT_LOG_INFO, WARNING_L
 from iwant.core.constants import SEARCH_REQ, SEARCH_RES, \
     LEADER_NOT_READY, IWANT_PEER_FILE,\
     FILE_TO_BE_DOWNLOADED, CHANGE, SHARE,\
-    NEW_SHARED_FOLDER_RES, NEW_DOWNLOAD_FOLDER_RES
+    NEW_SHARED_FOLDER_RES, NEW_DOWNLOAD_FOLDER_RES,\
+    HASH_NOT_PRESENT
 from iwant.core.protocols import BaseProtocol
 import tabulate
 
@@ -17,7 +18,8 @@ class Frontend(BaseProtocol):
         self.special_handler = None
         self.events = {
             SEARCH_RES: self.show_search_results,
-            LEADER_NOT_READY: self.leader_not_ready,
+            LEADER_NOT_READY: self.display_error,
+            HASH_NOT_PRESENT: self.display_error,
             FILE_TO_BE_DOWNLOADED: self.show_file_to_be_downloaded,
             NEW_SHARED_FOLDER_RES: self.confirm_new_shared_folder,
             NEW_DOWNLOAD_FOLDER_RES: self.confirm_new_download_folder
@@ -69,7 +71,7 @@ class Frontend(BaseProtocol):
             CLIENT_LOG_INFO)
         reactor.stop()
 
-    def leader_not_ready(self, data):
+    def display_error(self, data):
         '''
             callback: displays leader/tracker not available
             triggered when leader not ready

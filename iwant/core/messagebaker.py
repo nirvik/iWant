@@ -12,7 +12,7 @@ from constants import INDEXED, LEADER_NOT_READY,\
     RE_ELECTION, ALIVE, HANDLE_ALIVE,\
     HANDLE_PING, REQ_CHUNK, END_GAME, FILE_CONFIRMATION_MESSAGE,\
     INTERESTED, UNCHOKE, PEER_DEAD, CHANGE, SHARE, NEW_DOWNLOAD_FOLDER_RES,\
-    NEW_SHARED_FOLDER_RES, HASH_IDENTITY_RESPONSE, GET_HASH_IDENTITY
+    NEW_SHARED_FOLDER_RES, HASH_IDENTITY_RESPONSE, GET_HASH_IDENTITY, HASH_NOT_PRESENT
 
 
 def finishing(func):
@@ -270,6 +270,11 @@ def bake(key, **kwargs):
         action_msg['payload'] = payload
         return action_msg
 
+    def _craft_hash_not_present_msg():
+        payload['reason'] = kwargs['reason']
+        action_msg['payload'] = payload
+        return action_msg
+
     dispatcher = {
         NEW_PEER: _craft_new_peer_msg,
         REMOVE_LEADER: _craft_remove_leader_msg,
@@ -312,7 +317,8 @@ def bake(key, **kwargs):
         NEW_SHARED_FOLDER_RES: _craft_new_shared_folder_response_msg,
 
         GET_HASH_IDENTITY: _craft_get_hash_identity_msg,
-        HASH_IDENTITY_RESPONSE: _craft_hash_identity_response_msg
+        HASH_IDENTITY_RESPONSE: _craft_hash_identity_response_msg,
+        HASH_NOT_PRESENT: _craft_hash_not_present_msg
     }
     return dispatcher[key]()
 

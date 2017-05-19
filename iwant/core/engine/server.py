@@ -4,6 +4,7 @@ from twisted.protocols.basic import FileSender
 from zope.interface import implements
 from fuzzywuzzy import fuzz
 import os
+from struct import pack
 from fileindexer import fileHashUtils
 from fileindexer.piece import piece_size
 from iwant.core.messagebaker import bake, unbake
@@ -13,7 +14,7 @@ from iwant.core.constants import INIT_FILE_REQ, LEADER, PEER_DEAD, \
     ERROR_LIST_ALL_FILES, READY, NOT_READY, PEER_LOOKUP_RESPONSE, LEADER_NOT_READY,\
     REQ_CHUNK, END_GAME, FILE_CONFIRMATION_MESSAGE, INTERESTED, UNCHOKE, CHANGE, SHARE,\
     NEW_DOWNLOAD_FOLDER_RES, NEW_SHARED_FOLDER_RES, GET_HASH_IDENTITY, HASH_IDENTITY_RESPONSE,\
-    CHUNK_SIZE
+    CHUNK_SIZE, FILE_RESP_FMT, HASH_NOT_PRESENT
 from iwant.cli.utils import WARNING_LOG, ERROR_LOG, print_log
 from iwant.core.protocols import BaseProtocol
 from iwant.core.config import SERVER_DAEMON_PORT
@@ -34,58 +35,58 @@ class FilePumper(object):
     implements(interfaces.IProducer)
     last_sent = ''
     deferred = None
+    FILE_SEND_FMT = FILE_RESP_FMT
 
     def beginFileTransfer(self, file, consumer, piece_range):
         self.file = file
         self.consumer = consumer
-        first_piece, first_blocks, last_piece, last_blocks = piece_range  # (0,0,1780,16)
+        first_piece, first_blocks, last_piece, last_blocks = piece_range  # (0,16,1780,16)
         self.file.seek(first_blocks * first_piece * CHUNK_SIZE)
-        # last_piece = (last_piece - first_piece) + 1
         self.total_file_to_read = (last_piece - 1)*(first_blocks)*(CHUNK_SIZE) + (last_blocks * CHUNK_SIZE)
         self.total_read = 0
         self.block_number = 0  # keeps updating with every read of the file
         self.piece_number = 0  # keeps updating every time chunk_number completes a cycle
 
-        self.last_piece_number = last_piece
-        self.blocks_per_piece = first_blocks
-        self.blocks_per_last_piece = last_blocks
+        self.last_piece_number = last_piece - 1
+        self.blocks_per_piece = first_blocks - 1
+        self.blocks_per_last_piece = last_blocks - 1
         self.deferred = deferred = defer.Deferred()
 
-        self.consumer.registerProducter(self, False)
+        self.consumer.registerProducer(self, False)
         return deferred
 
     def transform(self, chunk):
-        # Sending in format: piece number ; block number ; file data
-        return str(self.piece_number)+';'+str(self.block_number)+';'+chunk
+        return pack(self.FILE_SEND_FMT, self.piece_number, self.block_number, len(chunk)) + chunk
 
     def resumeProducing(self):
         chunk = ''
         if self.file:
             chunk = self.file.read(CHUNK_SIZE)
-            if self.piece_number < self.last_piece_number:
-                if self.block_number < self.blocks_per_piece:
-                    self.block_number += 1
-                else:
-                    self.block_number = 0
-                    self.piece_number += 1
-            elif self.piece_number == self.last_piece_number:
-                if self.block_number < self.blocks_per_last_piece:
-                    self.block_number += 1
-                else:
-                    self.block_number = 0
-                    self.piece_number += 1
 
         if not chunk or self.total_read >= self.total_file_to_read:
             self.file = None
-            self.consumer.unregisterProducer(self.last_sent)
+            self.consumer.unregisterProducer()
             if self.deferred:
                 self.deferred.callback(self.last_sent)
                 self.deferred = None
             return
+
         self.total_read += len(chunk)
         chunk = self.transform(chunk)
         self.consumer.write(chunk)
-        self.total_read += len(chunk)
+        if self.piece_number < self.last_piece_number:
+            if self.block_number < self.blocks_per_piece:
+                self.block_number += 1
+            else:
+                self.block_number = 0
+                self.piece_number += 1
+        elif self.piece_number == self.last_piece_number:
+            if self.block_number < self.blocks_per_last_piece:
+                self.block_number += 1
+            else:
+                self.block_number = 0
+                self.piece_number += 1
+
         self.last_sent = chunk[-1:]
 
     def pauseProducing(self):
@@ -167,9 +168,15 @@ class backend(BaseProtocol):
                 ERROR_LOG)
 
     def _send_chunk_response(self, data):
-        sender = FileSender()
-        d = sender.beginFileTransfer(self.fileObj, self.transport, None)
+        print 'got this from client {0}'.format(data)
+        piece_range = data['piece_data']
+        sender = FilePumper()
+        d = sender.beginFileTransfer(self.fileObj, self.transport, piece_range)
+        print 'do nothing'
         d.addCallback(self.transfer_completed)
+        # sender = FileSender()
+        # d = sender.beginFileTransfer(self.fileObj, self.transport, None)
+        # d.addCallback(self.transfer_completed)
 
     def transfer_completed(self, data):
         print 'no more'
@@ -372,20 +379,28 @@ class backend(BaseProtocol):
             sending_data.append(self.factory.book.peers[uuid])
             peers_list.append(self.factory.book.peers[uuid])
 
-        sending_data.append(file_root_hash)  # appending hash of pieces
-        sending_data.append(file_size)  # appending filesize
-        sending_data.append(file_name)  # appending filename
-        # msg = Basemessage(key=PEER_LOOKUP_RESPONSE, data=sending_data)
+        try:
+            sending_data.append(file_root_hash)  # appending hash of pieces
+            sending_data.append(file_size)  # appending filesize
+            sending_data.append(file_name)  # appending filename
+            # msg = Basemessage(key=PEER_LOOKUP_RESPONSE, data=sending_data)
 
-        response = {}
-        response['peers'] = peers_list
-        response['file_root_hash'] = file_root_hash
-        response['file_size'] = file_size
-        response['file_name'] = file_name
-        # response['file_hash'] = filehash
-        msg = bake(PEER_LOOKUP_RESPONSE, peer_lookup_response=response)
-        self.sendLine(msg)
-        self.transport.loseConnection()
+            response = {}
+            response['peers'] = peers_list
+            response['file_root_hash'] = file_root_hash
+            response['file_size'] = file_size
+            response['file_name'] = file_name
+            # response['file_hash'] = filehash
+            msg = bake(PEER_LOOKUP_RESPONSE, peer_lookup_response=response)
+            self.sendLine(msg)
+            self.transport.loseConnection()
+        except:
+            msg = bake(
+                key=HASH_NOT_PRESENT,
+                reason='No such file exists')
+            self.sendLine(msg)
+            self.transport.loseConnection()
+
 
     def fileindexing_complete(self, indexing_response):
         print_log('Files completely indexed')
@@ -474,7 +489,8 @@ class backendFactory(Factory):
                 self.factory = factory
                 self.events = {
                     PEER_LOOKUP_RESPONSE: self.talk_to_peer,
-                    SEARCH_RES: self.send_file_search_response
+                    SEARCH_RES: self.send_file_search_response,
+                    HASH_NOT_PRESENT: self.invalid_file_response
                 }
 
             def connectionMade(self):
@@ -497,6 +513,12 @@ class backendFactory(Factory):
             def serviceMessage(self, data):
                 key, value = unbake(message=data)
                 self.events[key](value)
+
+            def invalid_file_response(self, data):
+                reason = data['reason']
+                msg = bake(HASH_NOT_PRESENT, reason=reason)
+                clientConn.sendLine(msg)
+                clientConn.transport.loseConnection()
 
             def talk_to_peer(self, data):
                 from twisted.internet import reactor

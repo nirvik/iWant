@@ -68,7 +68,7 @@ def main():
             conn.execute(
                 '''CREATE TABLE indexer (filename text primary key, share integer, size real, hash text, piecehashes text, roothash text, isdirectory boolean)''')
             conn.execute(
-                '''CREATE TABLE resume (filename text primary key, hash text) ''')
+                '''CREATE TABLE resume (hash text) ''')
             conn.commit()
         dbpool = adbapi.ConnectionPool(
             'sqlite3',
@@ -95,7 +95,6 @@ def main():
             indexer = fileHashUtils.bootstrap(SHARING_FOLDER, dbpool)
             indexer.addCallback(fileindexedCB)
             ScanFolder(SHARING_FOLDER, filechangeCB, dbpool)
-            # reactor.run()
 
         except KeyboardInterrupt:
             reactor.stop()

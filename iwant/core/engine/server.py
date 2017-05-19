@@ -31,7 +31,6 @@ class ServerException(Exception):
     def __str__(self):
         return 'Error [{0}] => {1}'.format(self.code, self.msg)
 
-
 class FilePumper(object):
     implements(interfaces.IProducer)
     last_sent = ''
@@ -41,15 +40,12 @@ class FilePumper(object):
     def beginFileTransfer(self, file, consumer, piece_range):
         self.file = file
         self.consumer = consumer
-        # (0,16,1780,16)
-        first_piece, first_blocks, last_piece, last_blocks = piece_range
+        first_piece, first_blocks, last_piece, last_blocks = piece_range  # (0,16,1780,16)
         self.file.seek(first_blocks * first_piece * CHUNK_SIZE)
-        self.total_file_to_read = (
-            last_piece - 1) * (first_blocks) * (CHUNK_SIZE) + (last_blocks * CHUNK_SIZE)
+        self.total_file_to_read = (last_piece - 1)*(first_blocks)*(CHUNK_SIZE) + (last_blocks * CHUNK_SIZE)
         self.total_read = 0
         self.block_number = 0  # keeps updating with every read of the file
-        # keeps updating every time chunk_number completes a cycle
-        self.piece_number = 0
+        self.piece_number = 0  # keeps updating every time chunk_number completes a cycle
 
         self.last_piece_number = last_piece - 1
         self.blocks_per_piece = first_blocks - 1
@@ -60,11 +56,7 @@ class FilePumper(object):
         return deferred
 
     def transform(self, chunk):
-        return pack(
-            self.FILE_SEND_FMT,
-            self.piece_number,
-            self.block_number,
-            len(chunk)) + chunk
+        return pack(self.FILE_SEND_FMT, self.piece_number, self.block_number, len(chunk)) + chunk
 
     def resumeProducing(self):
         chunk = ''
@@ -176,15 +168,10 @@ class backend(BaseProtocol):
                 ERROR_LOG)
 
     def _send_chunk_response(self, data):
-        print 'got this from client {0}'.format(data)
         piece_range = data['piece_data']
         sender = FilePumper()
         d = sender.beginFileTransfer(self.fileObj, self.transport, piece_range)
-        print 'do nothing'
         d.addCallback(self.transfer_completed)
-        # sender = FileSender()
-        # d = sender.beginFileTransfer(self.fileObj, self.transport, None)
-        # d.addCallback(self.transfer_completed)
 
     def transfer_completed(self, data):
         print 'no more'
@@ -408,6 +395,7 @@ class backend(BaseProtocol):
                 reason='No such file exists')
             self.sendLine(msg)
             self.transport.loseConnection()
+
 
     def fileindexing_complete(self, indexing_response):
         print_log('Files completely indexed')

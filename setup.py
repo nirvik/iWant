@@ -16,7 +16,6 @@ def get_basepath():
     return iwant_directory_path
 
 iwant_config_path = get_basepath()
-print iwant_config_path
 if not os.path.exists(iwant_config_path):
     os.mkdir(iwant_config_path)
 

@@ -143,8 +143,13 @@ class FrontendFactory(ClientFactory):
         pass
 
     def clientConnectionFailed(self, connector, reason):
-        print reason
-        reactor.stop()
+        try:
+            if self.query == SHARE:
+                update_config(shared_folder=self.arguments)
+            elif self.query == CHANGE:
+                update_config(download_folder=self.arguments)
+        finally:
+            reactor.stop()
 
     def buildProtocol(self, addr):
         return Frontend(self)

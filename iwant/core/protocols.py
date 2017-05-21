@@ -316,7 +316,7 @@ class FileDownloadFactory(ClientFactory):
                 CHUNK_SIZE))
         self.download_status = 0
         if self.start_piece != 0 and self.start_piece != (self.last_piece - 1):
-            self.download_status = (self.start_piece - 1) * self.piece_size
+            self.download_status = (self.start_piece) * self.piece_size
         elif self.start_piece == self.last_piece - 1:
             self.download_status = (
                 self.start_piece - 1) * self.last_piece_size

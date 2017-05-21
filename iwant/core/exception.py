@@ -3,8 +3,9 @@ class MainException(Exception):
     def __init__(self, code):
         self.code = code
         self.msg = {
-            1: 'shared folder doesn\'t exist',
-            2: 'corrupted .iwant.conf file'
+            1: 'Shared folder doesn\'t exist',
+            2: 'Download folder doesn\'t exist',
+            3: 'corrupted .iwant.conf file'
         }
 
     def __str__(self):

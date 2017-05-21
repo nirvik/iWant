@@ -104,6 +104,7 @@ def main():
                 os._exit(0)
 
     elif arguments['share'] and arguments['<path>']:
+
         path = arguments['<path>']
         reactor.connectTCP(
             SERVER_DAEMON_HOST,
@@ -111,6 +112,7 @@ def main():
             FrontendFactory(
                 SHARE,
                 path))
+
     elif arguments['search'] and arguments['<name>']:
         search_string = arguments['<name>']
         reactor.connectTCP(

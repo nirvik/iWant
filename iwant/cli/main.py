@@ -68,7 +68,7 @@ def main():
             conn.execute(
                 '''CREATE TABLE indexer (filename text primary key, share integer, size real, hash text, piecehashes text, roothash text, isdirectory boolean)''')
             conn.execute(
-                '''CREATE TABLE resume (hash text) ''')
+                '''CREATE TABLE resume (filename text) ''')  # hash can correspond to different filenames...
             conn.commit()
         dbpool = adbapi.ConnectionPool(
             'sqlite3',

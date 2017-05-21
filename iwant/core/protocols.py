@@ -189,7 +189,7 @@ class FileDownloadProtocol(BaseProtocol):
         hasher = hashlib.md5()
         hasher.update(self.piece_hashes)
         if hasher.hexdigest() == self.factory.file_root_hash:
-            new_file_in_resume_table = yield fileHashUtils.check_hash_present_in_resume(self.factory.file_checksum, self.factory.dbpool)
+            new_file_in_resume_table = yield fileHashUtils.check_hash_present_in_resume(self.factory.file_handler.name, self.factory.dbpool)
             if not new_file_in_resume_table:
                 # add the file properties to the resume table
                 file_entry = (
@@ -210,7 +210,6 @@ class FileDownloadProtocol(BaseProtocol):
         if data['unchoke']:
             self.hookHandler(self.rawDataReceived)
             self.request_for_pieces(bootstrap=True)
-            self.factory.start_time = time.time()
 
     def rawDataReceived(self, data):
         all_data = self._unprocessed + data
@@ -226,7 +225,6 @@ class FileDownloadProtocol(BaseProtocol):
             if messageEnd > len(all_data):
                 break
             file_data = all_data[messageStart: messageEnd]
-            # self.write_to_file(file_data, piece_number, block_number)
             self.process_piece(file_data, piece_number, block_number)
             currentOffset = messageEnd
         self._unprocessed = all_data[currentOffset:]
@@ -259,14 +257,12 @@ class FileDownloadProtocol(BaseProtocol):
             self.factory.download_status += len(piece_data)
             self.factory.file_handler.write(piece_data)
             self.factory.bar.update(self.factory.download_status)
-        # print 'Completed {0}'.format(self.factory.download_status * 100.0 /
-        # (self.factory.file_size * 1000.0 * 1000.0))
         if self.factory.download_status >= self.factory.file_size * \
                 1000.0 * 1000.0:
             print 'closing connection'
             self.factory.file_handler.close()
             self.transport.loseConnection()
-            yield fileHashUtils.remove_resume_entry(self.factory.file_checksum, self.factory.dbpool)
+            yield fileHashUtils.remove_resume_entry(self.factory.file_handler.name, self.factory.dbpool)
 
     # def write_to_file(self, file_data, piece_num, block_num):
     #     self.factory.download_status += len(file_data)
@@ -318,10 +314,10 @@ class FileDownloadFactory(ClientFactory):
             math.ceil(
                 self.last_piece_size /
                 CHUNK_SIZE))
-        self.download_status = 0.0
-        if self.start_piece != self.last_piece:
+        self.download_status = 0
+        if self.start_piece != 0 and self.start_piece != (self.last_piece - 1):
             self.download_status = (self.start_piece - 1) * self.piece_size
-        else:
+        elif self.start_piece == self.last_piece - 1:
             self.download_status = (
                 self.start_piece - 1) * self.last_piece_size
         self.bar = progressbar.ProgressBar(
@@ -336,9 +332,13 @@ class FileDownloadFactory(ClientFactory):
                 ' ',
                 progressbar.Timer()]).start()
 
-    def reconnect(self, connector, reason):
+    def connectAnotherPeer(self, connector, reason):
         self.peers_list.remove(connector.host)
         if len(self.peers_list) != 0:
+            # recompute the starting piece and start download from there
+            self.start_piece = int(math.floor(
+                (self.download_status / (self.file_size * 1000.0 * 1000.0)) * self.total_pieces))
+            print 'now the starting piece is {0}'.format(self.start_piece)
             connector.host = self.peers_list[0]
             connector.connect()
         else:
@@ -346,10 +346,10 @@ class FileDownloadFactory(ClientFactory):
 
     def clientConnectionLost(self, connector, reason):
         # self.reconnect(connector, reason)
-        pass
+        print FileDownloadFactory.__name__, ': closing connections'
 
     def clientConnectionFailed(self, connector, reason):
-        self.reconnect(connector, reason)
+        self.connectAnotherPeer(connector, reason)
 
     def buildProtocol(self, addr):
         return FileDownloadProtocol(self)
@@ -475,48 +475,72 @@ class DownloadManagerProtocol(BaseProtocol):
 
     @defer.inlineCallbacks
     def init_file(self, filepath, filesize, file_checksum, file_root_hash):
-        resume_status = yield fileHashUtils.check_hash_present_in_resume(file_checksum, self.factory.dbpool)
+        '''
+            What if the entire file is already present.
+        '''
+        should_resume = yield fileHashUtils.check_hash_present_in_resume(filepath, self.factory.dbpool)
         start_from_piece_number = 0
-        if not resume_status:
-            file_handler = open(filepath, 'wb')
-            file_handler.seek(
-                (filesize * 1000.0 * 1000.0) - 1)
-            file_handler.write('\0')
-            file_handler.close()
-            file_handler = open(filepath, 'r+b')
+        complete_file_present = True
+        if not should_resume:
+            complete_file_present = False
+            file_handler = self._create_new_file(filepath, filesize)
+            # file_handler = open(filepath, 'wb')
+            # file_handler.seek(
+            #     (filesize * 1000.0 * 1000.0) - 1)
+            # file_handler.write('\0')
+            # file_handler.close()
+            # file_handler = open(filepath, 'r+b')
         else:
             print 'we have got to resume'
             piece_hashes = yield fileHashUtils.get_piecehashes_of(file_checksum, self.factory.dbpool)
             piecesize = piece_size(filesize)
             print 'the piece size is {0} {1}'.format(piecesize, os.path.isfile(filepath))
-            with open(filepath, 'rb') as f:
-                for i, chunk in enumerate(
-                    iter(
-                        lambda: f.read(piecesize), b"")):
-                    chunk_hasher = hashlib.md5()
-                    chunk_hasher.update(chunk)
-                    if chunk_hasher.hexdigest() != piece_hashes[
-                            i *
-                            32: (
+            if os.path.isfile(filepath):
+                with open(filepath, 'rb') as f:
+                    for i, chunk in enumerate(
+                        iter(
+                            lambda: f.read(piecesize), b"")):
+                        chunk_hasher = hashlib.md5()
+                        chunk_hasher.update(chunk)
+                        if chunk_hasher.hexdigest() != piece_hashes[
                                 i *
-                                32) +
-                            32]:
-                        start_from_piece_number = i
-                        break
-            print 'starting from piece number {0}'.format(start_from_piece_number)
-            file_handler = open(filepath, 'r+b')
+                                32: (
+                                    i *
+                                    32) +
+                                32]:
+                            complete_file_present = False
+                            start_from_piece_number = i
+                            break
+                file_handler = open(filepath, 'r+b')
+            else:
+                # remove the entry from db and create a fresh new file
+                print 'this file was present in resume table but actually deleted from the disk'
+                yield fileHashUtils.remove_resume_entry(filepath, self.factory.dbpool)
+                file_handler = self._create_new_file(filepath, filesize)
+                complete_file_present = False
 
-        reactor.connectTCP(
-            self.factory.peers_list[0],
-            SERVER_DAEMON_PORT,
-            FileDownloadFactory(
-                file_handler=file_handler,
-                file_size=filesize,
-                file_checksum=file_checksum,
-                file_root_hash=file_root_hash,
-                peers_list=self.factory.peers_list,
-                resume_from=start_from_piece_number,
-                dbpool=self.factory.dbpool))
+        if not complete_file_present:
+            reactor.connectTCP(
+                self.factory.peers_list[0],
+                SERVER_DAEMON_PORT,
+                FileDownloadFactory(
+                    file_handler=file_handler,
+                    file_size=filesize,
+                    file_checksum=file_checksum,
+                    file_root_hash=file_root_hash,
+                    peers_list=self.factory.peers_list,
+                    resume_from=start_from_piece_number,
+                    dbpool=self.factory.dbpool))
+
+    @staticmethod
+    def _create_new_file(filepath, filesize):
+        file_handler = open(filepath, 'wb')
+        file_handler.seek(
+            (filesize * 1000.0 * 1000.0) - 1)
+        file_handler.write('\0')
+        file_handler.close()
+        file_handler = open(filepath, 'r+b')
+        return file_handler
 
 
 class DownloadManagerFactory(ClientFactory):
@@ -551,7 +575,7 @@ class DownloadManagerFactory(ClientFactory):
             print 'Failed completely and reason: {0}'.format(reason)
 
     def clientConnectionLost(self, connector, reason):
-        print reason
+        print DownloadManagerFactory.__name__ + ': closing connections'
 
     def buildProtocol(self, addr):
         return DownloadManagerProtocol(self)

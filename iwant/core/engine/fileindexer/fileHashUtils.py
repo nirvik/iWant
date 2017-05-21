@@ -334,8 +334,8 @@ def get_structure(hash_value, dbpool):
 
 
 @defer.inlineCallbacks
-def check_hash_present_in_resume(hash_value, dbpool):
-    response = yield dbpool.runQuery('select hash from resume where hash = ?', (hash_value,))
+def check_hash_present_in_resume(filename, dbpool):
+    response = yield dbpool.runQuery('select filename from resume where filename=?', (filename,))
     if len(response) == 0:
         defer.returnValue(False)
     else:
@@ -343,10 +343,11 @@ def check_hash_present_in_resume(hash_value, dbpool):
 
 
 @defer.inlineCallbacks
-def remove_resume_entry(hash_value, dbpool):
-    filename_response = yield dbpool.runQuery('select filename from indexer where hash=?', (hash_value,))
+def remove_resume_entry(filename, dbpool):
+    filename_response = yield dbpool.runQuery('select filename from indexer where filename=?', (filename,))
     filename = filename_response[0][0]
-    yield dbpool.runQuery('delete from resume where hash=?', (hash_value,))
+    # print 'everything deleted from indexer and resume'
+    yield dbpool.runQuery('delete from resume where filename=?', (filename,))
     yield dbpool.runQuery('delete from indexer where filename=?', (filename,))
 
 
@@ -354,8 +355,9 @@ def remove_resume_entry(hash_value, dbpool):
 def add_new_file_entry_resume(file_entry, dbpool):
     print 'new entry added to resume table'
     # filename, checksum = file_entry[0], file_entry[3]
-    checksum = file_entry[3]
-    yield dbpool.runQuery('insert into resume values (?)', (checksum,))
+    # checksum = file_entry[3]
+    filename = file_entry[0]
+    yield dbpool.runQuery('insert into resume values (?)', (filename,))
     yield dbpool.runQuery('insert into indexer values (?,?,?,?,?,?,?)', (file_entry))
 
 

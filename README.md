@@ -20,11 +20,12 @@ python setup.py install --user
 
 ## How to run 
 
-1. Open `~/.iwant/.iwant.conf` and update your shared/download folder.  
+1. Run `iwanto share <path>` and `iwanto change download path to <path>`. Alternate way is to open up `~/.iwant/.iwant.conf` and update the shared and download value. 
 2. Run the `iwanto` service.   
 
 
 ## __Running server__ 
+In windows, admin access is required to run the server
 ```sh
 iwanto start
 ```
@@ -36,7 +37,7 @@ iwanto search <filename>
 ```
 Example: 
 ```sh
-iwanto search "silicon valey"
+iwanto search "slicon valey"
 ```
 
 ## __Download files__  
@@ -66,6 +67,10 @@ Example:
 ```sh
 iwanto change download path to /home/User/Downloads
 ```
+
+## Errors
+
+All logs are present in `~/.iwant/.iwant.log` or `AppData\Roaming\.iwant\.iwant.log`
 
 ## Security
 

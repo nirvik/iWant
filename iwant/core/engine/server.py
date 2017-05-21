@@ -256,7 +256,7 @@ class backend(BaseProtocol):
                         uuid]['hashes'][old_hash_key]
                 except Exception as e:
                     print_log(
-                        'STUFF GETS FUCKED RIGHT HERE : {0}, for reason {1}'.format(
+                        'need to handle this major issue : {0}, for reason {1}'.format(
                             file_name,
                             e),
                         WARNING_LOG)

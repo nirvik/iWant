@@ -23,7 +23,7 @@ if not os.path.exists(iwant_config_path):
 config = ConfigParser.ConfigParser()
 config.add_section('Paths')
 config.set('Paths', 'Share', '/home/nirvik/Pictures')
-config.set('Paths', 'Download', '/run/media/nirvik/Data/iWantDownload')
+config.set('Paths', 'Download', '/home/nirvik/iWantVideos')
 
 with open(os.path.join(iwant_config_path, '.iwant.conf'), 'w') as configfile:
     config.write(configfile)

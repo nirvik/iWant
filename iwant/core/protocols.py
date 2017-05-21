@@ -1,4 +1,4 @@
-from twisted.internet import reactor
+from twisted.internet import reactor, defer
 from twisted.internet.protocol import Protocol, ClientFactory, DatagramProtocol
 import os
 import progressbar
@@ -12,7 +12,7 @@ from constants import LEADER, PEER_DEAD, FILE_TO_BE_DOWNLOADED,\
     REQ_CHUNK, FILE_CONFIRMATION_MESSAGE, INIT_FILE_REQ,\
     INTERESTED, UNCHOKE, GET_HASH_IDENTITY, HASH_IDENTITY_RESPONSE,\
     FILE_RESP_FMT
-# from iwant.core.engine.fileindexer import fileHashUtils
+from iwant.core.engine.fileindexer import fileHashUtils
 from iwant.core.config import SERVER_DAEMON_PORT
 from iwant.core.constants import CHUNK_SIZE
 
@@ -182,11 +182,17 @@ class FileDownloadProtocol(BaseProtocol):
         key, value = unbake(data)
         self.event_handlers[key](value)
 
+    @defer.inlineCallbacks
     def verify_pieces(self, data):
         self.piece_hashes = data['piecehashes']
         hasher = hashlib.md5()
         hasher.update(self.piece_hashes)
         if hasher.hexdigest() == self.factory.file_root_hash:
+            new_file_in_resume_table = yield fileHashUtils.check_hash_present_in_resume(self.factory.file_checksum, self.factory.dbpool)
+            if not new_file_in_resume_table:
+                # add the file properties to the resume table
+                file_entry = (self.factory.file_handler.name, 0, self.factory.file_size, self.factory.file_checksum, self.piece_hashes, self.factory.file_root_hash, False)
+                yield fileHashUtils.add_new_file_entry_resume(file_entry, self.factory.dbpool)
             load_file_msg = bake(
                 INIT_FILE_REQ,
                 filehash=self.factory.file_checksum)
@@ -229,19 +235,22 @@ class FileDownloadProtocol(BaseProtocol):
                 self.write_piece_to_file(final_piece_data, piece_number)
                 self.piece_buffer = ''
 
+    @defer.inlineCallbacks
     def write_piece_to_file(self, piece_data, piece_number):
+        print 'writing to {0}'.format(piece_number)
         self.factory.file_handler.seek(piece_number * self.factory.piece_size)
         hasher = hashlib.md5()
         hasher.update(piece_data)
         if hasher.hexdigest() == self.piece_hashes[piece_number * 32: (piece_number * 32) + 32]:
             self.factory.download_status += len(piece_data)
             self.factory.file_handler.write(piece_data)
-        print 'Completed {0}'.format(self.factory.download_status * 100.0 / (self.factory.file_size * 1000.0 * 1000.0))
+        # print 'Completed {0}'.format(self.factory.download_status * 100.0 / (self.factory.file_size * 1000.0 * 1000.0))
         if self.factory.download_status >= self.factory.file_size * \
                 1000.0 * 1000.0:
             print 'closing connection'
             self.factory.file_handler.close()
             self.transport.loseConnection()
+            yield fileHashUtils.remove_resume_entry(self.factory.file_checksum, self.factory.dbpool)
 
     # def write_to_file(self, file_data, piece_num, block_num):
     #     self.factory.download_status += len(file_data)
@@ -268,15 +277,22 @@ class FileDownloadFactory(ClientFactory):
         self.file_size = kwargs['file_size']
         self.file_checksum = kwargs['file_checksum']
         self.file_root_hash = kwargs['file_root_hash']
+        self.resume_from = kwargs['resume_from']
+        self.dbpool = kwargs['dbpool']
 
         self.piece_size = piece_size(self.file_size)
         self.total_pieces = int(math.ceil(self.file_size * 1000.0 * 1000.0 / self.piece_size))
-        self.start_piece = 0
+        self.start_piece = self.resume_from
         self.last_piece = self.total_pieces
         self.last_piece_size = self.file_size * 1000.0 * 1000.0 - ((self.total_pieces - 1) * self.piece_size)
         self.blocks_per_piece = int(self.piece_size / CHUNK_SIZE)
         self.blocks_per_last_piece = int(math.ceil(self.last_piece_size / CHUNK_SIZE))
         self.download_status = 0.0
+        if self.start_piece != self.last_piece:
+            self.download_status = (self.start_piece - 1) * self.piece_size
+        else:
+            self.download_status = (self.start_piece - 1) * self.last_piece_size
+
 
     def reconnect(self, connector, reason):
         self.peers_list.remove(connector.host)
@@ -325,8 +341,10 @@ class DownloadManagerProtocol(BaseProtocol):
         self.factory.client_connection.sendLine(msg_to_client)
         self.factory.client_connection.transport.loseConnection()
 
+    @defer.inlineCallbacks
     def _build_new_files_folders(self, response):
         # self.transport.loseConnection()
+        print 'creating new files and folders'
         client_response = {}
         meta_info = response['file_structure_response']
         if meta_info['isFile']:
@@ -345,7 +363,7 @@ class DownloadManagerProtocol(BaseProtocol):
                 client_response['filesize'] = filesize
                 client_response['checksum'] = file_checksum
                 self.bake_client_message(client_response)
-                self.init_file(
+                yield self.init_file(
                     filepath,
                     filesize,
                     file_checksum,
@@ -412,16 +430,35 @@ class DownloadManagerProtocol(BaseProtocol):
 
             for file_to_create in client_files_to_create:
                 filename, size, file_checksum, file_root_hash = file_to_create
-                self.init_file(filename, size, file_checksum, file_root_hash)
+                yield self.init_file(filename, size, file_checksum, file_root_hash)
 
+    @defer.inlineCallbacks
     def init_file(self, filepath, filesize, file_checksum, file_root_hash):
-        # print 'must create this-> {0}'.format(filepath)
-        file_handler = open(filepath, 'wb')
-        file_handler.seek(
-            (filesize * 1000.0 * 1000.0) - 1)
-        file_handler.write('\0')
-        file_handler.close()
-        file_handler = open(filepath, 'r+b')
+        print 'checking the status of resuming the file download'
+        resume_status = yield fileHashUtils.check_hash_present_in_resume(file_checksum, self.factory.dbpool)
+        start_from_piece_number = 0
+        if not resume_status:
+            file_handler = open(filepath, 'wb')
+            file_handler.seek(
+                (filesize * 1000.0 * 1000.0) - 1)
+            file_handler.write('\0')
+            file_handler.close()
+            file_handler = open(filepath, 'r+b')
+        else:
+            print 'we have got to resume'
+            piece_hashes = yield fileHashUtils.get_piecehashes_of(file_checksum, self.factory.dbpool)
+            piecesize = piece_size(filesize)
+            print 'the piece size is {0} {1}'.format(piecesize, os.path.isfile(filepath))
+            with open(filepath, 'rb') as f:
+                for i, chunk in enumerate(iter(lambda: f.read(piecesize), b"")):
+                    chunk_hasher = hashlib.md5()
+                    chunk_hasher.update(chunk)
+                    if chunk_hasher.hexdigest() != piece_hashes[i * 32: (i * 32) + 32]:
+                        start_from_piece_number = i
+                        break
+            print 'starting from piece number {0}'.format(start_from_piece_number)
+            file_handler = open(filepath, 'r+b')
+
         reactor.connectTCP(
             self.factory.peers_list[0],
             SERVER_DAEMON_PORT,
@@ -430,7 +467,9 @@ class DownloadManagerProtocol(BaseProtocol):
                 file_size=filesize,
                 file_checksum=file_checksum,
                 file_root_hash=file_root_hash,
-                peers_list=self.factory.peers_list))
+                peers_list=self.factory.peers_list,
+                resume_from=start_from_piece_number,
+                dbpool=self.factory.dbpool))
 
 
 class DownloadManagerFactory(ClientFactory):
@@ -444,6 +483,7 @@ class DownloadManagerFactory(ClientFactory):
             roothash,
             peers_list,
             dbpool):
+        print 'comes to the factory'
         self.client_connection = clientConn
         self.peers_list = peers_list
         self.download_folder = download_folder

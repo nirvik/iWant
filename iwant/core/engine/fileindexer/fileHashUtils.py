@@ -352,10 +352,11 @@ def remove_resume_entry(hash_value, dbpool):
 
 @defer.inlineCallbacks
 def add_new_file_entry_resume(file_entry, dbpool):
-    filename, checksum = file_entry[0], file_entry[3]
-    # why is this necessary
-    yield dbpool.runQuery('insert into indexer values (?,?,?,?,?,?)', (file_entry))
-    yield dbpool.runQuery('insert into resume values (?,?)', (filename, checksum))
+    print 'new entry added to resume table'
+    # filename, checksum = file_entry[0], file_entry[3]
+    checksum = file_entry[3]
+    yield dbpool.runQuery('insert into resume values (?)', (checksum,))
+    yield dbpool.runQuery('insert into indexer values (?,?,?,?,?,?,?)', (file_entry))
 
 
 def get_file_hashes(filepath):

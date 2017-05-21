@@ -31,6 +31,7 @@ class ServerException(Exception):
     def __str__(self):
         return 'Error [{0}] => {1}'.format(self.code, self.msg)
 
+
 class FilePumper(object):
     implements(interfaces.IProducer)
     last_sent = ''
@@ -38,14 +39,18 @@ class FilePumper(object):
     FILE_SEND_FMT = FILE_RESP_FMT
 
     def beginFileTransfer(self, file, consumer, piece_range):
+        print 'this is the piece range {0}'.format(piece_range)
         self.file = file
         self.consumer = consumer
-        first_piece, first_blocks, last_piece, last_blocks = piece_range  # (0,16,1780,16)
+        # (0,16,1780,16)
+        first_piece, first_blocks, last_piece, last_blocks = piece_range
         self.file.seek(first_blocks * first_piece * CHUNK_SIZE)
-        self.total_file_to_read = (last_piece - 1)*(first_blocks)*(CHUNK_SIZE) + (last_blocks * CHUNK_SIZE)
+        self.total_file_to_read = (
+            last_piece - 1 - first_piece) * (first_blocks) * (CHUNK_SIZE) + (last_blocks * CHUNK_SIZE)
         self.total_read = 0
         self.block_number = 0  # keeps updating with every read of the file
-        self.piece_number = 0  # keeps updating every time chunk_number completes a cycle
+        # keeps updating every time chunk_number completes a cycle
+        self.piece_number = first_piece
 
         self.last_piece_number = last_piece - 1
         self.blocks_per_piece = first_blocks - 1
@@ -56,7 +61,11 @@ class FilePumper(object):
         return deferred
 
     def transform(self, chunk):
-        return pack(self.FILE_SEND_FMT, self.piece_number, self.block_number, len(chunk)) + chunk
+        return pack(
+            self.FILE_SEND_FMT,
+            self.piece_number,
+            self.block_number,
+            len(chunk)) + chunk
 
     def resumeProducing(self):
         chunk = ''
@@ -395,7 +404,6 @@ class backend(BaseProtocol):
                 reason='No such file exists')
             self.sendLine(msg)
             self.transport.loseConnection()
-
 
     def fileindexing_complete(self, indexing_response):
         print_log('Files completely indexed')

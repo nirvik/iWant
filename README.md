@@ -1,10 +1,10 @@
 # iWant
-## CLI based decentralized peer to peer file sharing
+### CLI based decentralized peer to peer file sharing
 
-### __What is this?__  
+## __What is this?__  
 A commandline tool for searching and downloading files in LAN network, without any central server. 
 
-### Features
+## Features
 * __Decentralized__ : There is no central server hosting files. Therefore, no central point of failure 
 * __Easy discovery of files__: As easy as searching for something in google. 
 * __File download from multiple peers__: If the seeder fails/leaves the group, leecher will continue to download from another seeder in the network 
@@ -13,26 +13,24 @@ A commandline tool for searching and downloading files in LAN network, without a
 * __Consistent data__: Any changes made to files inside the shared folder will be instantly reflected in the network 
 * __Cross Platform__: Works in Linux/Windows/Mac 
 
-### Installation
+## Installation 
 ```sh
 python setup.py install --user
 ```
 
-### How to run 
+## How to run 
 
 1. Open `~/.iwant/.iwant.conf` and update your shared/download folder.  
 2. Run the `iwanto` service.   
 
 
-## Server
-
-__Running server__
+## __Running server__ 
 ```sh
 iwanto start
 ```
 
-## Client 
-__Search files__: Type the name of file ;)  (P.S No need of accurate names)
+## __Search files__  
+Type the name of file ;)  (P.S No need of accurate names)
 ```sh
 iwanto search <filename>
 ```
@@ -41,7 +39,8 @@ Example:
 iwanto search "silicon valey"
 ```
 
-__Download files__: To download the file , just enter the hash of the file you get after searching. 
+## __Download files__  
+To download the file , just enter the hash of the file you get after searching. 
 ```sh
 iwanto download <hash_of_the_file>
 ```
@@ -49,7 +48,8 @@ Example:
 ```sh
 iwanto download b8f67e90097c7501cc0a9f1bb59e6443
 ```
-__Change shared folder__: Changing shared folder, while the iwant service is still running
+## __Change shared folder__  
+Changing shared folder, while the iwant service is still running
 ```sh
 iwanto share <path>
 ```
@@ -57,7 +57,8 @@ Example:
 ```sh
 iwanto share /home/User/Movies/
 ```
-__Change downloads folder__: Changing downloads folder, while the iwant service is still running 
+## __Change downloads folder__  
+Changing downloads folder, while the iwant service is still running 
 ```sh
 iwanto change download path to <path>
 ```

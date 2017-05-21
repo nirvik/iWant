@@ -22,7 +22,7 @@ python setup.py install --user
 1. We need to first configure our __Shared__ folder and the __Download__ folder(where your files/folders get downloaded into). There are two ways to go about it. 
     * Open `~/.iwant/.iwant.conf` and update the __shared__ and __download__ field.  
     * Or you could run  `iwanto share <path>` and `iwanto change download path to <path>` to change your shared and download folder respectively.  
-2. Run the `iwanto` service.   
+2. Run `iwanto start` (this runs the iwanto service).   
 
 
 ## __Running server__ 

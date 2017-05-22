@@ -273,10 +273,10 @@ def index_file(path, dbpool):
             response['ADD'] = file_property_list
             defer.returnValue(response)
     except IndexError:
-        print '@index_file {0}'.format(filesize_from_db)
+        # print '@index_file {0}'.format(filesize_from_db)
         if len(filesize_from_db) == 0:
             file_hash, piece_hashes, root_hash = get_file_hashes(path)
-            print 'this is a new entry {0}'.format(path)
+            print '[New File: Indexed] {0}'.format(path)
             file_index_entry = (
                 path,
                 1,
@@ -367,7 +367,8 @@ def get_file_hashes(filepath):
     # hunk_size = piece_size(filepath)
     filesize = get_file_size(filepath)
     chunk_size = piece.piece_size(filesize)
-    print 'CHUNK SIZE {0}'.format(chunk_size)
+    # print 'CHUNK SIZE {0}'.format(chunk_size)
+    print 'Hashing: {0}\t Size {1}'.format(filepath, filesize)
     with open(filepath, 'rb') as f:
         for chunk in iter(lambda: f.read(chunk_size), b""):
             md5_hash.update(chunk)

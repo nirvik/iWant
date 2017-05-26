@@ -1,33 +1,9 @@
-import os, sys
-import ConfigParser
 try:
     from setuptools import setup, find_packages
 except ImportError:
     from distutils.core import setup
 
 requirement_list = [r.strip() for r in open('requirements.txt', 'r').readlines() if r]
-
-def get_basepath():
-    iwant_directory_path = os.path.expanduser('~')
-    if sys.platform =='linux2' or sys.platform == 'linux' or sys.platform == 'darwin':
-        iwant_directory_path = os.path.join(iwant_directory_path, '.iwant')
-    elif sys.platform == 'win32':
-        iwant_directory_path = os.path.join(os.getenv('APPDATA'),'.iwant')
-    return iwant_directory_path
-
-iwant_config_path = get_basepath()
-if not os.path.exists(iwant_config_path):
-    os.mkdir(iwant_config_path)
-
-config = ConfigParser.ConfigParser()
-config.add_section('Paths')
-config.set('Paths', 'Share', '/home/nirvik/Pictures')
-config.set('Paths', 'Download', '/home/nirvik/iWantVideos')
-
-with open(os.path.join(iwant_config_path, '.iwant.conf'), 'w') as configfile:
-    config.write(configfile)
-
-
 setup(
         name='iwant',
         version='1.0.0',

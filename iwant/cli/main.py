@@ -38,7 +38,7 @@ from iwant.core.engine.fileindexer import fileHashUtils
 from twisted.internet import reactor, endpoints
 from iwant.core.engine.client import FrontendFactory
 from iwant.core.constants import SEARCH_REQ, IWANT_PEER_FILE, CHANGE, SHARE
-from iwant.cli.utils import get_ips, generate_id, get_paths
+from iwant.cli.utils import get_ips, generate_id, get_paths, check_config_status
 
 
 def set_text_factory(conn):
@@ -48,13 +48,14 @@ def set_text_factory(conn):
 def main():
     arguments = docopt(__doc__, version='iWant 1.0')
 
+    check_config_status()
     if arguments['start']:
         ips = get_ips()
         for count, ip in enumerate(ips):
-            print count + 1, ip
+            print '{0} {1}({2})'.format(count+1, ip[0], ip[1])
         ip = input('Enter index of ip addr:')
         timeuuid = generate_id()
-        book = CommonlogBook(identity=timeuuid, state=0, ip=ips[ip - 1])
+        book = CommonlogBook(identity=timeuuid, state=0, ip=ips[ip - 1][0])
         SHARING_FOLDER, DOWNLOAD_FOLDER, CONFIG_PATH = get_paths()
         if not os.path.exists(SHARING_FOLDER) or \
             not os.path.exists(DOWNLOAD_FOLDER) or \

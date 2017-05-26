@@ -12,7 +12,7 @@ def get_ips():
     for interface in interfaces():
         try:
             for link in ifaddresses(interface)[AF_INET]:
-                ip_list.append(link['addr'])
+                ip_list.append((link['addr'], interface))
         except:
             pass
     return ip_list
@@ -73,6 +73,34 @@ def update_config(shared_folder=None, download_folder=None):
         print e
         raise MainException(3)
 
+def check_config_status():
+    conf_path = get_basepath()
+    SHARING_FOLDER = ''
+    DOWNLOAD_FOLDER = ''
+    if not os.path.exists(conf_path):
+        os.mkdir(conf_path)
+        create_config(conf_path)
+    else:
+        try:
+            # if the config folder is present, but the config file is not present
+            SHARING_FOLDER, DOWNLOAD_FOLDER, _ = get_paths()
+        except MainException:
+            create_config(conf_path)
+    if not os.path.exists(SHARING_FOLDER):
+        new_shared_folder = raw_input('Enter absolute shared folder path:')
+        update_config(shared_folder=new_shared_folder)
+    if not os.path.exists(DOWNLOAD_FOLDER):
+        new_donwload_folder = raw_input('Enter absolute download folder path:')
+        update_config(download_folder=new_donwload_folder)
+
+
+def create_config(conf_path):
+    config = ConfigParser.ConfigParser()
+    config.add_section('Paths')
+    config.set('Paths', 'Share', '')
+    config.set('Paths', 'Download', '')
+    with open(os.path.join(conf_path, '.iwant.conf'), 'w') as configfile:
+        config.write(configfile)
 
 SERVER_LOG_INFO = 'server log'
 CLIENT_LOG_INFO = 'client log'

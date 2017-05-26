@@ -90,16 +90,19 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
         self._eClock = None
         self._alClock = None
         self._pollClock = None
+        self._reelectionClock = None
         self._npClock = None  # new peer clock
         self._npCallId = None  # new peer call id
         self._eCallId = None
         self._alCallId = None
         self._pollId = None
+        self._reelectionCallId = None
         self._eid = None
         self._addr = (self.book.ip, MCAST_PORT)
         self._latest_election_id = None
         self.buff = ''
         self.delimiter = '\r'
+        self.log.msg('ID ', self.book.uuid)
         print 'ID : ' + self.book.uuid
         reactor.addSystemEventTrigger("before", "shutdown", self.logout)
 
@@ -109,6 +112,9 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
                 self._npCallId.cancel()
 
     def cancel_election_callback(self):
+        '''
+            Donot send any Request for Vote messages to anyone
+        '''
         if self._eCallId is not None:
             if self._eCallId.active():
                 self._eCallId.cancel()
@@ -118,9 +124,18 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             if self._alCallId.active():
                 self._alCallId.cancel()
 
+    def cancel_election_commencement_callback(self):
+        if self._reelectionCallId is not None:
+            if self._reelectionCallId.active():
+                self._reelectionCallId.cancel()
+
     @staticmethod
     def generate_election_id():
         return time.time()
+
+    @staticmethod
+    def generate_timeout():
+        return random.uniform(1, 10)
 
     @staticmethod
     def generate_secret(size=10, chars=string.ascii_uppercase + string.digits):
@@ -132,7 +147,7 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
         and decide to become the leader if there is no response
         """
         self.book.peers[self.book.uuidObj] = self._addr
-        self.transport.setTTL(5)
+        self.transport.setTTL(5)  # datagrams can traverse more than one router hop
         self.transport.joinGroup(MCAST_ADDR[0])
         self._broadcast_identity()
         self.log.msg('joining the multicast group and waiting for response')
@@ -149,7 +164,6 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
         self._npCallId = self._npClock.callLater(
             wait_for_response,
             response_from_peers)
-        # ideally, we should register a callback
         self.d = threads.deferToThread(self._poll)
 
     def _broadcast_identity(self):
@@ -170,12 +184,15 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
         self._broadcast_re_election()
 
     def _broadcast_re_election(self):
-        # print 'BROADCASTIN RE ELECTION'
-        eid = self.generate_election_id()
-        self.log.msg('broadcast re-election id {0}'.format(eid))
-        msg = bake(RE_ELECTION, election_id=eid)
-        self.send(msg, MCAST_ADDR)
-        # elf.send(CommonroomMessage(RE_ELECTION, [eid]), MCAST_ADDR)
+        def election_timeout_callback():
+            eid = self.generate_election_id()
+            self.log.msg('broadcast re-election id {0}'.format(eid))
+            msg = bake(RE_ELECTION, election_id=eid)
+            self.send(msg, MCAST_ADDR)
+        if self._reelectionClock is None:
+            self._reelectionClock = reactor
+        election_timeout = self.generate_timeout()
+        self._reelectionCallId = self._reelectionClock.callLater(election_timeout, election_timeout_callback)
 
     def _send_id_to(self, addr):
         self.log.msg('send id to {0}'.format(addr))
@@ -499,23 +516,26 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
                 self._broadcast_leader_dead()
 
     def _re_election_event(self, data=None, eid=None):
+        election_id = eid
         if data is not None:
             # id = data
-            eid = data['election_id']
+            election_id = data['election_id']
 
         if self._eid is None:
-            print 'NEW ELECTION COMMENCEMENT : {0}'.format(eid)
-            self._eid = eid
-            self._election(eid)
+            print 'NEW ELECTION COMMENCEMENT : {0}'.format(election_id)
+            self.cancel_election_commencement_callback()
+            self._eid = election_id
+            self._election(election_id)
         else:
-            if eid > self._eid:
+            if election_id > self._eid:
                 print 'CANCEL ELECTION {0}'.format(self._eid)
-                print 'NEW ELECTION COMMENCEMENT : {0}'.format(eid)
-                self._eid = eid
+                print 'NEW ELECTION COMMENCEMENT : {0}'.format(election_id)
+                self.cancel_election_commencement_callback()
+                self._eid = election_id
                 self.reset()
                 self.cancel_election_callback()
                 self.cancel_alive_callback()
-                self._election(eid)
+                self._election(election_id)
 
     def _election(self, eid):
         '''
@@ -546,8 +566,6 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
         '''
             Responding to the election message from lower Peer ID , I am alive.
         '''
-        # if data is not None:
-        # id =  data
         eid = data['election_id']
         if self._eid == eid:
             self._send_alive_msg_to(addr)
@@ -560,7 +578,7 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
         # id = data
         eid = data['election_id']
         if self._eid == eid:
-            self.cancel_election_callback()
+            # self.cancel_election_callback()
 
             def wait_for_winner(no_response):
                 if no_response:
@@ -612,7 +630,7 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
                 Random peer anounces itself as the winner and passes incorrect election ID
                 last stage of election
 
-                Therefore, we can assume that there is atleast one leader in the network
+                Therefore, we can assume that there is atmost one leader in the network
             '''
             print 'WRONG ELEC ID {0} {1}'.format(self._eid, eid)
             if self.leader_present():

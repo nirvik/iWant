@@ -38,7 +38,7 @@ from iwant.core.engine.fileindexer import fileHashUtils
 from twisted.internet import reactor, endpoints
 from iwant.core.engine.client import FrontendFactory
 from iwant.core.constants import SEARCH_REQ, IWANT_PEER_FILE, CHANGE, SHARE
-from iwant.cli.utils import get_ips, generate_id, get_paths, check_config_status
+from iwant.cli.utils import get_ips, generate_id, get_paths, check_config_status, show_config_options
 
 
 def set_text_factory(conn):
@@ -49,7 +49,8 @@ def main():
     arguments = docopt(__doc__, version='iWant 1.0')
 
     if arguments['start']:
-        check_config_status()
+        if not check_config_status():
+            show_config_options()
         ips = get_ips()
         for count, ip in enumerate(ips):
             print '{0} {1}({2})'.format(count + 1, ip[0], ip[1])
@@ -105,7 +106,7 @@ def main():
                 os._exit(0)
 
     elif arguments['share'] and arguments['<path>']:
-
+        check_config_status()
         path = arguments['<path>']
         reactor.connectTCP(
             SERVER_DAEMON_HOST,
@@ -131,6 +132,7 @@ def main():
                 IWANT_PEER_FILE,
                 hash_string))
     elif arguments['change'] and arguments['download'] and arguments['path'] and arguments['to']:
+        check_config_status()
         download_folder = arguments['<destination>']
         reactor.connectTCP(
             SERVER_DAEMON_HOST,

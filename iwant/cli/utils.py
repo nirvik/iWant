@@ -76,8 +76,6 @@ def update_config(shared_folder=None, download_folder=None):
 
 def check_config_status():
     conf_path = get_basepath()
-    SHARING_FOLDER = ''
-    DOWNLOAD_FOLDER = ''
     if not os.path.exists(conf_path):
         os.mkdir(conf_path)
         create_config(conf_path)
@@ -86,8 +84,14 @@ def check_config_status():
             # if the config folder is present, but the config file is not
             # present
             SHARING_FOLDER, DOWNLOAD_FOLDER, _ = get_paths()
+            return True
         except MainException:
             create_config(conf_path)
+            return False
+
+def show_config_options():
+    print 'Shared/Download folder details looks empty'
+    SHARING_FOLDER, DOWNLOAD_FOLDER, _ = get_paths()
     if not os.path.exists(SHARING_FOLDER):
         new_shared_folder = raw_input('Enter absolute shared folder path:')
         update_config(shared_folder=new_shared_folder)

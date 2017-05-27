@@ -51,18 +51,20 @@ def bootstrap(folder, dbpool):
         combined_response['DEL'] = files_removed_metainfo
         defer.returnValue(combined_response)
 
+
 @defer.inlineCallbacks
 def remove_all_deleted_files(dbpool):
     filenames = yield dbpool.runQuery('select filename from indexer')
     for filename in filenames:
         if not os.path.exists(filename[0]):
             print '[Indexer][Removing]: {0}'.format(filename[0])
-            yield dbpool.runQuery('delete from indexer where filename=?',(filename[0],))
+            yield dbpool.runQuery('delete from indexer where filename=?', (filename[0],))
     resume_table_filenames = yield dbpool.runQuery('select filename from resume')
     for filename in resume_table_filenames:
         if not os.path.exists(filename[0]):
             print '[Resume][Removing]: {0}'.format(filename[0])
             yield dbpool.runQuery('delete from resume where filename=?', (filename[0],))
+
 
 @defer.inlineCallbacks
 def unshare(files, dbpool):
@@ -353,6 +355,10 @@ def check_hash_present_in_resume(filename, dbpool):
     if len(response) == 0:
         defer.returnValue(False)
     else:
+        filename = response[0][0]
+        if not os.path.exists(filename):
+            yield remove_resume_entry(filename, dbpool)
+            defer.returnValue(False)
         defer.returnValue(True)
 
 

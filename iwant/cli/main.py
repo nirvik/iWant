@@ -48,11 +48,11 @@ def set_text_factory(conn):
 def main():
     arguments = docopt(__doc__, version='iWant 1.0')
 
-    check_config_status()
     if arguments['start']:
+        check_config_status()
         ips = get_ips()
         for count, ip in enumerate(ips):
-            print '{0} {1}({2})'.format(count+1, ip[0], ip[1])
+            print '{0} {1}({2})'.format(count + 1, ip[0], ip[1])
         ip = input('Enter index of ip addr:')
         timeuuid = generate_id()
         book = CommonlogBook(identity=timeuuid, state=0, ip=ips[ip - 1][0])

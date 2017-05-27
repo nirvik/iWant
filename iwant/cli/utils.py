@@ -73,6 +73,7 @@ def update_config(shared_folder=None, download_folder=None):
         print e
         raise MainException(3)
 
+
 def check_config_status():
     conf_path = get_basepath()
     SHARING_FOLDER = ''
@@ -82,7 +83,8 @@ def check_config_status():
         create_config(conf_path)
     else:
         try:
-            # if the config folder is present, but the config file is not present
+            # if the config folder is present, but the config file is not
+            # present
             SHARING_FOLDER, DOWNLOAD_FOLDER, _ = get_paths()
         except MainException:
             create_config(conf_path)

@@ -233,7 +233,7 @@ class backend(BaseProtocol):
         file_removal_updates = data['operation']['DEL']
 
         for file_properties in file_addition_updates:
-	    pass
+            pass
             # print_log(
             #     '[Leader Adding] {0} \t {1}'.format(
             #         file_properties[0],

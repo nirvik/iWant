@@ -10,6 +10,8 @@ def bootstrap(folder, dbpool):
     if not os.path.exists(folder):
         raise NotImplementedError
     else:
+        # we need to remove all the entries for which the path doesnot exist
+        yield remove_all_deleted_files(dbpool)
         all_filenames_response = yield dbpool.runQuery('select filename from indexer')
         all_filenames = set(map(lambda x: x[0], all_filenames_response))
         # print 'all the filenames are {0}'.format(all_filenames)
@@ -28,9 +30,9 @@ def bootstrap(folder, dbpool):
 
         share_remaining_files = files_to_be_shared - all_shared_files
         unshare_remaining_files = files_to_be_unshared - all_unshared_files
-        share_msg = yield share(share_remaining_files, dbpool)
-        unshare_msg = yield unshare(unshare_remaining_files, dbpool)
-        indexing_done = yield index_folder(folder, dbpool)
+        yield share(share_remaining_files, dbpool)
+        yield unshare(unshare_remaining_files, dbpool)
+        yield index_folder(folder, dbpool)
         combined_response = {}
         combined_response['ADD'] = []
         combined_response['DEL'] = []
@@ -49,6 +51,18 @@ def bootstrap(folder, dbpool):
         combined_response['DEL'] = files_removed_metainfo
         defer.returnValue(combined_response)
 
+@defer.inlineCallbacks
+def remove_all_deleted_files(dbpool):
+    filenames = yield dbpool.runQuery('select filename from indexer')
+    for filename in filenames:
+        if not os.path.exists(filename[0]):
+            print '[Indexer][Removing]: {0}'.format(filename[0])
+            yield dbpool.runQuery('delete from indexer where filename=?',(filename[0],))
+    resume_table_filenames = yield dbpool.runQuery('select filename from resume')
+    for filename in resume_table_filenames:
+        if not os.path.exists(filename[0]):
+            print '[Resume][Removing]: {0}'.format(filename[0])
+            yield dbpool.runQuery('delete from resume where filename=?', (filename[0],))
 
 @defer.inlineCallbacks
 def unshare(files, dbpool):

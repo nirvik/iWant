@@ -84,7 +84,9 @@ def check_config_status():
             # if the config folder is present, but the config file is not
             # present
             SHARING_FOLDER, DOWNLOAD_FOLDER, _ = get_paths()
-            return True
+	    if SHARING_FOLDER != '' and DOWNLOAD_FOLDER != '':
+                return True
+	    return False
         except MainException:
             create_config(conf_path)
             return False

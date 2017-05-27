@@ -576,7 +576,7 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
                 # it generates a separate id
                 self._send_election_msg_to(peer, eid)
             print 'Sending Election Messages: Terminated'
-            self.delay = self.generate_delay()
+            self.delay = random.uniform(3, 5)# self.generate_delay()
 
             def election_callback(election_id):
                 print 'Waited for response: Announcing itself as winner: Waited {0}'.format(self.delay)
@@ -617,7 +617,7 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
 
             alive_deferred = defer.Deferred()
             alive_deferred.addCallback(wait_for_winner)
-            self.delay = self.generate_delay()
+            self.delay = random.uniform(5, 6) # self.generate_delay()
             print '{0} timeout : no i m winner message: broadcast re-election'.format(self.delay)
             self._alClock = reactor
             self._alCallId = self._alClock.callLater(

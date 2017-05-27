@@ -67,8 +67,8 @@ class FilemonitorClientProtocol(Protocol):
         self.factory = factory
 
     def connectionMade(self):
-        print '@filemonitor protocol'
-        print 'event {0}'.format(self.factory.event)
+        # print '@filemonitor protocol'
+        # print 'event {0}'.format(self.factory.event)
         updated_msg = bake(
             self.factory.event,
             shared_folder=self.factory.updates['shared_folder'],

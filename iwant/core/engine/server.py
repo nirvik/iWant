@@ -233,10 +233,11 @@ class backend(BaseProtocol):
         file_removal_updates = data['operation']['DEL']
 
         for file_properties in file_addition_updates:
-            print_log(
-                '[Leader Adding] {0} \t {1}'.format(
-                    file_properties[0],
-                    file_properties[1]))
+	    pass
+            # print_log(
+            #     '[Leader Adding] {0} \t {1}'.format(
+            #         file_properties[0],
+            #         file_properties[1]))
         for file_properties in file_removal_updates:
             print_log('[Leader Removing] {0}'.format(file_properties[0]))
 
@@ -406,8 +407,8 @@ class backend(BaseProtocol):
             self.transport.loseConnection()
 
     def fileindexing_complete(self, indexing_response):
-        print_log('Files completely indexed')
-        print_log('SHARING {0}'.format(indexing_response['shared_folder']))
+        # print_log('Files completely indexed')
+        # print_log('SHARING {0}'.format(indexing_response['shared_folder']))
         for file_name in indexing_response['ADD']:
             print_log('[Adding] {0} \t {1}'.format(file_name[0], file_name[1]))
         for file_name in indexing_response['DEL']:

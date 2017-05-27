@@ -9,3 +9,4 @@ todo
 build/
 dist/
 problems.md
+*.swp

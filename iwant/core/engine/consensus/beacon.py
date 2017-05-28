@@ -1,4 +1,4 @@
-from twisted.internet import reactor, defer, threads
+from twisted.internet import reactor, defer, threads, task
 import time
 import random
 import string
@@ -108,30 +108,26 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
 
     def cancel_wait_for_peers_callback(self):
         if self._npCallId is not None:
-            if self._npCallId.active():
-                self.log.msg('Cancelling: wait for peers callback')
-                self._npCallId.cancel()
+	    self.log.msg('Cancelling: wait for peers callback')
+	    self._npCallId.cancel()
 
     def cancel_election_callback(self):
         '''
             Donot send any Request for Vote messages to anyone
         '''
         if self._eCallId is not None:
-            if self._eCallId.active():
-                print 'wait for I am alive: CANCELLED'
-                self._eCallId.cancel()
+            print 'wait for I am alive: CANCELLED'
+            self._eCallId.cancel()
 
     def cancel_alive_callback(self):
         if self._alCallId is not None:
-            if self._alCallId.active():
-                print 'wait for I am winner: CANCELLED'
-                self._alCallId.cancel()
+            print 'wait for I am winner: CANCELLED'
+            self._alCallId.cancel()
 
     def cancel_election_commencement_callback(self):
         if self._reelectionCallId is not None:
-            if self._reelectionCallId.active():
-                print 'ECommencement message delivery: CANCELLED'
-                self._reelectionCallId.cancel()
+            print 'ECommencement message delivery: CANCELLED'
+            self._reelectionCallId.cancel()
 
     def cancel_everything(self):
         print '***** Cancelling the entire election ******'
@@ -176,12 +172,13 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             self.log.msg('Announcing itself as the winner')
             self._leader(leader=self.book.uuidObj, eid=self._eid)
 
-        if self._npClock is None:
-            from twisted.internet import reactor
-            self._npClock = reactor
-        self._npCallId = self._npClock.callLater(
-            wait_for_response,
-            response_from_peers)
+        # if self._npClock is None:
+        #     from twisted.internet import reactor
+        #     self._npClock = reactor
+        # self._npCallId = self._npClock.callLater(
+        #     wait_for_response,
+        #     response_from_peers)
+	self._npCallId = task.deferLater(reactor, wait_for_response, response_from_peers)
         self.d = threads.deferToThread(self._poll)
 
     def _broadcast_identity(self):
@@ -220,9 +217,10 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
         # broadcast relection can be called twice if leader announces its death
         # and polling also determines leaders death
         self.cancel_election_commencement_callback()
-        self._reelectionCallId = self._reelectionClock.callLater(
-            election_timeout,
-            election_timeout_callback)
+	self._reelectionCallId = task.deferLater(reactor, election_timeout, election_timeout_callback)
+        # self._reelectionCallId = self._reelectionClock.callLater(
+        #     election_timeout,
+        #     election_timeout_callback)
 
     def _send_id_to(self, addr):
         self.log.msg('send id to {0}'.format(addr))
@@ -582,13 +580,14 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
                 print 'Waited for response: Announcing itself as winner: Waited {0}'.format(self.delay)
                 self._leader(self.book.uuidObj, election_id)
 
-            if self._eClock is None:
-                from twisted.internet import reactor
-                self._eClock = reactor
-            self._eCallId = self._eClock.callLater(
-                self.delay,
-                election_callback,
-                eid)
+            # if self._eClock is None:
+            #     from twisted.internet import reactor
+            #     self._eClock = reactor
+            # self._eCallId = self._eClock.callLater(
+            #     self.delay,
+            #     election_callback,
+            #     eid)
+	    self._eCallId = task.deferLater(reactor, self.delay, election_callback, eid)
 
     def _alive(self, data, addr=None):
         '''
@@ -614,17 +613,18 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
                     print '{0}: the alive call id '.format(self._alCallId)
                     print 'no response, broadcast re-election'
                     self._broadcast_re_election()
-
-            alive_deferred = defer.Deferred()
-            alive_deferred.addCallback(wait_for_winner)
-            self.delay = random.uniform(5, 6) # self.generate_delay()
+	    def its_cancelled(yay):
+	        print 'its cancelled waala callback {0}'.format(yay)
+            self.delay = random.uniform(8, 10) # self.generate_delay()
             print '{0} timeout : no i m winner message: broadcast re-election'.format(self.delay)
-            self._alClock = reactor
-            self._alCallId = self._alClock.callLater(
-                self.delay,
-                wait_for_winner,
-                True)
-            print '{0}: the alive call id '.format(self._alCallId)
+            # self._alClock = reactor
+            # self._alCallId = self._alClock.callLater(
+            #     self.delay,
+            #     wait_for_winner,
+            #     True)
+	    if self._alCallId:
+	        self._alCallId.cancel()
+	    self._alCallId = task.deferLater(reactor, self.delay, wait_for_winner, True).addBoth(its_cancelled)
 
     def _new_leader_callback(self, data=None, leader=None, addr=None):
         '''

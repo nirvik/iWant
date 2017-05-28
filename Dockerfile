@@ -5,4 +5,4 @@ RUN apt-get install -y python-pip python-dev build-essential gcc  libffi-dev lib
 COPY . /app
 WORKDIR /app
 RUN python setup.py install --user
-#ENTRYPOINT ["iwanto-start"]
+ENTRYPOINT ["python -m iwant.cli.main start"]

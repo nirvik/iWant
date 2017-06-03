@@ -384,10 +384,8 @@ def add_new_file_entry_resume(file_entry, dbpool):
 def get_file_hashes(filepath):
     hash_list = ''
     md5_hash = hashlib.md5()
-    # hunk_size = piece_size(filepath)
     filesize = get_file_size(filepath)
     chunk_size = piece.piece_size(filesize)
-    # print 'CHUNK SIZE {0}'.format(chunk_size)
     print 'Hashing: {0}\t Size {1}'.format(filepath, filesize)
     with open(filepath, 'rb') as f:
         for chunk in iter(lambda: f.read(chunk_size), b""):
@@ -403,7 +401,7 @@ def get_file_hashes(filepath):
 @defer.inlineCallbacks
 def get_file(file_hash, dbpool):
     file_query_response = yield dbpool.runQuery('select filename from indexer where hash=?', (file_hash,))
-    print file_query_response[0][0]
+    # print file_query_response[0][0]
     defer.returnValue(open(file_query_response[0][0], 'rb'))
 
 

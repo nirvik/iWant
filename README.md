@@ -19,7 +19,7 @@ python setup.py install --user
 ```
 
 ## How to run 
-1. Run `iwanto start` (this runs the iwanto service).   
+Run `iwanto start` (this runs the iwant service).   
 
 
 ## __Running server__ 

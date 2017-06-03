@@ -1,6 +1,5 @@
-from twisted.internet import defer, reactor, interfaces
+from twisted.internet import defer, interfaces
 from twisted.internet.protocol import Factory
-from twisted.protocols.basic import FileSender
 from zope.interface import implements
 from fuzzywuzzy import fuzz
 import os
@@ -183,7 +182,8 @@ class backend(BaseProtocol):
         d.addCallback(self.transfer_completed)
 
     def transfer_completed(self, data):
-        print 'no more'
+        # print 'no more'
+        pass
 
     def _end_game(self, data):
         if data['end_game']:
@@ -331,7 +331,8 @@ class backend(BaseProtocol):
                     try:
                         filtered_response.append(
                             self.factory.data_from_peers[uuid]['hashes'][file_hash])
-                    except:
+                    except Exception as e:
+                        print e
                         print_log(
                             'BIGGEST MESS UP {0}'.format(filename),
                             WARNING_LOG)

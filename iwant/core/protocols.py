@@ -238,7 +238,7 @@ class FileDownloadProtocol(BaseProtocol):
                 self.piece_buffer = ''
         else:
             self.piece_buffer += piece_data
-            if len(self.piece_buffer) == self.factory.last_piece_size:
+            if len(self.piece_buffer) == int(self.factory.last_piece_size):
                 final_piece_data = self.piece_buffer
                 self.write_piece_to_file(final_piece_data, piece_number)
                 self.piece_buffer = ''
@@ -257,9 +257,9 @@ class FileDownloadProtocol(BaseProtocol):
             self.factory.download_status += len(piece_data)
             self.factory.file_handler.write(piece_data)
             self.factory.bar.update(self.factory.download_status)
-        if self.factory.download_status >= self.factory.file_size * \
-                1000.0 * 1000.0:
-            print 'closing connection'
+        if self.factory.download_status >= int(self.factory.file_size *
+                                               1000.0 * 1000.0):
+            self.factory.bar.update(self.factory.download_status)
             self.factory.file_handler.close()
             self.transport.loseConnection()
             yield fileHashUtils.remove_resume_entry(self.factory.file_handler.name, self.factory.dbpool)
@@ -321,7 +321,7 @@ class FileDownloadFactory(ClientFactory):
             self.download_status = (
                 self.start_piece - 1) * self.last_piece_size
         self.bar = progressbar.ProgressBar(
-            maxval=self.file_size * 1000.0 * 1000.0,
+            maxval=int(self.file_size * 1000.0 * 1000.0),
             widgets=[
                 progressbar.Bar(
                     '=',
@@ -346,7 +346,8 @@ class FileDownloadFactory(ClientFactory):
 
     def clientConnectionLost(self, connector, reason):
         # self.reconnect(connector, reason)
-        print FileDownloadFactory.__name__, ': closing connections'
+        # print FileDownloadFactory.__name__, ': closing connections'
+        pass
 
     def clientConnectionFailed(self, connector, reason):
         self.connectAnotherPeer(connector, reason)
@@ -385,7 +386,7 @@ class DownloadManagerProtocol(BaseProtocol):
 
     @defer.inlineCallbacks
     def _build_new_files_folders(self, response):
-        # self.transport.loseConnection()
+        self.transport.loseConnection()
         client_response = {}
         meta_info = response['file_structure_response']
         if meta_info['isFile']:
@@ -491,10 +492,9 @@ class DownloadManagerProtocol(BaseProtocol):
             # file_handler.close()
             # file_handler = open(filepath, 'r+b')
         else:
-            print 'we have got to resume'
             piece_hashes = yield fileHashUtils.get_piecehashes_of(file_checksum, self.factory.dbpool)
             piecesize = piece_size(filesize)
-            print 'the piece size is {0} {1}'.format(piecesize, os.path.isfile(filepath))
+            print '[Resume] the piece size is {0} {1}'.format(piecesize, os.path.isfile(filepath))
             if os.path.isfile(filepath):
                 with open(filepath, 'rb') as f:
                     for i, chunk in enumerate(

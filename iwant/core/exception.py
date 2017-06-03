@@ -5,7 +5,8 @@ class MainException(Exception):
         self.msg = {
             1: 'Shared folder doesn\'t exist',
             2: 'Download folder doesn\'t exist',
-            3: 'corrupted .iwant.conf file'
+            3: 'corrupted .iwant.conf file',
+            4: 'Shared and Download folder cannot be the same'
         }
 
     def __str__(self):

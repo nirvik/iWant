@@ -371,7 +371,9 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
                     self.retries += 1
                     if self.retries >= self.maxRetries:
                         # print 'FAILED {0}'.format(self.retries)
-                        self.log.msg('PING FAILED: RETRIES {0}'.format(self.retries))
+                        self.log.msg(
+                            'PING FAILED: RETRIES {0}'.format(
+                                self.retries))
                         self._broadcast_leader_dead()
                 else:
                     self.retries = 0
@@ -388,7 +390,8 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             except Exception as e:
                 # print e
                 # print '@poll'
-                self.log.msg('Poll: Exception occured: Leader died while polling:{0}'.format(e))
+                self.log.msg(
+                    'Poll: Exception occured: Leader died while polling:{0}'.format(e))
                 self._broadcast_leader_dead()
         delay = self.generate_delay()
         self._pollId = self._pollClock.callLater(
@@ -432,8 +435,10 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
                     # not self.book.leader:  # there are no leaders whatsoever
                     if not leader and not self.leader_present():
                         self._send_id_to(addr)
-                        # print 'No leader: New peer entry: Cancel if any ongoing election: broadcast re-election'
-                        self.log.msg('No leader: New peer entry: Cancel if any ongoing election: broadcast re-election')
+                        # print 'No leader: New peer entry: Cancel if any
+                        # ongoing election: broadcast re-election'
+                        self.log.msg(
+                            'No leader: New peer entry: Cancel if any ongoing election: broadcast re-election')
                         self.cancel_everything()
                         self._broadcast_re_election()
 
@@ -542,7 +547,10 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             if secret != self.secret_value:
                 # broadcast leader is dead
                 # print 'MISMATCH {1} {0}'.format(secret, self.secret_value)
-                self.log.msg('MISMATCH {1} {0}'.format(secret, self.secret_value))
+                self.log.msg(
+                    'MISMATCH {1} {0}'.format(
+                        secret,
+                        self.secret_value))
                 self._broadcast_leader_dead()
 
     def _re_election_event(self, data=None, eid=None):
@@ -560,7 +568,10 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             if election_id > self._eid:
                 # print 'Cancel term: {0}'.format(self._eid)
                 # print 'Updating term: {0}'.format(election_id)
-                self.log.msg('Cancel term: {0}\nUpdating term: {1}'.format(self._eid, election_id))
+                self.log.msg(
+                    'Cancel term: {0}\nUpdating term: {1}'.format(
+                        self._eid,
+                        election_id))
                 self.reset()
                 self._eid = election_id
                 self._election(election_id)
@@ -578,15 +589,18 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             self.log.msg('Send Election Messages: INIT')
             for peer in requested_peers_list:
                 # print 'Sending Election msg to: {0}'.format(peer)
-                self.log.msg( 'Sending Election msg to: {0}'.format(peer))
+                self.log.msg('Sending Election msg to: {0}'.format(peer))
                 self._send_election_msg_to(peer, eid)
             # print 'Sending Election Messages: Terminated'
             self.log.msg('Sending Election Messages: Terminated')
             self.delay = random.uniform(3, 5)
 
             def election_callback(election_id):
-                # print 'Waited for response: Announcing itself as winner: Waited {0}'.format(self.delay)
-                self.log.msg('Waited for response: Announcing itself as winner: Waited {0}'.format(self.delay))
+                # print 'Waited for response: Announcing itself as winner:
+                # Waited {0}'.format(self.delay)
+                self.log.msg(
+                    'Waited for response: Announcing itself as winner: Waited {0}'.format(
+                        self.delay))
                 self._leader(self.book.uuidObj, election_id)
 
             self._eCallId = task.deferLater(
@@ -620,12 +634,15 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
                 if no_response:
                     # print '{0}: the alive call id '.format(self._alCallId)
                     # print 'no response, broadcast re-election'
-                    self.log.msg('{0}: the alive call id: No response: Broadcast Re-Election'.format(self._alCallId))
+                    self.log.msg(
+                        '{0}: the alive call id: No response: Broadcast Re-Election'.format(self._alCallId))
                     self._broadcast_re_election()
 
             self.delay = random.uniform(8, 10)  # self.generate_delay()
-            # print '{0} timeout : no i m winner message: broadcast re-election'.format(self.delay)
-            self.log.msg('{0} timeout : no i m winner message: broadcast re-election'.format(self.delay))
+            # print '{0} timeout : no i m winner message: broadcast
+            # re-election'.format(self.delay)
+            self.log.msg(
+                '{0} timeout : no i m winner message: broadcast re-election'.format(self.delay))
             if self._alCallId:
                 '''
                     Every higher peer will send an alive message.
@@ -658,8 +675,12 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
                 Post election time
             '''
             if self.book.uuidObj < leader:
-                # print 'about to bully {0} {1}'.format(self.book.uuidObj, leader)
-                self.log.msg('about to bully {0} {1}'.format(self.book.uuidObj, leader))
+                # print 'about to bully {0} {1}'.format(self.book.uuidObj,
+                # leader)
+                self.log.msg(
+                    'about to bully {0} {1}'.format(
+                        self.book.uuidObj,
+                        leader))
                 self._bully()
             elif self.isLeader():
                 pass
@@ -704,8 +725,12 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             self.cancel_election_callback()
             self.cancel_alive_callback()
             # print '********* Conclusion **************'
-            # print 'LEADER :{0}\t EID : {1}'.format(self.book.leader, self._eid)
-            self.log.msg('[Election Conlusion]: Leader {0} \t Election id: {1}'.format(self.book.leader, self._eid))
+            # print 'LEADER :{0}\t EID : {1}'.format(self.book.leader,
+            # self._eid)
+            self.log.msg(
+                '[Election Conlusion]: Leader {0} \t Election id: {1}'.format(
+                    self.book.leader,
+                    self._eid))
             if self.book.uuidObj < self.book.leader:
                 """
                  The problem arises when a new peer joins and becomes a part of an election without having the peers list.
@@ -714,8 +739,10 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
                  We also assume that a new peer can never become a leader unless he is the oldest peer in the network
                 """
                 self._broadcast_ledger(just_sharing=True)
-                # print 'Election Last Stage: New peer annouces itself as the leader: bully: re-election'
-                self.log.msg('Election Last Stage: New peer annouces itself as the leader: bully: re-election')
+                # print 'Election Last Stage: New peer annouces itself as the
+                # leader: bully: re-election'
+                self.log.msg(
+                    'Election Last Stage: New peer annouces itself as the leader: bully: re-election')
                 self._bully()
 
             # print 'CLOSING ELECTION: {0}'.format(self._eid)
@@ -777,12 +804,17 @@ class CommonroomProtocol(PeerdiscoveryProtocol):
             leader_host = self.book.peers[self.book.leader][0]
             leader_port = SERVER_DAEMON_PORT
             if leader_change:
-                # print 'norifying the server daemon about the leader {0}'.format(self.book.leader)
-                self.log.msg('notifying the server daemon about the leader {0}'.format(self.book.leader))
+                # print 'norifying the server daemon about the leader
+                # {0}'.format(self.book.leader)
+                self.log.msg(
+                    'notifying the server daemon about the leader {0}'.format(
+                        self.book.leader))
                 factory = ServerElectionFactory(leader_host, leader_port)
             elif peer_dead:
-                # print '@election : telling server {0} is dead'.format(dead_peerId)
-                self.log.msg('@election : telling server {0} is dead'.format(dead_peerId))
+                # print '@election : telling server {0} is
+                # dead'.format(dead_peerId)
+                self.log.msg(
+                    '@election : telling server {0} is dead'.format(dead_peerId))
                 factory = ServerElectionFactory(
                     leader_host,
                     leader_port,

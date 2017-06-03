@@ -51,17 +51,14 @@ def main():
     if arguments['start']:
         if not check_config_status():
             show_config_options()
-        ips = get_ips()
-        for count, ip in enumerate(ips):
-            print '{0} {1}({2})'.format(count + 1, ip[0], ip[1])
-        ip = input('Enter index of ip addr:')
         timeuuid = generate_id()
-        book = CommonlogBook(identity=timeuuid, state=0, ip=ips[ip - 1][0])
         SHARING_FOLDER, DOWNLOAD_FOLDER, CONFIG_PATH = get_paths()
         if not os.path.exists(SHARING_FOLDER) or \
             not os.path.exists(DOWNLOAD_FOLDER) or \
                 not os.path.exists(CONFIG_PATH):
             raise MainException(1)
+        if SHARING_FOLDER == DOWNLOAD_FOLDER:
+            raise MainException(4)
         logfile = os.path.join(CONFIG_PATH, 'iwant.log')
         log.startLogging(open(logfile, 'w'), setStdout=False)
         filename = os.path.join(CONFIG_PATH, 'iwant.db')
@@ -77,6 +74,13 @@ def main():
             filename,
             check_same_thread=False,
             cp_openfun=set_text_factory)
+
+        ips = get_ips()
+        print 'Network interface available'
+        for count, ip in enumerate(ips):
+            print '{0}. {1} => {2}'.format(count + 1, ip[1], ip[0])
+        ip = input('Enter index of the interface:')
+        book = CommonlogBook(identity=timeuuid, state=0, ip=ips[ip - 1][0])
 
         try:
             reactor.listenMulticast(

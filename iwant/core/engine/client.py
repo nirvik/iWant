@@ -91,10 +91,10 @@ class Frontend(BaseProtocol):
             file_size = file_structure_response['filesize']
             checksum = file_structure_response['checksum']
             print_log(
-                'Filename: {0}\nSize: {1} MB\nChecksum: {2}'.format(
+                'Filename: {0}\nSize: {1} MB'.format(
                     file_name,
-                    file_size,
-                    checksum),
+                    file_size
+                ),
                 CLIENT_LOG_INFO)
         else:
             root_directory = file_structure_response['rootDirectory']
@@ -109,10 +109,9 @@ class Frontend(BaseProtocol):
             for file_property in files:
                 filename, size, checksum = file_property
                 print_log(
-                    'Filename: {0}\tSize: {1} MB\tChecksum: {2}'.format(
+                    'Filename: {0}\tSize: {1} MB'.format(
                         filename,
-                        size,
-                        checksum),
+                        size),
                     CLIENT_LOG_INFO)
         reactor.stop()
 

@@ -3,9 +3,10 @@
 Usage:
     iwanto start
     iwanto search <name>
-    iwanto download <hash> [(to <destination>)]
+    iwanto download <hash>
     iwanto share <path>
     iwanto change download path to <destination>
+    iwanto view config
     iwanto --version
 
 Options:
@@ -15,6 +16,7 @@ Options:
     search <name>                               Discovering files in the network. Example: iwanto search batman
     download <hash>                             Downloads the file from the network
     share <path>                                Change your shared folder
+    view config                                 View shared and download folder
     change download path to <destination>       Change download folder
 
 
@@ -108,6 +110,7 @@ def main():
                 sys.exit(0)
             except SystemExit:
                 os._exit(0)
+        reactor.run()
 
     elif arguments['share'] and arguments['<path>']:
         check_config_status()
@@ -118,6 +121,7 @@ def main():
             FrontendFactory(
                 SHARE,
                 path))
+        reactor.run()
 
     elif arguments['search'] and arguments['<name>']:
         search_string = arguments['<name>']
@@ -127,6 +131,7 @@ def main():
             FrontendFactory(
                 SEARCH_REQ,
                 search_string))
+        reactor.run()
     elif arguments['download'] and arguments['<hash>']:
         hash_string = arguments['<hash>']
         reactor.connectTCP(
@@ -135,6 +140,7 @@ def main():
             FrontendFactory(
                 IWANT_PEER_FILE,
                 hash_string))
+        reactor.run()
     elif arguments['change'] and arguments['download'] and arguments['path'] and arguments['to']:
         check_config_status()
         download_folder = arguments['<destination>']
@@ -144,8 +150,11 @@ def main():
             FrontendFactory(
                 CHANGE,
                 download_folder))
+        reactor.run()
+    elif arguments['view'] and arguments['config']:
+        SHARING_FOLDER, DOWNLOAD_FOLDER, _ = get_paths()
+        print 'Shared folder:{0}\nDownload folder:{1}'.format(SHARING_FOLDER, DOWNLOAD_FOLDER)
 
-    reactor.run()
 
 if __name__ == '__main__':
     main()

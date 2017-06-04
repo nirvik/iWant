@@ -18,6 +18,29 @@ A commandline tool for searching and downloading files in LAN network, without a
 python setup.py install --user
 ```
 
+## Usage
+```
+iWant.
+
+Usage:
+    iwanto start
+    iwanto search <name>
+    iwanto download <hash>
+    iwanto share <path>
+    iwanto change download path to <destination>
+    iwanto --version
+
+Options:
+    -h --help                                   Show this screen.
+    --version                                   Show version.
+    start                                       This starts the iwant server in your system
+    search <name>                               Discovering files in the network. Example: iwanto search batman
+    download <hash>                             Downloads the file from the network
+    share <path>                                Change your shared folder
+    change download path to <destination>       Change download folder
+
+```
+
 ## How to run 
 Run `iwanto start` (this runs the iwant service).   
 
@@ -25,17 +48,17 @@ Run `iwanto start` (this runs the iwant service).
 ## __Running server__ 
 In windows, admin access is required to run the server
 ```sh
-iwanto start
+$ iwanto start
 ```
 
 ## __Search files__  
 Type the name of file ;)  (P.S No need of accurate names)
 ```sh
-iwanto search <filename>
+$ iwanto search <filename>
 ```
 Example: 
 ```sh
-iwanto search "slicon valey"
+$ iwanto search "slicon valey"
 ```
 
 ## __Download files__  
@@ -65,6 +88,24 @@ Example:
 ```sh
 iwanto change download path to /home/User/Downloads
 ```
+
+
+## Display your Shared/Donwload folder
+
+`cat ~/.iwant/.iwant.conf` or check `AppData\Roaming\.iwant\.iwant.log`
+
+## How does it work ? 
+
+As soon as the program starts, it spawns the __election daemon__, __folder monitoring daemon__ and __server daemon__. 
+1. The __election daemon__ manages the entire consensus. It updates the __server daemon__ as soon as there is a leader change. It coordinates with other peers in the network regarding contesting elections, leader unavailability, network failure, split brain situation etc.
+2. When the __folder monitoring daemon__ starts, it indexes all the files in the shared folder, updates the entries in the database and informs the server about the metainformation of the files/folders indexed.
+3. The __server daemon__ receives updates from the file monitoring and election daemon. 
+    - Any update received from __folder monitoring daemon__ is fowarded to the leader. 
+    - Any update received from the __election daemon__ like `leader change` event, the server forwards the meta information to the leader
+    - Any queries received from the __iwant client__ like `file search` is forwarded to the leader, who then performs fuzzy search on the metadata it received from other peers and returns a list containing (filename, size, checksum)
+    - Any queries received from the __iwant client__ like `file download` is forwarded to the leader, who forwards the roothash of the file/folder along with the list of peers who have the file. The __server daemon__ then intiates download process with peers mentioned in the peers list.
+    - Updates received from the __iwant client__ like `changing shared folder`, the __server daemon__ makes sure that the __folder monitoring daemon__ indexes the new folder and after indexing is complete, the __server daemon__ updates the leader with the new metainformation.
+4. The __iwant client__ talks to the __server daemon__ when the user wishes to `search`, `download`, `change shared folder` and `change download folder`
 
 ## Errors
 

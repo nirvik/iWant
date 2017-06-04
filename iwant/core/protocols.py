@@ -259,10 +259,10 @@ class FileDownloadProtocol(BaseProtocol):
             self.factory.bar.update(self.factory.download_status)
         if self.factory.download_status >= int(self.factory.file_size *
                                                1000.0 * 1000.0):
-            self.factory.bar.update(self.factory.download_status)
             self.factory.file_handler.close()
             self.transport.loseConnection()
             yield fileHashUtils.remove_resume_entry(self.factory.file_handler.name, self.factory.dbpool)
+            print 'file download finished'
 
     # def write_to_file(self, file_data, piece_num, block_num):
     #     self.factory.download_status += len(file_data)
@@ -317,7 +317,7 @@ class FileDownloadFactory(ClientFactory):
         self.download_status = 0
         if self.start_piece != 0 and self.start_piece != (self.last_piece - 1):
             self.download_status = (self.start_piece) * self.piece_size
-        elif self.start_piece == self.last_piece - 1:
+        elif self.start_piece == self.last_piece - 1 and self.start_piece != 0:
             self.download_status = (
                 self.start_piece - 1) * self.last_piece_size
         self.bar = progressbar.ProgressBar(

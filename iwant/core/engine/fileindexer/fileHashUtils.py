@@ -7,6 +7,10 @@ import piece
 
 @defer.inlineCallbacks
 def bootstrap(folder, dbpool):
+    """Returns all the files and folder meta information that needs to be shared
+    :param folder: absolute path of the shared folder
+    :param dbpool: twisted.enterprise.adbapi.ConnectionPool object
+    """
     if not os.path.exists(folder):
         raise NotImplementedError
     else:
@@ -54,6 +58,9 @@ def bootstrap(folder, dbpool):
 
 @defer.inlineCallbacks
 def remove_all_deleted_files(dbpool):
+    """Removes file entries from database that are deleted from the file system
+    :param dbpool: twisted.enterprise.adbapi.ConnectionPool object
+    """
     filenames = yield dbpool.runQuery('select filename from indexer')
     for filename in filenames:
         if not os.path.exists(filename[0]):
@@ -68,6 +75,10 @@ def remove_all_deleted_files(dbpool):
 
 @defer.inlineCallbacks
 def unshare(files, dbpool):
+    """Sets the share value of the files to 0 in the database
+    :param files: list of absolute file paths
+    :param dbool: twisted.enterprise.adbapi.ConnectionPool object
+    """
     for f in files:
         yield dbpool.runQuery('update indexer set share=0 where filename=?', (f,))
     defer.returnValue('unshared')
@@ -75,6 +86,10 @@ def unshare(files, dbpool):
 
 @defer.inlineCallbacks
 def share(files, dbpool):
+    """Sets the share value of the files to 1 in the database
+    :param files: list of absolute file paths
+    :param dbool: twisted.enterprise.adbapi.ConnectionPool object
+    """
     for f in files:
         yield dbpool.runQuery('update indexer set share=1 where filename=?', (f,))
     defer.returnValue('shared')
@@ -82,6 +97,11 @@ def share(files, dbpool):
 
 @defer.inlineCallbacks
 def folder_delete_handler(path, dbpool, modified_folder):
+    """Removes all the files from the db which are under modified folder and returns those filenames, which are deleted, in a dict
+    :param path: absolute pathname of the shared folder
+    :param dbool: twisted.enterprise.adbapi.ConnectionPool object
+    :param modified_folder: absolute pathname of the folder deleted
+    """
     response = {}
     response['ADD'] = []
     response['DEL'] = []
@@ -163,6 +183,13 @@ def folder_delete_handler(path, dbpool, modified_folder):
 
 @defer.inlineCallbacks
 def index_folder(folder, dbpool, modified_folder=None):
+    """Creates the metadata of all the files insider the folder being shared
+    :param folder: absolute pathname of the share folder
+    :param dbool: twisted.enterprise.adbapi.ConnectionPool object
+    :param modified_folder: (optional) absolute pathname of the folder modified
+
+    returns a dict containing a list containing (file_name, size, file_hash, root_hash) of files to be deleted and shared , shared_folder
+    """
     response = {}
     response['DEL'] = []
     response['ADD'] = []
@@ -265,6 +292,12 @@ def index_folder(folder, dbpool, modified_folder=None):
 
 @defer.inlineCallbacks
 def index_file(path, dbpool):
+    """Builds meta information of a single file
+    :param file: absolute pathname of the file to be indexed
+    :param dbool: twisted.enterprise.adbapi.ConnectionPool object
+
+    returns a dict containing a list containing (file_name, size, file_hash, root_hash) of files to be deleted and shared , shared_folder
+    """
     response = {}
     response['DEL'] = []
     response['ADD'] = []
@@ -311,14 +344,34 @@ def index_file(path, dbpool):
 
 
 def get_file_size(path):
-    '''
-    return file size in mb
-    '''
+    """Returns the file in MB
+    param path: absolute pathname of the file
+    """
     return os.stat(path).st_size / (1000.0 * 1000.0)
 
 
 @defer.inlineCallbacks
 def get_structure(hash_value, dbpool):
+    """This returns a response which contains information about the folder/file structure. This is sent to the leecher which can facilitate him in replicating the folder structure in his system.
+    :param hash_value: hash string corresponding to the folder_name or a fiename
+    :param dbpool: twisted.enterprise.adbapi.ConnectionPool object
+    returns a dict: if hash_value is of a directory, it returns
+    {
+        isWindows: True/False,
+        isFile: False,
+        rootDirectory: foldername,
+        files: [(parent_folder, basename_of_file, file_size, file_hash, root_hash),...]
+    }
+    if hash_value is of a filename, it returns
+    {
+        isWindows: True/False,
+        isFile: False,
+        rootHash: hash,
+        filename: absolute file path,
+        size: file size
+    }
+
+    """
     craft_response = {}
     if os.name != 'nt':
         craft_response['isWindows'] = False
@@ -351,6 +404,10 @@ def get_structure(hash_value, dbpool):
 
 @defer.inlineCallbacks
 def check_hash_present_in_resume(filename, dbpool):
+    """Checks if hash value is present in the resume table
+    :param filename: absolute filepath
+    :param dbpool: twisted.enterprise.adbapi.ConnectionPool object
+    """
     response = yield dbpool.runQuery('select filename from resume where filename=?', (filename,))
     if len(response) == 0:
         defer.returnValue(False)
@@ -364,6 +421,10 @@ def check_hash_present_in_resume(filename, dbpool):
 
 @defer.inlineCallbacks
 def remove_resume_entry(filename, dbpool):
+    """Removes file entry from the resume table
+    :param filename: absolute filepath
+    :param dbpool: twisted.enterprise.adbapi.ConnectionPool object
+    """
     filename_response = yield dbpool.runQuery('select filename from indexer where filename=?', (filename,))
     filename = filename_response[0][0]
     # print 'everything deleted from indexer and resume'
@@ -373,6 +434,10 @@ def remove_resume_entry(filename, dbpool):
 
 @defer.inlineCallbacks
 def add_new_file_entry_resume(file_entry, dbpool):
+    """Add file entry to the resume table
+    :param filename: absolute filepath
+    :param dbpool: twisted.enterprise.adbapi.ConnectionPool object
+    """
     print 'new entry added to resume table'
     # filename, checksum = file_entry[0], file_entry[3]
     # checksum = file_entry[3]
@@ -382,6 +447,10 @@ def add_new_file_entry_resume(file_entry, dbpool):
 
 
 def get_file_hashes(filepath):
+    """Generates md5 hash of the file based on content, hashes of all the chunks, hash of concatenated hashes from all chunks
+    :param filepath: absolute filepath
+    returns (hash, concatenated hashes of chunks, roothash)
+    """
     hash_list = ''
     md5_hash = hashlib.md5()
     filesize = get_file_size(filepath)
@@ -400,6 +469,10 @@ def get_file_hashes(filepath):
 
 @defer.inlineCallbacks
 def get_file(file_hash, dbpool):
+    """Returns the corresponding file object
+    :param file_hash: hash of the file
+    :param dbpool: twisted.enterprise.adbapi.ConnectionPool object
+    """
     file_query_response = yield dbpool.runQuery('select filename from indexer where hash=?', (file_hash,))
     # print file_query_response[0][0]
     defer.returnValue(open(file_query_response[0][0], 'rb'))
@@ -407,6 +480,10 @@ def get_file(file_hash, dbpool):
 
 @defer.inlineCallbacks
 def get_piecehashes_of(file_hash, dbpool):
+    """Returns concatenated hash of all chunks belonging to a particular file
+    :param file_hash: hash of the file
+    :param dbpool: twisted.enterprise.adbapi.ConnectionPool object
+    """
     file_pieces_response = yield dbpool.runQuery('select piecehashes from indexer where hash=?', (file_hash,))
     defer.returnValue(file_pieces_response[0][0])
 
@@ -419,11 +496,5 @@ if __name__ == '__main__':
         '/home/nirvik/.iwant/iwant.db',
         check_same_thread=False,
         cp_openfun=set_text_factory)
-
-    # bootstrap('/home/nirvik/Pictures', dbpool)
     get_structure('b550c3580bfd0dffa7dbecaefc7816da', dbpool)
-    # bootstrap('/home/nirvik/Documents')
-    # bootstrap('/home/nirvik/colleges')
-    # readit = get_file('56ae4cf859179e0d32e9733d45d7f714')
-    # x.addCallback(readit)
     reactor.run()

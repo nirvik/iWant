@@ -100,7 +100,7 @@ iwanto view config
 ## How does it work ? 
 
 As soon as the program starts, it spawns the __election daemon__, __folder monitoring daemon__ and __server daemon__. 
-1. The __election daemon__ manages the entire consensus. It updates the __server daemon__ as soon as there is a leader change. It coordinates with other peers in the network regarding contesting elections, leader unavailability, network failure, split brain situation etc.
+1. The __election daemon__ manages the entire consensus. It updates the __server daemon__ as soon as there is a leader change. It coordinates with other peers in the network regarding contesting elections, leader unavailability, network failure, split brain situation etc. The consensus description is mention [here](iwant/core/engine/consensus/README.md)
 2. When the __folder monitoring daemon__ starts, it indexes all the files in the shared folder, updates the entries in the database and informs the server about the metainformation of the files/folders indexed.
     - Any changes made in the shared folder will trigger the __folder monitoring daemon__ to index the modified files and inform the server.
     - It also makes the necessary changes to the database

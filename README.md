@@ -1,7 +1,7 @@
 # iWant
 ### CLI based decentralized peer to peer file sharing
 
-## __What is this?__  
+## What is it?  
 A commandline tool for searching and downloading files in LAN network, without any central server. 
 
 ## Features

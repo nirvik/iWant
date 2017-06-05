@@ -1,3 +1,4 @@
+import iwant
 try:
     from setuptools import setup, find_packages
 except ImportError:
@@ -6,7 +7,7 @@ except ImportError:
 requirement_list = [r.strip() for r in open('requirements.txt', 'r').readlines() if r]
 setup(
         name='iwant',
-        version='1.0.0',
+        version=iwant.__version__,
         install_requires= requirement_list,
         author='Nirvik Ghosh',
         author_email='nirvik1993@gmail.com',

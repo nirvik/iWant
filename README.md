@@ -28,6 +28,7 @@ Usage:
     iwanto download <hash>
     iwanto share <path>
     iwanto change download path to <destination>
+    iwanto view config
     iwanto --version
 
 Options:
@@ -37,6 +38,7 @@ Options:
     search <name>                               Discovering files in the network. Example: iwanto search batman
     download <hash>                             Downloads the file from the network
     share <path>                                Change your shared folder
+    view config                                 View shared and download folder
     change download path to <destination>       Change download folder
 
 ```
@@ -45,13 +47,13 @@ Options:
 Run `iwanto start` (this runs the iwant service).   
 
 
-## __Running server__ 
+## Running server   
 In windows, admin access is required to run the server
 ```sh
 $ iwanto start
 ```
 
-## __Search files__  
+## Search files    
 Type the name of file ;)  (P.S No need of accurate names)
 ```sh
 $ iwanto search <filename>
@@ -61,7 +63,7 @@ Example:
 $ iwanto search "slicon valey"
 ```
 
-## __Download files__  
+## Download files  
 To download the file , just enter the hash of the file you get after searching. 
 ```sh
 iwanto download <hash_of_the_file>
@@ -70,7 +72,7 @@ Example:
 ```sh
 iwanto download b8f67e90097c7501cc0a9f1bb59e6443
 ```
-## __Change shared folder__  
+## Change shared folder  
 Changing shared folder, while the iwant service is still running
 ```sh
 iwanto share <path>
@@ -79,7 +81,7 @@ Example:
 ```sh
 iwanto share /home/User/Movies/
 ```
-## __Change downloads folder__  
+## Change downloads folder  
 Changing downloads folder, while the iwant service is still running 
 ```sh
 iwanto change download path to <path>
@@ -90,15 +92,18 @@ iwanto change download path to /home/User/Downloads
 ```
 
 
-## Display your Shared/Donwload folder
-
-`cat ~/.iwant/.iwant.conf` or check `AppData\Roaming\.iwant\.iwant.log`
+## Display your Shared/Donwload folder  
+```sh
+iwanto view config
+```
 
 ## How does it work ? 
 
 As soon as the program starts, it spawns the __election daemon__, __folder monitoring daemon__ and __server daemon__. 
 1. The __election daemon__ manages the entire consensus. It updates the __server daemon__ as soon as there is a leader change. It coordinates with other peers in the network regarding contesting elections, leader unavailability, network failure, split brain situation etc.
 2. When the __folder monitoring daemon__ starts, it indexes all the files in the shared folder, updates the entries in the database and informs the server about the metainformation of the files/folders indexed.
+    - Any changes made in the shared folder will trigger the __folder monitoring daemon__ to index the modified files and inform the server.
+    - It also makes the necessary changes to the database
 3. The __server daemon__ receives updates from the file monitoring and election daemon. 
     - Any update received from __folder monitoring daemon__ is fowarded to the leader. 
     - Any update received from the __election daemon__ like `leader change` event, the server forwards the meta information to the leader

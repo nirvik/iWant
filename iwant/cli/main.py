@@ -115,6 +115,11 @@ def main():
     elif arguments['share'] and arguments['<path>']:
         check_config_status()
         path = arguments['<path>']
+        _, DOWNLOAD_FOLDER, _ = get_paths()
+        if DOWNLOAD_FOLDER == path :
+            raise MainException(4)
+        elif path == '':
+            raise MainException(1)
         reactor.connectTCP(
             SERVER_DAEMON_HOST,
             SERVER_DAEMON_PORT,
@@ -144,6 +149,11 @@ def main():
     elif arguments['change'] and arguments['download'] and arguments['path'] and arguments['to']:
         check_config_status()
         download_folder = arguments['<destination>']
+        SHARING_FOLDER, _, _ = get_paths()
+        if SHARING_FOLDER == download_folder:
+            raise MainException(4)
+        elif download_folder == '':
+            raise MainException(1)
         reactor.connectTCP(
             SERVER_DAEMON_HOST,
             SERVER_DAEMON_PORT,

@@ -1,0 +1,154 @@
+{
+  "version": 1,
+  "width": 121,
+  "height": 34,
+  "duration": 5.671722,
+  "command": "/bin/bash",
+  "title": "",
+  "env": {
+    "TERM": "xterm-256color",
+    "SHELL": "/bin/bash"
+  },
+  "stdout": [
+    [
+      0.061922,
+      "\u001b]0;nirvik@localhost:~/playground/scripts/HDDShare/iwant/gifs\u0007"
+    ],
+    [
+      0.000110,
+      "[nirvik@localhost gifs]$ "
+    ],
+    [
+      0.486656,
+      "i"
+    ],
+    [
+      0.072264,
+      "w"
+    ],
+    [
+      0.043329,
+      "a"
+    ],
+    [
+      0.091717,
+      "n"
+    ],
+    [
+      0.101284,
+      "t"
+    ],
+    [
+      0.091880,
+      "o"
+    ],
+    [
+      0.115530,
+      " "
+    ],
+    [
+      0.184729,
+      "s"
+    ],
+    [
+      0.115737,
+      "e"
+    ],
+    [
+      0.086810,
+      "a"
+    ],
+    [
+      0.077148,
+      "r"
+    ],
+    [
+      0.161748,
+      "c"
+    ],
+    [
+      0.086501,
+      "h"
+    ],
+    [
+      0.147304,
+      " "
+    ],
+    [
+      0.620746,
+      "n"
+    ],
+    [
+      0.077177,
+      "i"
+    ],
+    [
+      0.067702,
+      "r"
+    ],
+    [
+      0.180952,
+      "v"
+    ],
+    [
+      0.072407,
+      "i"
+    ],
+    [
+      0.161089,
+      "k"
+    ],
+    [
+      0.279877,
+      "\r\n"
+    ],
+    [
+      0.292877,
+      "\u001b[94mFilename                                                                      Size  Checksum\r\n------------------------------------------------------------------------  --------  --------------------------------\r\n/home/nirvik/studies/Bitcoin - A peer-to-peer electronic cash system.pdf  0.215205  85af454095055928311d2b0aec274db1\r\n/home/nirvik/studies/file_systems.pdf                                     0.427292  20ff7f50e2282e887da1c619fbf88cd2\r\n/home/nirvik/studies/Consensus/raft/raft.pdf                              0.567533  d6db6fd34c5ea56fa1dc8f55df17830e\r\n/home/nirvik/studies/ipfs-p2p-file-system.pdf                             0.213363  35719630cc9ce231306a63a3acd730ef"
+    ],
+    [
+      0.000010,
+      "\r\n/home/nirvik/studies/Consensus/raft/copeland_zhong.pdf                    0.115669  659c08c52eac138d5fddb18680f794f5\r\n/home/nirvik/studies/concurrency                                          0.931695  34e5aea4b36765bf02f2c8d7cc0e468c\r\n/home/nirvik/studies/Consensus                                            0.683202  479e82ec127044e6b7565206a986ff24\r\n/home/nirvik/studies/concurrency/reactorPattern.pdf                       0.931695  a2cde16f5daa9e9827f15fd8161ef436\r\n/home/nirvik/studies                                                      2.66058   858df501f04081fb8265e70df5b10360\r\n/home/nirvik/studies/Hollyshare.pdf                                       0.189825  7aa7aaf60c575b0d2b8dbfbe52597c0b\r\n/home/nirvik/studies/Consensus/raft                                       0.683202  2bcdeca935ca0a2b63ec6b66d0ade840\u001b[0m\r\n"
+    ],
+    [
+      0.022906,
+      "\u001b]0;nirvik@localhost:~/playground/scripts/HDDShare/iwant/gifs\u0007"
+    ],
+    [
+      0.000091,
+      "[nirvik@localhost gifs]$ "
+    ],
+    [
+      0.630753,
+      "\r\n\u001b]0;nirvik@localhost:~/playground/scripts/HDDShare/iwant/gifs\u0007[nirvik@localhost gifs]$ "
+    ],
+    [
+      0.161952,
+      "\r\n\u001b]0;nirvik@localhost:~/playground/scripts/HDDShare/iwant/gifs\u0007[nirvik@localhost gifs]$ "
+    ],
+    [
+      0.148739,
+      "\r\n\u001b]0;nirvik@localhost:~/playground/scripts/HDDShare/iwant/gifs\u0007[nirvik@localhost gifs]$ "
+    ],
+    [
+      0.562774,
+      "e"
+    ],
+    [
+      0.170989,
+      "x"
+    ],
+    [
+      0.086860,
+      "i"
+    ],
+    [
+      0.131366,
+      "t"
+    ],
+    [
+      0.077698,
+      "\r\nexit\r\n"
+    ]
+  ]
+}

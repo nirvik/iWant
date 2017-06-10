@@ -124,9 +124,12 @@ As soon as the program starts, it spawns the __election daemon__, __folder monit
 * Create test modules
 * Make download faster
 * Incorporate tight security mechanism
-* Improve UI for file download progress bar
+* Improve UI for file/folder download progress bar
+* Add streaming functionality
 
 ## Errors
 
 All logs are present in `~/.iwant/.iwant.log` or `AppData\Roaming\.iwant\.iwant.log`
 
+## Liked the project ? 
+[![Say Thanks!](https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg)](https://saythanks.io/to/nirvik)

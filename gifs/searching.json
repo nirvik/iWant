@@ -1,0 +1,298 @@
+{
+  "version": 1,
+  "width": 120,
+  "height": 19,
+  "duration": 16.526111,
+  "command": "/bin/bash",
+  "title": "",
+  "env": {
+    "TERM": "xterm-256color",
+    "SHELL": "/bin/bash"
+  },
+  "stdout": [
+    [
+      0.055495,
+      "\u001b]0;nirvik@localhost:~/playground/scripts/HDDShare/iwant\u0007"
+    ],
+    [
+      0.000108,
+      "[nirvik@localhost iwant]$ "
+    ],
+    [
+      0.639705,
+      "i"
+    ],
+    [
+      0.126148,
+      "w"
+    ],
+    [
+      0.047951,
+      "a"
+    ],
+    [
+      0.116423,
+      "n"
+    ],
+    [
+      0.576966,
+      "t"
+    ],
+    [
+      0.120887,
+      "o"
+    ],
+    [
+      0.135923,
+      " "
+    ],
+    [
+      0.256385,
+      "s"
+    ],
+    [
+      0.086729,
+      "e"
+    ],
+    [
+      0.125869,
+      "a"
+    ],
+    [
+      0.125605,
+      "r"
+    ],
+    [
+      0.169847,
+      "c"
+    ],
+    [
+      0.091982,
+      "h"
+    ],
+    [
+      0.138471,
+      " "
+    ],
+    [
+      0.314155,
+      "d"
+    ],
+    [
+      0.131840,
+      "o"
+    ],
+    [
+      0.086965,
+      "c"
+    ],
+    [
+      0.115791,
+      "u"
+    ],
+    [
+      0.169029,
+      "m"
+    ],
+    [
+      0.067797,
+      "e"
+    ],
+    [
+      0.127900,
+      "n"
+    ],
+    [
+      0.048551,
+      "t"
+    ],
+    [
+      0.138180,
+      "s"
+    ],
+    [
+      0.298158,
+      "\r\n"
+    ],
+    [
+      0.301941,
+      "\u001b[94mFilename                                                                 Size  Checksum\r\n------------------------------------------------------------------  ---------  --------------------------------\r\n/home/nirvik/Documents/0000Cover.jpg                                 0.180267  ba326aef7f21cfbe3192fbc8ff3c5e81\r\n/home/nirvik/Documents/pwd                                           0.001428  249142ef4840ec11e63b3a9426160c1f\r\n/home/nirvik/Documents/Web Penetration Testing with Kali Linux.pdf  20.9943    df1fdcde66c92c1fef83bd651dd5ffe3\r\n"
+    ],
+    [
+      0.000009,
+      "/home/nirvik/Documents/mimetype                                      2e-05     4154e1f4f9c0e002cc44aae97103ebe2\r\n/home/nirvik/Documents/visa-mul.pdf                                  0.052199  eb95739fd917043d7915cbe8d7773c1b\r\n/home/nirvik/Documents/BranchPrediction.pdf                          0.715613  1760cbc880a4e63fa40dea4c78598146\r\n/home/nirvik/Documents/time_waste                                    0.111238  1e93dd24db8cd311a627e75672bd4f12\r\n/home/nirvik/Documents/hello                                         2.7e-05   03680e4ca9ba48012e66042571bb043f\r\n/home/nirvik/Documents/GRE_TICKET.pdf                                0.104617  7fa5098157b28c3ec071326c0862098e\r\n/home/nirvik/Documents/AXIS BANK  Statement for May 2015.pdf         0.132785  244dfad21ed86b8b30ec6c911e61eb99\r\n/home/nirvik/Documents                                              22.9245    841623e44c1812e73619eb4f9f4fa749\r\n/home/nirvik/Documents/gre_crap                                      0.001417  f26004098e7f86dc887dc0aa01ef135a"
+    ],
+    [
+      0.000006,
+      "\r\n/home/nirvik/Documents/azure                                         5.2e-05   d526b19e0268f752ceb56f79be509023\r\n/home/nirvik/Documents/overthewire                                   0.000791  fd54606c99dccf23bdb91b16b54cfba7\r\n/home/nirvik/Documents/FlightToMumbai.pdf                            0.093297  83824a957acbb118ef7ef7826335fe4f\r\n/home/nirvik/Documents/visa-sin.pdf                                  0.052417  d5cf23d03e28d53b996b7c8c3157c17e"
+    ],
+    [
+      0.000006,
+      "\r\n/home/nirvik/Documents/SQL.pdf                     "
+    ],
+    [
+      0.000017,
+      "                  0.484063  d72fdf8cf8dd42617d2d8926ddd8a61b\u001b[0m\r\n"
+    ],
+    [
+      0.020668,
+      "\u001b]0;nirvik@localhost:~/playground/scripts/HDDShare/iwant\u0007"
+    ],
+    [
+      0.000068,
+      "[nirvik@localhost iwant]$ "
+    ],
+    [
+      3.904504,
+      "c"
+    ],
+    [
+      0.120729,
+      "l"
+    ],
+    [
+      0.131878,
+      "e"
+    ],
+    [
+      0.062882,
+      "a"
+    ],
+    [
+      0.125702,
+      "r"
+    ],
+    [
+      1.039729,
+      "\r\n"
+    ],
+    [
+      0.000625,
+      "\u001b[3;J\u001b[H\u001b[2J"
+    ],
+    [
+      0.000171,
+      "\u001b]0;nirvik@localhost:~/playground/scripts/HDDShare/iwant\u0007[nirvik@localhost iwant]$ "
+    ],
+    [
+      0.665684,
+      "i"
+    ],
+    [
+      0.331354,
+      "w"
+    ],
+    [
+      0.057339,
+      "a"
+    ],
+    [
+      0.106390,
+      "n"
+    ],
+    [
+      0.096833,
+      "t"
+    ],
+    [
+      0.160211,
+      "o"
+    ],
+    [
+      0.062712,
+      " "
+    ],
+    [
+      0.316959,
+      "s"
+    ],
+    [
+      0.077399,
+      "e"
+    ],
+    [
+      0.096856,
+      "a"
+    ],
+    [
+      0.077163,
+      "r"
+    ],
+    [
+      0.175339,
+      "c"
+    ],
+    [
+      0.081965,
+      "h"
+    ],
+    [
+      0.133667,
+      " "
+    ],
+    [
+      0.240063,
+      "m"
+    ],
+    [
+      0.195452,
+      "u"
+    ],
+    [
+      0.164293,
+      "m"
+    ],
+    [
+      0.172675,
+      "b"
+    ],
+    [
+      0.108065,
+      "a"
+    ],
+    [
+      0.157699,
+      "i"
+    ],
+    [
+      0.519214,
+      "\r\n"
+    ],
+    [
+      0.304571,
+      "\u001b[94mFilename                                       Size  Checksum\r\n-----------------------------------------  --------  --------------------------------\r\n/home/nirvik/Documents/FlightToMumbai.pdf  0.093297  83824a957acbb118ef7ef7826335fe4f\u001b[0m"
+    ],
+    [
+      0.000005,
+      "\r\n"
+    ],
+    [
+      0.020331,
+      "\u001b]0;nirvik@localhost:~/playground/scripts/HDDShare/iwant\u0007"
+    ],
+    [
+      0.000048,
+      "[nirvik@localhost iwant]$ "
+    ],
+    [
+      0.948288,
+      "\r\n\u001b]0;nirvik@localhost:~/playground/scripts/HDDShare/iwant\u0007[nirvik@localhost iwant]$ "
+    ],
+    [
+      0.169350,
+      "\r\n\u001b]0;nirvik@localhost:~/playground/scripts/HDDShare/iwant\u0007[nirvik@localhost iwant]$ "
+    ],
+    [
+      0.173020,
+      "\r\n\u001b]0;nirvik@localhost:~/playground/scripts/HDDShare/iwant\u0007[nirvik@localhost iwant]$ "
+    ],
+    [
+      0.133700,
+      "\r\n\u001b]0;nirvik@localhost:~/playground/scripts/HDDShare/iwant\u0007[nirvik@localhost iwant]$ "
+    ],
+    [
+      0.757609,
+      "exit\r\n"
+    ]
+  ]
+}

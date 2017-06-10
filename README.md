@@ -105,7 +105,7 @@ iwanto change download path to /home/User/Downloads
 iwanto view config
 ```
 
-![alt Making changes to files in the shared folder](iwant/docs/fileChange.gif)
+![Alt text](iwant/docs/fileChange.gif?raw=true "Making changes to files in shared folder")
 
 ## How does it work ? 
 

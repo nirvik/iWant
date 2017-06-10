@@ -105,6 +105,8 @@ iwanto change download path to /home/User/Downloads
 iwanto view config
 ```
 
+![alt Making changes to files in the shared folder](iwant/docs/fileChange.gif)
+
 ## How does it work ? 
 
 As soon as the program starts, it spawns the __election daemon__, __folder monitoring daemon__ and __server daemon__. 

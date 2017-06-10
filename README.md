@@ -105,7 +105,7 @@ iwanto change download path to /home/User/Downloads
 iwanto view config
 ```
 
-![Alt Text](https://github.com/nirvik/iWant/raw/test/path/to/fileChange.gif)
+![alt text](https://github.com/nirvik/iWant/raw/test/docs/fileChange.gif "Logo Title Text 1")
 
 ## How does it work ? 
 

@@ -82,7 +82,7 @@ Example:
 iwanto download b8f67e90097c7501cc0a9f1bb59e6443
 ```
 ## Change shared folder  
-Changing shared folder, while the iwant service is still running
+Change shared folder anytime (Even when iwant service is running)  
 ```sh
 iwanto share <path>
 ```
@@ -91,7 +91,7 @@ Example:
 iwanto share /home/User/Movies/
 ```
 ## Change downloads folder  
-Change download folder anytime (Even when iwant service is running)  
+Change download folder anytime 
 ```sh
 iwanto change download path to <path>
 ```
@@ -100,7 +100,7 @@ Example:
 iwanto change download path to /home/User/Downloads
 ```
 
-## Display your Shared/Donwload folder  
+## View shared/donwload folder  
 ```sh
 iwanto view config
 ```

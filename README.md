@@ -61,6 +61,7 @@ In windows, admin access is required to run the server
 ```sh
 iwanto start
 ```
+![alt text](docs/starting.gif)
 
 ## Search files    
 Type the name of file ;)  (P.S No need of accurate names)
@@ -81,6 +82,7 @@ Example:
 ```sh
 iwanto download b8f67e90097c7501cc0a9f1bb59e6443
 ```
+![alt text](docs/downloading.gif)
 ## Change shared folder  
 Change shared folder anytime (Even when iwant service is running)  
 ```sh
@@ -90,6 +92,7 @@ Example:
 ```sh
 iwanto share /home/User/Movies/
 ```
+![alt text](docs/shareNewFolder.gif)
 ## Change downloads folder  
 Change download folder anytime 
 ```sh

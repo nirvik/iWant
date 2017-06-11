@@ -71,7 +71,7 @@ Example:
 ```sh
 iwanto search "slicon valey"
 ```
-
+![alt text](docs/searching.gif)
 ## Download files  
 To download the file , just enter the hash of the file you get after searching. 
 ```sh
@@ -104,8 +104,6 @@ iwanto change download path to /home/User/Downloads
 ```sh
 iwanto view config
 ```
-
-![alt text](https://github.com/nirvik/iWant/raw/test/docs/fileChange.gif "Logo Title Text 1")
 
 ## How does it work ? 
 

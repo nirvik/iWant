@@ -11,3 +11,4 @@ dist/
 problems.md
 *.swp
 gifs/
+docs/*.json

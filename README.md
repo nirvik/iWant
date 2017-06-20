@@ -11,16 +11,17 @@ A commandline tool for searching and downloading files in LAN network, without a
 * __Directory download__: Supports downloading directories   
 * __Resume download__:  Resume download from where you left off. 
 * __Consistent data__: Any changes made to files inside the shared folder will be instantly reflected in the network 
-* __Cross Platform__: Works in Linux/Windows/Mac 
+* __Cross Platform__: Works in Linux/Windows/Mac. More testing needs to be done in Mac 
 
 ## Why I built this ? 
 
-* I have always wished to type the name of the file I wanted in my terminal and download it if people around me had it. ( No leaving the terminal ) 
+* I like the idea of typing some filename in the terminal and download it if people around me have it.
 * No third party registration. 
 * No crazy configuration. 
 * Wanted it to be cross platform. 
 * Zero downtime. 
-* Just terminal, nothing else. 
+* No browser.. just terminal
+* For fun ¯\_(ツ)_/¯
 
 ## Installation 
 ```sh
@@ -52,9 +53,10 @@ Options:
 
 ```
 
+Note: Shared and Download folder cannot be the same 
+
 ## How to run 
 Run `iwanto start` (this runs the iwant service).   
-
 
 ## Running server   
 In windows, admin access is required to run the server
@@ -62,6 +64,9 @@ In windows, admin access is required to run the server
 iwanto start
 ```
 ![alt text](docs/starting.gif)
+
+## Running client
+To run services like, search, download, view config and change config, open up another terminal and make sure that iwant server is running.
 
 ## Search files    
 Type the name of file ;)  (P.S No need of accurate names)
@@ -73,16 +78,18 @@ Example:
 iwanto search "slicon valey"
 ```
 ![alt text](docs/searching.gif)
+
 ## Download files  
 To download the file , just enter the hash of the file you get after searching. 
 ```sh
-iwanto download <hash_of_the_file>
+iwanto download <hash of the file>
 ```
 Example: 
 ```sh
 iwanto download b8f67e90097c7501cc0a9f1bb59e6443
 ```
 ![alt text](docs/downloading.gif)
+
 ## Change shared folder  
 Change shared folder anytime (Even when iwant service is running)  
 ```sh
@@ -93,6 +100,7 @@ Example:
 iwanto share /home/User/Movies/
 ```
 ![alt text](docs/shareNewFolder.gif)
+
 ## Change downloads folder  
 Change download folder anytime 
 ```sh
@@ -111,7 +119,7 @@ iwanto view config
 ## How does it work ? 
 
 As soon as the program starts, it spawns the __election daemon__, __folder monitoring daemon__ and __server daemon__. 
-1. The __election daemon__ manages the entire consensus. It updates the __server daemon__ as soon as there is a leader change. It coordinates with other peers in the network regarding contesting elections, leader unavailability, network failure, split brain situation etc. The consensus description is mention [here](iwant/core/engine/consensus/README.md)
+1. The __election daemon__ manages the entire consensus. It updates the __server daemon__ as soon as there is a leader change. It coordinates with other peers in the network regarding contesting elections, leader unavailability, network failure, split brain situation etc. It uses __multicast__ for peer discovery. The consensus description is mention [here](iwant/core/engine/consensus/README.md)
 2. When the __folder monitoring daemon__ starts, it indexes all the files in the shared folder, updates the entries in the database and informs the server about the metainformation of the files/folders indexed.
     - Any changes made in the shared folder will trigger the __folder monitoring daemon__ to index the modified files and inform the server.
     - It also makes the necessary changes to the database
@@ -126,7 +134,7 @@ As soon as the program starts, it spawns the __election daemon__, __folder monit
 ## Todo
 * Create test modules
 * Make download faster
-* Incorporate tight security mechanism
+* Incorporate tight security mechanisms
 * Improve UI for file/folder download progress bar
 * Add streaming functionality
 

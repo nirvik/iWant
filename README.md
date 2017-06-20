@@ -21,7 +21,7 @@ A commandline tool for searching and downloading files in LAN network, without a
 * Wanted it to be cross platform. 
 * Zero downtime. 
 * No browser.. just terminal
-* For fun ¯\_(ツ)_/¯
+* For fun ¯\\_(ツ)_/¯
 
 ## Installation 
 ```sh
@@ -99,6 +99,10 @@ Example:
 ```sh
 iwanto share /home/User/Movies/
 ```
+In windows, give quotes:
+```sh
+iwanto share "C:\Users\xyz\books\"
+```
 ![alt text](docs/shareNewFolder.gif)
 
 ## Change downloads folder  
@@ -109,6 +113,10 @@ iwanto change download path to <path>
 Example: 
 ```sh
 iwanto change download path to /home/User/Downloads
+```
+In windows, give quotes:
+```sh
+iwanto change download path to "C:\User\Downloads"
 ```
 
 ## View shared/donwload folder  

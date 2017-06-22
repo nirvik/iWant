@@ -19,6 +19,7 @@ from iwant.core.protocols import BaseProtocol
 from iwant.core.config import SERVER_DAEMON_PORT
 from iwant.core.engine.monitor.watching import ScanFolder
 from iwant.core.engine.monitor.callbacks import filechangeCB
+from iwant.core.config import CLIENT_DAEMON_HOST
 
 
 class ServerException(Exception):
@@ -117,15 +118,15 @@ class backend(BaseProtocol):
             PEER_DEAD: self._remove_dead_entry,
             FILE_SYS_EVENT: self._filesystem_modified,
             HASH_DUMP: self._dump_data_from_peers,
-            SEARCH_REQ: self._leader_send_list,
+            SEARCH_REQ: self._leader_send_list,  # comes only from your local iwant client
             LOOKUP: self._leader_lookup,
-            IWANT_PEER_FILE: self._ask_leader_for_peers,
+            IWANT_PEER_FILE: self._ask_leader_for_peers,  # comes only from your local iwant client
             SEND_PEER_DETAILS: self._leader_looksup_peer,
             INDEXED: self.fileindexing_complete,
             REQ_CHUNK: self._send_chunk_response,
             END_GAME: self._end_game,
-            CHANGE: self._change_download_folder,
-            SHARE: self._share_new_folder,
+            CHANGE: self._change_download_folder,  # comes only from your local iwant client
+            SHARE: self._share_new_folder,  # comes only from your local iwant client
             GET_HASH_IDENTITY: self._send_folder_structure
         }
         self.buff = ''
@@ -138,7 +139,15 @@ class backend(BaseProtocol):
             the appropriate functions
         '''
         key, value = unbake(message=data)
-        self.message_codes[key](value)
+        if key in [SEARCH_REQ, IWANT_PEER_FILE, CHANGE, SHARE]:
+            client_host = self.transport.getHost().host
+            # these requests can only from the local iwant client.
+            if client_host == CLIENT_DAEMON_HOST:
+                self.message_codes[key](value)
+            else:
+               self.transport.loseConnection()
+        else:
+            self.message_codes[key](value)
 
     def leaderThere(self):
         '''

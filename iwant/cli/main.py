@@ -114,7 +114,7 @@ def main():
 
     elif arguments['share'] and arguments['<path>']:
         check_config_status()
-        path = arguments['<path>']
+        path = os.path.realpath(arguments['<path>'])
         _, DOWNLOAD_FOLDER, _ = get_paths()
         if DOWNLOAD_FOLDER == path :
             raise MainException(4)
@@ -148,7 +148,7 @@ def main():
         reactor.run()
     elif arguments['change'] and arguments['download'] and arguments['path'] and arguments['to']:
         check_config_status()
-        download_folder = arguments['<destination>']
+        download_folder = os.path.realpath(arguments['<destination>'])
         SHARING_FOLDER, _, _ = get_paths()
         if SHARING_FOLDER == download_folder:
             raise MainException(4)
@@ -162,6 +162,7 @@ def main():
                 download_folder))
         reactor.run()
     elif arguments['view'] and arguments['config']:
+        check_config_status()
         SHARING_FOLDER, DOWNLOAD_FOLDER, _ = get_paths()
         print 'Shared folder:{0}\nDownload folder:{1}'.format(SHARING_FOLDER, DOWNLOAD_FOLDER)
 

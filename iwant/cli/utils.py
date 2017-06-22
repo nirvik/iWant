@@ -60,11 +60,21 @@ def update_config(shared_folder=None, download_folder=None):
     try:
         config.read(os.path.join(conf_path, '.iwant.conf'))
         if shared_folder is not None:
+            shared_folder = os.path.realpath(shared_folder)
             # print 'setting shared folder'
-            config.set('Paths', 'share', shared_folder)
+            _, DOWNLOAD_FOLDER, _ = get_paths()
+            if shared_folder != DOWNLOAD_FOLDER:
+                config.set('Paths', 'share', shared_folder)
+            else:
+                print 'Shared and Download folder cannot be the same'
         if download_folder is not None:
             # print 'setting download folder'
-            config.set('Paths', 'download', download_folder)
+            download_folder = os.path.realpath(download_folder)
+            SHARING_FOLDER, _, _ = get_paths()
+            if SHARING_FOLDER != download_folder:
+                config.set('Paths', 'download', download_folder)
+            else:
+                print 'Shared and Download folder cannot be the same'
         # print os.path.join(conf_path, '.iwant.conf')
         with open(os.path.join(conf_path, '.iwant.conf'), 'w') as configfile:
             config.write(configfile)
@@ -79,12 +89,13 @@ def check_config_status():
     if not os.path.exists(conf_path):
         os.mkdir(conf_path)
         create_config(conf_path)
+        return False
     else:
         try:
             # if the config folder is present, but the config file is not
             # present
             SHARING_FOLDER, DOWNLOAD_FOLDER, _ = get_paths()
-            if SHARING_FOLDER != '' and DOWNLOAD_FOLDER != '':
+            if SHARING_FOLDER != '' and DOWNLOAD_FOLDER != '' and SHARING_FOLDER != DOWNLOAD_FOLDER and os.path.exists(SHARING_FOLDER) and os.path.exists(DOWNLOAD_FOLDER):
                 return True
             return False
         except MainException:
@@ -93,14 +104,15 @@ def check_config_status():
 
 
 def show_config_options():
-    print 'Shared/Download folder details looks empty'
+    print 'Shared/Download folder details looks empty..'
+    print 'Note: Shared and Download folder cannot be the same'
     SHARING_FOLDER, DOWNLOAD_FOLDER, _ = get_paths()
-    if not os.path.exists(SHARING_FOLDER):
-        new_shared_folder = raw_input('Enter absolute shared folder path:')
-        update_config(shared_folder=new_shared_folder)
-    if not os.path.exists(DOWNLOAD_FOLDER):
-        new_donwload_folder = raw_input('Enter absolute download folder path:')
-        update_config(download_folder=new_donwload_folder)
+    # if not os.path.exists(SHARING_FOLDER):
+    new_shared_folder = raw_input('SHARED FOLDER(absolute path):')
+    update_config(shared_folder=new_shared_folder)
+    # if not os.path.exists(DOWNLOAD_FOLDER):
+    new_donwload_folder = raw_input('DOWNLOAD FOLDER(absolute path):')
+    update_config(download_folder=new_donwload_folder)
 
 
 def create_config(conf_path):

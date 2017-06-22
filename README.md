@@ -160,7 +160,7 @@ As soon as the program starts, it spawns the __election daemon__, __folder monit
 All logs are present in `~/.iwant/.iwant.log` or `AppData\Roaming\.iwant\.iwant.log`
 
 ## Liked the project ? 
-[![Say Thanks!](https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg)](https://saythanks.io/to/nirvik)
+[![Say Thanks!](https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg)](https://saythanks.io/to/nirvik)  
 Any ideas, bugs or modifications required, feel free to me send me a PR :) 
 
 

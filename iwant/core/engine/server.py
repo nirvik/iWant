@@ -118,15 +118,19 @@ class backend(BaseProtocol):
             PEER_DEAD: self._remove_dead_entry,
             FILE_SYS_EVENT: self._filesystem_modified,
             HASH_DUMP: self._dump_data_from_peers,
-            SEARCH_REQ: self._leader_send_list,  # comes only from your local iwant client
+            # comes only from your local iwant client
+            SEARCH_REQ: self._leader_send_list,
             LOOKUP: self._leader_lookup,
-            IWANT_PEER_FILE: self._ask_leader_for_peers,  # comes only from your local iwant client
+            # comes only from your local iwant client
+            IWANT_PEER_FILE: self._ask_leader_for_peers,
             SEND_PEER_DETAILS: self._leader_looksup_peer,
             INDEXED: self.fileindexing_complete,
             REQ_CHUNK: self._send_chunk_response,
             END_GAME: self._end_game,
-            CHANGE: self._change_download_folder,  # comes only from your local iwant client
-            SHARE: self._share_new_folder,  # comes only from your local iwant client
+            # comes only from your local iwant client
+            CHANGE: self._change_download_folder,
+            # comes only from your local iwant client
+            SHARE: self._share_new_folder,
             GET_HASH_IDENTITY: self._send_folder_structure
         }
         self.buff = ''
@@ -145,7 +149,7 @@ class backend(BaseProtocol):
             if client_host == CLIENT_DAEMON_HOST:
                 self.message_codes[key](value)
             else:
-               self.transport.loseConnection()
+                self.transport.loseConnection()
         else:
             self.message_codes[key](value)
 

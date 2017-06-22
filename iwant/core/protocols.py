@@ -158,6 +158,7 @@ class ServerElectionFactory(ClientFactory):
 
 
 class FileDownloadProtocol(BaseProtocol):
+
     """
         This handles the entire file downloading.
         It initiates a file transfer request by connecting to the seeder along with the file hash.
@@ -524,7 +525,8 @@ class DownloadManagerProtocol(BaseProtocol):
                 file_handler = open(filepath, 'r+b')
             else:
                 # remove the entry from db and create a fresh new file
-                # print 'this file was present in resume table but actually deleted from the disk'
+                # print 'this file was present in resume table but actually
+                # deleted from the disk'
                 yield fileHashUtils.remove_resume_entry(filepath, self.factory.dbpool)
                 file_handler = self._create_new_file(filepath, filesize)
                 complete_file_present = False

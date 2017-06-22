@@ -116,7 +116,7 @@ def main():
         check_config_status()
         path = os.path.realpath(arguments['<path>'])
         _, DOWNLOAD_FOLDER, _ = get_paths()
-        if DOWNLOAD_FOLDER == path :
+        if DOWNLOAD_FOLDER == path:
             raise MainException(4)
         elif path == '':
             raise MainException(1)

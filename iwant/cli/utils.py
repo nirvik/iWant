@@ -95,7 +95,8 @@ def check_config_status():
             # if the config folder is present, but the config file is not
             # present
             SHARING_FOLDER, DOWNLOAD_FOLDER, _ = get_paths()
-            if SHARING_FOLDER != '' and DOWNLOAD_FOLDER != '' and SHARING_FOLDER != DOWNLOAD_FOLDER and os.path.exists(SHARING_FOLDER) and os.path.exists(DOWNLOAD_FOLDER):
+            if SHARING_FOLDER != '' and DOWNLOAD_FOLDER != '' and SHARING_FOLDER != DOWNLOAD_FOLDER and os.path.exists(
+                    SHARING_FOLDER) and os.path.exists(DOWNLOAD_FOLDER):
                 return True
             return False
         except MainException:

@@ -158,6 +158,16 @@ class ServerElectionFactory(ClientFactory):
 
 
 class FileDownloadProtocol(BaseProtocol):
+    """
+        This handles the entire file downloading.
+        It initiates a file transfer request by connecting to the seeder along with the file hash.
+        It then receives a piece_hash as a response, to which we hash it and compare it to the file root hash we received from the leader. (file root hash is the hash of concatenated hashes of pieces)
+        If that succeeds, it tells the seeder to start sending the file.
+        The seeder sends an `unchoke` message, and then we start accepting the chunks
+
+        Each time we receive a piece, we hash it and compare it with the piece_hash chunk we received earlier. If that matches, we can safely write to the file.
+        Also, if the file already exists in our download folder, we request the seeder to send us the rest of the file by providing remaining piece ranges as parameter.
+    """
 
     def __init__(self, factory):
         self.factory = factory
@@ -262,7 +272,7 @@ class FileDownloadProtocol(BaseProtocol):
             self.factory.file_handler.close()
             self.transport.loseConnection()
             yield fileHashUtils.remove_resume_entry(self.factory.file_handler.name, self.factory.dbpool)
-            print 'file download finished'
+            print '[DOWNLOAD FINISHED]: {0}'.format(self.factory.file_handler.name)
 
     # def write_to_file(self, file_data, piece_num, block_num):
     #     self.factory.download_status += len(file_data)
@@ -338,7 +348,7 @@ class FileDownloadFactory(ClientFactory):
             # recompute the starting piece and start download from there
             self.start_piece = int(math.floor(
                 (self.download_status / (self.file_size * 1000.0 * 1000.0)) * self.total_pieces))
-            print 'now the starting piece is {0}'.format(self.start_piece)
+            # print 'now the starting piece is {0}'.format(self.start_piece)
             connector.host = self.peers_list[0]
             connector.connect()
         else:
@@ -514,7 +524,7 @@ class DownloadManagerProtocol(BaseProtocol):
                 file_handler = open(filepath, 'r+b')
             else:
                 # remove the entry from db and create a fresh new file
-                print 'this file was present in resume table but actually deleted from the disk'
+                # print 'this file was present in resume table but actually deleted from the disk'
                 yield fileHashUtils.remove_resume_entry(filepath, self.factory.dbpool)
                 file_handler = self._create_new_file(filepath, filesize)
                 complete_file_present = False
@@ -575,7 +585,8 @@ class DownloadManagerFactory(ClientFactory):
             print 'Failed completely and reason: {0}'.format(reason)
 
     def clientConnectionLost(self, connector, reason):
-        print DownloadManagerFactory.__name__ + ': closing connections'
+        # print DownloadManagerFactory.__name__ + ': closing connections'
+        pass
 
     def buildProtocol(self, addr):
         return DownloadManagerProtocol(self)

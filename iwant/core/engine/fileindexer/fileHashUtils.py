@@ -438,7 +438,7 @@ def add_new_file_entry_resume(file_entry, dbpool):
     :param filename: absolute filepath
     :param dbpool: twisted.enterprise.adbapi.ConnectionPool object
     """
-    print 'new entry added to resume table'
+    # print 'new entry added to resume table'
     # filename, checksum = file_entry[0], file_entry[3]
     # checksum = file_entry[3]
     filename = file_entry[0]

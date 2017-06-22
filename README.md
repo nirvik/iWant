@@ -28,6 +28,11 @@ A commandline tool for searching and downloading files in LAN network, without a
 python setup.py install --user
 ```
 
+## System Dependencies 
+Make sure, you have the following system dependencies installed:
+* libffi-dev 
+* libssl-dev 
+
 ## Usage
 ```
 iWant.
@@ -53,10 +58,13 @@ Options:
 
 ```
 
-Note: Shared and Download folder cannot be the same 
+__Note: Shared and Download folder cannot be the same__
 
 ## How to run 
 Run `iwanto start` (this runs the iwant service).   
+
+## Running client
+To run services like, search, download, view config and change config, open up another terminal and make sure that iwant server is running.
 
 ## Running server   
 In windows, admin access is required to run the server
@@ -64,9 +72,6 @@ In windows, admin access is required to run the server
 iwanto start
 ```
 ![alt text](docs/starting.gif)
-
-## Running client
-To run services like, search, download, view config and change config, open up another terminal and make sure that iwant server is running.
 
 ## Search files    
 Type the name of file ;)  (P.S No need of accurate names)
@@ -146,9 +151,16 @@ As soon as the program starts, it spawns the __election daemon__, __folder monit
 * Improve UI for file/folder download progress bar
 * Add streaming functionality
 
-## Errors
+## Why it may not work? 
+* Firewall 
+* Multicast not supported in your router.
 
+
+## Errors
 All logs are present in `~/.iwant/.iwant.log` or `AppData\Roaming\.iwant\.iwant.log`
 
 ## Liked the project ? 
 [![Say Thanks!](https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg)](https://saythanks.io/to/nirvik)
+Any ideas, bugs or modifications required, feel free to me send me a PR :) 
+
+

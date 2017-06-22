@@ -38,7 +38,7 @@ class FilePumper(object):
     FILE_SEND_FMT = FILE_RESP_FMT
 
     def beginFileTransfer(self, file, consumer, piece_range):
-        print 'this is the piece range {0}'.format(piece_range)
+        # print 'this is the piece range {0}'.format(piece_range)
         self.file = file
         self.consumer = consumer
         # (0,16,1780,16)

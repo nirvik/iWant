@@ -132,15 +132,18 @@ iwanto view config
 ## How does it work ? 
 
 As soon as the program starts, it spawns the __election daemon__, __folder monitoring daemon__ and __server daemon__. 
-1. The __election daemon__ manages the entire consensus. It updates the __server daemon__ as soon as there is a leader change. It coordinates with other peers in the network regarding contesting elections, leader unavailability, network failure, split brain situation etc. It uses __multicast__ for peer discovery. The consensus description is mention [here](iwant/core/engine/consensus/README.md)
-2. When the __folder monitoring daemon__ starts, it indexes all the files in the shared folder, updates the entries in the database and informs the server about the metainformation of the files/folders indexed.
-    - Any changes made in the shared folder will trigger the __folder monitoring daemon__ to index the modified files and inform the server.
-    - It also makes the necessary changes to the database
+1. The __election daemon__ manages the entire consensus. It updates the __server daemon__ as soon as there is a leader change. It coordinates with other peers in the network regarding contesting elections, leader unavailability, network failure, split brain situation etc. It uses __multicast__ for peer discovery. The consensus description is mentioned [here](iwant/core/engine/consensus/README.md) 
+
+2. When the __folder monitoring daemon__ starts, it performs the following steps 
+    * Indexes all the files in the shared folder 
+    * Updates the entries in the database 
+    * Informs the server about the indexed files and folders.
+    * Any changes made in the shared folder will trigger the __folder monitoring daemon__ to index the modified files, inform the server and update the database
 3. The __server daemon__ receives updates from the file monitoring and election daemon. 
-    - Any update received from __folder monitoring daemon__ is fowarded to the leader. 
-    - Any update received from the __election daemon__ like `leader change` event, the server forwards the meta information to the leader
-    - Any queries received from the __iwant client__ like `file search` is forwarded to the leader, who then performs fuzzy search on the metadata it received from other peers and returns a list containing (filename, size, checksum)
-    - Any queries received from the __iwant client__ like `file download` is forwarded to the leader, who forwards the roothash of the file/folder along with the list of peers who have the file. The __server daemon__ then intiates download process with peers mentioned in the peers list.
+    - Updates received from __folder monitoring daemon__ is fowarded to the leader. For example: indexed files/folders information. 
+    - Updates received from the __election daemon__ like `leader change` event, the server forwards the meta information to the new leader
+    - Queries received from the __iwant client__ like `file search` is forwarded to the leader, who then performs fuzzy search on the metadata it received from other peers and returns a list containing (filename, size, checksum)
+    - Queries received from the __iwant client__ like `file download` is forwarded to the leader, who forwards the roothash of the file/folder along with the list of peers who have the file. The __server daemon__ then intiates download process with peers mentioned in the peers list.
     - Updates received from the __iwant client__ like `changing shared folder`, the __server daemon__ makes sure that the __folder monitoring daemon__ indexes the new folder and after indexing is complete, the __server daemon__ updates the leader with the new metainformation.
 4. The __iwant client__ talks to the __server daemon__ when the user wishes to `search`, `download`, `change shared folder` and `change download folder`
 

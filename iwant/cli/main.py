@@ -5,7 +5,7 @@ Usage:
     iwanto search <name>
     iwanto download <hash>
     iwanto share <path>
-    iwanto change download path to <destination>
+    iwanto download to <destination>
     iwanto view config
     iwanto --version
 
@@ -17,7 +17,7 @@ Options:
     download <hash>                             Downloads the file from the network
     share <path>                                Change your shared folder
     view config                                 View shared and download folder
-    change download path to <destination>       Change download folder
+    download to <destination>                   Change download folder
 
 
 """
@@ -146,7 +146,7 @@ def main():
                 IWANT_PEER_FILE,
                 hash_string))
         reactor.run()
-    elif arguments['change'] and arguments['download'] and arguments['path'] and arguments['to']:
+    elif arguments['download'] and arguments['to'] and arguments['<destination>']:
         check_config_status()
         download_folder = os.path.realpath(arguments['<destination>'])
         SHARING_FOLDER, _, _ = get_paths()

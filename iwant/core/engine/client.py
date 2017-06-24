@@ -1,7 +1,7 @@
 from twisted.internet import reactor
 from twisted.internet.protocol import ClientFactory
 from iwant.core.messagebaker import bake, unbake
-from iwant.cli.utils import update_config, print_log, CLIENT_LOG_INFO, WARNING_LOG
+from iwant.cli.utils import update_config, print_log, CLIENT_LOG_INFO, WARNING_LOG, ERROR_LOG
 from iwant.core.constants import SEARCH_REQ, SEARCH_RES, \
     LEADER_NOT_READY, IWANT_PEER_FILE,\
     FILE_TO_BE_DOWNLOADED, CHANGE, SHARE,\
@@ -147,6 +147,8 @@ class FrontendFactory(ClientFactory):
                 update_config(shared_folder=self.arguments)
             elif self.query == CHANGE:
                 update_config(download_folder=self.arguments)
+            else:
+                print_log('iwant server is not running', ERROR_LOG)
         finally:
             reactor.stop()
 

@@ -9,7 +9,6 @@ requirement_list = [r.strip() for r in open('requirements.txt', 'r').readlines()
 def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
 
-print read('README.md')
 setup(
     name='iwant',
     version=iwant.__version__,
@@ -31,6 +30,6 @@ setup(
         'Topic :: System :: Networking',
         'Topic :: System :: Operating System'
     ],
-    long_description=read('README')
+    long_description=read('README.rst')
 )
 

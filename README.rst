@@ -101,11 +101,6 @@ In windows, admin access is required to run the server
 
     iwanto start
 
-.. figure:: docs/starting.gif
-   :alt: alt text
-
-   alt text
-
 Search files
 ------------
 
@@ -120,11 +115,6 @@ Example:
 .. code:: sh
 
     iwanto search "slicon valey"
-
-.. figure:: docs/searching.gif
-   :alt: alt text
-
-   alt text
 
 Download files
 --------------
@@ -142,10 +132,6 @@ Example:
 
     iwanto download b8f67e90097c7501cc0a9f1bb59e6443
 
-.. figure:: docs/downloading.gif
-   :alt: alt text
-
-   alt text
 
 Change shared folder
 --------------------
@@ -168,10 +154,6 @@ In windows, give quotes:
 
     iwanto share "C:\Users\xyz\books\"
 
-.. figure:: docs/shareNewFolder.gif
-   :alt: alt text
-
-   alt text
 
 Change downloads folder
 -----------------------

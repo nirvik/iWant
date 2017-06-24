@@ -148,7 +148,7 @@ As soon as the program starts, it spawns the __election daemon__, __folder monit
     * download files  
     * change shared folder  
     * change download folder  
-4. The __server daemon__ receives updates from the file monitoring and election daemon. 
+4. The __server daemon__ receives commands from __iwant client__ and updates from __file monitoring and election daemon__. 
     * Updates received from __folder monitoring daemon__ is fowarded to the leader. For example: indexed files/folders information. 
     * Updates received from the __election daemon__ like `leader change` event, triggers the server to forward the indexed files/folders information to the new leader
     * Queries received from the __iwant client__ like `file search` is forwarded to the leader, who then performs fuzzy search on the metadata it received from other peers and returns a list containing (filename, size, checksum)

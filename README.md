@@ -10,7 +10,7 @@ A commandline tool for searching and downloading files in LAN network, without a
 * __File download from multiple peers__: If the seeder fails/leaves the group, leecher will continue to download from another seeder in the network 
 * __Directory download__: Supports downloading directories   
 * __Resume download__:  Resume download from where you left off. 
-* __Consistent data__: Any changes made to files inside the shared folder will be instantly reflected in the network 
+* __Consistent data__: Any changes(modification, deletion, addition) made to files inside the shared folder will be instantly reflected in the network 
 * __Cross Platform__: Works in Linux/Windows/Mac. More testing needs to be done in Mac 
 
 ## Why I built this ? 

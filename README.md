@@ -23,7 +23,12 @@ A commandline tool for searching and downloading files in LAN network, without a
 * No browser.. just terminal
 * For fun ¯\\_(ツ)_/¯
 
-## Installation 
+## Installation  
+```sh
+pip install iwant
+```
+
+Or, if you download from source
 ```sh
 python setup.py install --user
 ```

@@ -30,9 +30,7 @@ setup(
         'Topic :: System :: Networking',
         'Topic :: System :: Operating System',
         'Intended Audience :: Developers',
-        'Intended Audience :: End Users/Desktop',
-        'License :: OSI Approved :: MIT License',
-        'Programming Language :: Python :: 2.7'
+        'License :: OSI Approved :: MIT License'
     ],
     long_description=read('README.rst')
 )

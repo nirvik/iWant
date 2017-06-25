@@ -131,7 +131,9 @@ iwanto view config
 
 ## How does it work ? 
 
-As soon as the program starts, it spawns the __election daemon__, __folder monitoring daemon__ and __server daemon__. 
+As soon as the program starts, it spawns the __election daemon__, __folder monitoring daemon__ and __server daemon__.  
+
+
 1. The __election daemon__ takes care of the following activities  
     * Manages the consensus. 
     * Notifies the __server daemon__ as soon as there is a leader change. 

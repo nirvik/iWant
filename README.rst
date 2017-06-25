@@ -101,6 +101,11 @@ In windows, admin access is required to run the server
 
     iwanto start
 
+
+
+
+
+
 Search files
 ------------
 
@@ -115,6 +120,11 @@ Example:
 .. code:: sh
 
     iwanto search "slicon valey"
+
+
+
+
+
 
 Download files
 --------------
@@ -131,6 +141,10 @@ Example:
 .. code:: sh
 
     iwanto download b8f67e90097c7501cc0a9f1bb59e6443
+
+
+
+
 
 
 Change shared folder
@@ -153,6 +167,10 @@ In windows, give quotes:
 .. code:: sh
 
     iwanto share "C:\Users\xyz\books\"
+
+
+
+
 
 
 Change downloads folder
@@ -186,15 +204,20 @@ View shared/donwload folder
 How does it work ?
 ------------------
 
-| As soon as the program starts, it spawns the **election daemon**,
-  **folder monitoring daemon** and **server daemon**. 1. The **election
-  daemon** takes care of the following activities
-|  \* Manages the consensus. \* Notifies the **server daemon** as soon
-  as there is a leader change. \* It coordinates with other peers in the
-  network regarding contesting elections, leader unavailability, network
-  failure, split brain situation etc. \* It uses **multicast** for peer
-  discovery. The consensus description is mentioned
-  `here <iwant/core/engine/consensus/README.md>`__
+As soon as the program starts, it spawns the **election daemon**,
+**folder monitoring daemon** and **server daemon**.
+
+1. The **election daemon** takes care of the following activities
+
+   -  Manages the consensus.
+   -  Notifies the **server daemon** as soon as there is a leader
+      change.
+   -  It coordinates with other peers in the network regarding
+      contesting elections, leader unavailability, network failure,
+      split brain situation etc.
+   -  It uses **multicast** for peer discovery. 
+      
+      
 
 2. When the **folder monitoring daemon** starts, it performs the
    following steps

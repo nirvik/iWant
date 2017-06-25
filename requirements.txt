@@ -1,15 +1,13 @@
-twisted
-netifaces
-watchdog
-time_uuid
-fuzzywuzzy
-tabulate
-service_identity
-cryptography
-python-Levenshtein
-progressbar
+twisted>=17.5.0
+netifaces>=0.10.6
+watchdog>=0.8.3
+time_uuid>=0.2.0
+fuzzywuzzy>=0.15.0
+tabulate>=0.7.7
+service_identity>=17.0.0
+cryptography>=1.9
+python-Levenshtein>=0.12.0
+progressbar>=2.3
 pypiwin32 ; sys_platform == 'win32'
-pyasn1
-service_identity
-docopt
-setuptools
+pyasn1>=0.2.3
+docopt>=0.6.2

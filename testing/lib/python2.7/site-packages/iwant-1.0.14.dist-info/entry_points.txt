@@ -1,0 +1,3 @@
+[console_scripts]
+iwanto = iwant.cli.main:main
+

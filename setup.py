@@ -8,11 +8,11 @@ except ImportError:
 requirement_list = [r.strip() for r in open('requirements.txt', 'r').readlines() if r]
 def read(fname):
     return open(os.path.join(os.path.dirname(__file__), fname)).read()
-
 setup(
     name='iwant',
     version=iwant.__version__,
     install_requires= requirement_list,
+    extras_require={':sys_platform == "win32"': ['pypiwin32']},
     author='Nirvik Ghosh',
     author_email='nirvik1993@gmail.com',
     packages = find_packages(),

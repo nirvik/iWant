@@ -1,4 +1,8 @@
-"""iWant.
+"""
+iWant.
+
+    A commandline tool for searching and downloading files in LAN network, without any central server.
+
 
 Usage:
     iwanto start
@@ -10,14 +14,14 @@ Usage:
     iwanto --version
 
 Options:
-    -h --help                                   Show this screen.
-    --version                                   Show version.
-    start                                       This starts the iwant server in your system
-    search <name>                               Discovering files in the network. Example: iwanto search batman
-    download <hash>                             Downloads the file from the network
-    share <path>                                Change your shared folder
-    view config                                 View shared and download folder
-    download to <destination>                   Change download folder
+    -h --help                           Show this screen.
+    --version                           Show version.
+    start                               This starts the iwant server in your system
+    search <name>                       Discovering files in the network. Example: iwanto search batman
+    download <hash>                     Downloads the file from the network
+    share <path>                        Change your shared folder
+    view config                         View shared and download folder
+    download to <destination>           Change download folder
 
 
 """

@@ -1,6 +1,9 @@
 # iWant
 ### CLI based decentralized peer to peer file sharing
 
+### Build Status
+[![Build Status](https://travis-ci.org/nirvik/iWant.svg?branch=master)](https://travis-ci.org/nirvik/iWant)
+
 ## What is it?  
 A commandline tool for searching and downloading files in LAN network, without any central server. 
 
@@ -176,6 +179,7 @@ As soon as the program starts, it spawns the __election daemon__, __folder monit
 
 ## Errors
 All logs are present in `~/.iwant/.iwant.log` or `AppData\Roaming\.iwant\.iwant.log`
+
 
 ## Liked the project ? 
 [![Say Thanks!](https://img.shields.io/badge/Say%20Thanks-!-1EAEDB.svg)](https://saythanks.io/to/nirvik)  

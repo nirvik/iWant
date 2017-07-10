@@ -177,6 +177,7 @@ As soon as the program starts, it spawns the __election daemon__, __folder monit
 * Incorporate tight security mechanisms
 * Improve UI for file/folder download progress bar
 * Add streaming functionality
+* Add Python3 support 
 
 ## Why it may not work? 
 * Firewall 

@@ -172,12 +172,13 @@ As soon as the program starts, it spawns the __election daemon__, __folder monit
     * Updates received from the __iwant client__ like `changing shared folder`, triggers the __server daemon__ to make sure that the __folder monitoring daemon__ indexes the new folder and after indexing is complete, the __server daemon__ updates the leader with the new indexed files/folders meta information.
 
 ## Todo
-* Create test modules
-* Make download faster
-* Incorporate tight security mechanisms
-* Improve UI for file/folder download progress bar
-* Add streaming functionality
-* Add Python3 support 
+* Incorporate tight security mechanisms  
+* Add Python3 support  
+* Add video preview  
+* Add streaming functionality  
+* Add basic NAT traversal  
+* Create test modules  
+* Improve UI for file/folder download progress bar  
 
 ## Why it may not work? 
 * Firewall 

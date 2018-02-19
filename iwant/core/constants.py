@@ -1,3 +1,4 @@
+# List of constants
 # Events
 
 # Election Daemon

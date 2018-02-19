@@ -36,8 +36,6 @@ Or, if you download from source
 python setup.py install --user
 ```
 
-__Works on Python2 only__
-
 
 ## System Dependencies 
 Make sure, you have the following system dependencies installed:
